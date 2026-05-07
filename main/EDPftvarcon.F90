@@ -60,8 +60,10 @@ module EDPftvarcon
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
-                                                     ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] 
+     real(r8), allocatable :: initdbh(:)             ! initial seedling dbh [cm]
+                                                     ! alternative to initd for nocomp
+                                                     ! used only when use_dbh_init and use_nocomp are both true
      real(r8), allocatable :: init_seed(:)           ! Initial seed bank [kg/m2]
                                                      ! For SP: this is unused
                                                      ! For Nocomp: This only applies the seed from the
@@ -348,6 +350,10 @@ contains
     param_p => pstruct%GetParamFromName('fates_recruit_init_density')
     allocate(EDPftvarcon_inst%initd(numpft))
     EDPftvarcon_inst%initd(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_recruit_init_dbh')
+    allocate(EDPftvarcon_inst%initdbh(numpft))
+    EDPftvarcon_inst%initdbh(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_recruit_init_seed')
     allocate(EDPftvarcon_inst%init_seed(numpft))
@@ -851,6 +857,7 @@ contains
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
+        write(fates_log(),fmt0) 'initdbh = ',EDPftvarcon_inst%initdbh
         write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
@@ -957,6 +964,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
     use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use FatesInterfaceTypesMod, only : hlm_use_dbh_init
     use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
     use FatesConstantsMod  , only : n_landuse_cats
 
@@ -1259,30 +1267,46 @@ contains
         ! Check that in initial density is not equal to zero in a cold-start run
         !-----------------------------------------------------------------------------------
         
+        if ( EDPftvarcon_inst%initd(ipft) < -nearzero ) then
+           write(fates_log(),*) ' Option to use negative values for initial density'
+           write(fates_log(),*) ' has been depricated. Set use_fates_dbh_init to true'
+           write(fates_log(),*) ' to initialize with dbh in nocomp mode. The corresponding'
+           write(fates_log(),*) ' is called fates_recruit_init_dbh'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
         if ( hlm_use_inventory_init == ifalse .and. & 
-             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
+            EDPftvarcon_inst%initd(ipft) < nearzero ) then
           
-           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
-           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero'
+           write(fates_log(),*) ' without inventory initialization.'
            write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
-           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
-           write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
+           write(fates_log(),*) ' plants by setting use_fates_dbh_init to true'
+           write(fates_log(),*) ' so that initial dbh parameter is used instead of density. '
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
         
-        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%initd(ipft) < -nearzero ) then
-           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
-           write(fates_log(),*) ' know how to interpret a negative %initd (number density)'
-           write(fates_log(),*) ' on a cold-start. In nocomp with a negative, we assume the absolute'
-           write(fates_log(),*) ' value of the %inidt parameter is the initial plant size.'
-           write(fates_log(),*) ' And since the fractional area of each PFT is known from'
-           write(fates_log(),*) ' the surface file, we can derive a number density from this'
-           write(fates_log(),*) ' However, we do not have a hypothesis to do this in full FATES.'
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
+
+
+
+        if (hlm_use_dbh_init .eq. itrue) then
+           if (EDPftvarcon_inst%initdbh(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial dbh cannot be less or equal zero.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+           if (EDPftvarcon_inst%init_seed(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial seed cannot equal zero '
+              write(fates_log(),*) ' Otherwize mass-balance will not be conserved.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+        endif
 
         if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'

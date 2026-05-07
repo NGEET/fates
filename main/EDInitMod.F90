@@ -22,6 +22,7 @@ module EDInitMod
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
   use FatesInterfaceTypesMod    , only : hlm_regeneration_model
+  use FatesInterfaceTypesMod    , only : hlm_use_dbh_init
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
@@ -1209,7 +1210,7 @@ contains
       ! if any pfts are starting with a non-recruitment size then the whole site
       ! needs the inventory type of spread 
       do pft = 1, numpft
-         if (EDPftvarcon_inst%initd(pft) < 0.0_r8) then   
+         if (hlm_use_dbh_init .eq. itrue)then
             site_in%spread = init_spread_inventory
          end if
       end do
@@ -1476,7 +1477,7 @@ contains
      else
         
         ! interpret as initial density and calculate diameter
-        if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  
+        if_init_dens: if (hlm_use_dbh_init.eq.ifalse)then
            
            n_plant = EDPftvarcon_inst%initd(pft)*patch_area
            
@@ -1496,7 +1497,7 @@ contains
                   
         else ! interpret as initial diameter and calculate density 
            
-           dbh = abs(EDPftvarcon_inst%initd(pft))
+           dbh = EDPftvarcon_inst%initdbh(pft)
 
            ! calculate crown area of a single plant
            call carea_allom(dbh, unit_plant_dense, spread, pft, undamaged_crown, c_area_plant)
