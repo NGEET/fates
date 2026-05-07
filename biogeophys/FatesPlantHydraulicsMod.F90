@@ -4620,7 +4620,7 @@ function xylemtaper(pexp, dz) result(chi_tapnotap)
     !
     ! !LOCAL VARIABLES:
     real(r8) :: qexp                ! total conductance exponent (as in Fig. 2b of Savage et al. (2010) minus a0 term
-    real(r8) :: lN=0.005_r8         ! petiole length[m]
+    real(r8) :: lN=0.15_r8          ! petiole length[m], updated to match the scaling for conduit width from Olson 2020 (https://nph.onlinelibrary.wiley.com/doi/10.1111/nph.16961)
     real(r8) :: n_ext=2._r8         ! number of daughter branches per parent branch, assumed constant throughout tree (self-similarity)  [-]
     real(r8) :: big_n               ! number of branching levels (allowed here to take on non-integer values): increases with tree size  [-]
     real(r8) :: r0rN                ! ratio of stem radius to terminal twig radius; r.ext0/r.extN (x-axis of Savage et al. (2010) Fig 2a)[-]
