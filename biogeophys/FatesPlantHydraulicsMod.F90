@@ -4667,6 +4667,7 @@ function xylemtaper(a, L) result(ratio)
 
   real(r8), parameter :: x0  = 0.005_r8  ! finite cutoff (m) at petiole, to prevent singularity in function at L=0.  
   real(r8), parameter :: eps = 1.e-8_r8
+  real(r8), parameter :: xref = 0.6_r8    ! measurement distance from branch tip (m)
 
   real(r8) :: Leff
   real(r8) :: expo
@@ -4689,10 +4690,10 @@ function xylemtaper(a, L) result(ratio)
   ! Critical case: a = 1/4
   !------------------------------------------------------------
   if (abs(a - 0.25_r8) < eps) then
-     ratio = (Leff - x0) / log(Leff / x0)
+     ratio = (Leff - x0) / (xref * log(Leff / x0))
   else
      expo  = 1._r8 - 4._r8 * a
-     denom = Leff**expo - x0**expo
+     denom = xref**(4._r8 * a) * (Leff**expo - x0**expo)
 
      ratio = (Leff - x0) * expo / denom
   end if
