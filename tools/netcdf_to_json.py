@@ -7,15 +7,6 @@ import code  # For development: code.interact(local=dict(globals(), **locals()))
 from pathlib import Path
 import datetime
 
-def decode_bytes(obj):
-    # If it's bytes, decode it to a string
-    if isinstance(obj, bytes):
-        return obj.decode('utf-8')
-    # If it's a list/array of bytes, decode each element
-    if isinstance(obj, np.ndarray) and obj.dtype.kind in ['S', 'V']: 
-        return [x.decode('utf-8') for x in obj]
-    return obj
-
 def fates_nc_to_json_structured(nc_path, json_path):
 
     time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -43,14 +34,12 @@ def fates_nc_to_json_structured(nc_path, json_path):
     for var_name, da in ds.data_vars.items():
 
         val = da.values.flatten()
-
         # 1. Determine the simple type string
         if np.issubdtype(da.dtype, np.floating):
             dtype_str = "float"
             is_null = np.isnan(val) | (val > 1e30)
             # For floats, replace NaN with None
             data_list = [float(x) if not n else None for x, n in zip(val, is_null)]
-            #data_list = [float(x) if np.isfinite(x) else None for x in da.values.flatten()]
         
         elif np.issubdtype(da.dtype, np.integer):
             dtype_str = "int"
@@ -71,13 +60,14 @@ def fates_nc_to_json_structured(nc_path, json_path):
             else:
                 data_list = [clean_string(i) for i in raw_values.flatten()]
         else:
-            dtype_str = "unknown"
-            data_list = da.values.tolist()
+            print(f'Encountered unknown kind of variable')
+            print(f'Variable name: {var_name}')
+            print(f'da.dtype.kind: {da.dtype.kind}')
+            print(f'Exiting')
+            exit(2)
+            #dtype_str = "unknown"
+            #data_list = da.values.tolist()
 
-        # 2. Handle scalar wrapping (ensure it's a list [val])
-        if not da.dims and dtype_str != "string":
-            # If the scalar itself was a NaN/FillValue, it's already [None]
-            pass 
 
         # 3. Build the parameter entry
         param_entry = {
