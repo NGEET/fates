@@ -45,7 +45,7 @@ def fates_nc_to_json_structured(nc_path, json_path):
             dtype_str = "int"
             # Check for the common NetCDF _FillValue or missing_value
             fill_value = da.attrs.get('_FillValue') or da.attrs.get('missing_value')
-            data_list = [int(x) if x != fill_value else None for x in da.values.flatten()]
+            data_list = [int(x) if x != fill_value else None for x in val]
         
         elif da.dtype.kind in ['S', 'U', 'O']:
             dtype_str = "string"
