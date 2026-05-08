@@ -218,7 +218,7 @@ contains
                 pft = ccohort%pft
                 fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
-                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_nuptake(pft)
+                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_puptake(pft)
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
