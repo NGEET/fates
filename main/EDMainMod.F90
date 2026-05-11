@@ -1017,6 +1017,7 @@ contains
                site_mass%seed_out + &
                site_mass%flux_generic_out + &
                site_mass%frag_out + &
+               site_mass%funghr_out + &
                site_mass%aresp_acc + &
                site_mass%herbivory_flux_out
        end if
@@ -1051,6 +1052,7 @@ contains
           write(fates_log(),*) 'seed_out: ',site_mass%seed_out
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
+          write(fates_log(),*) 'funghr_out: ',site_mass%funghr_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
           write(fates_log(),*) 'herbivory_flux_out: ',site_mass%herbivory_flux_out
           write(fates_log(),*) 'error=net_flux-dstock:', error

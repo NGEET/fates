@@ -44,6 +44,8 @@ module EDParamsMod
    real(r8),protected, public :: comp_excln_exp                       ! weighting factor (exponent) for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
    real(r8),protected, public :: ED_val_understorey_death             ! fraction of plants in understorey cohort impacted by overstorey tree-fall
+   real(r8),protected, public :: cwd_hr_frag_frac                     ! fraction of losses from CWD pool that are due to
+                                                                      ! fungal heterotrophic respiration as opposed to fragmentation
    real(r8),protected, public :: ED_val_cwd_fcel                      ! Cellulose fraction for CWD
    real(r8),protected, public :: ED_val_cwd_flig                      ! Lignin fraction of coarse woody debris
    real(r8),protected, public :: maintresp_nonleaf_baserate           ! Base maintenance respiration rate for plant tissues
@@ -227,6 +229,7 @@ module EDParamsMod
     comp_excln_exp                        = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
+    cwd_hr_frag_frac                      = nan
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
     maintresp_nonleaf_baserate            = nan
@@ -339,6 +342,9 @@ module EDParamsMod
     
     param_p => pstruct%GetParamFromName("fates_frag_cwd_flig")
     ED_val_cwd_flig = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_cwd_hrfrag_frac")
+    cwd_hr_frag_frac = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_maintresp_nonleaf_baserate")
     maintresp_nonleaf_baserate = param_p%r_data_scalar
@@ -514,6 +520,7 @@ module EDParamsMod
         write(fates_log(),fmt0) 'comp_excln_exp = ',comp_excln_exp
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
+        write(fates_log(),fmt0) 'cwd_hr_frag_frac= ', cwd_hr_frag_frac
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'fates_maintresp_nonleaf_baserate = ', maintresp_nonleaf_baserate
