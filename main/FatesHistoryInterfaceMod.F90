@@ -8606,7 +8606,7 @@ contains
 
           call this%set_history_var(vname='FATES_VEGC_SZ', units = 'kg m-2',         &
                long='total biomass by size class in kg carbon per m2',              &
-               use_default=trim(drop_in_sp), avgflag='A', vtype=site_size_r8,             &
+               use_default='inactive', avgflag='A', vtype=site_size_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_biomass_si_scls)
 
