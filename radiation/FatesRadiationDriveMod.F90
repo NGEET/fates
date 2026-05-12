@@ -100,9 +100,9 @@ contains
                                                    ! index at lop of layer
     real(r8) :: vai                                ! total VAI of the scattering element
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
-    ! [PORTED by Hui Tang: NVP radiation (R3 ground-albedo modification, R4 Beer's law)]
+    ! [PORTED by Hui Tang: NVP radiation
     ! lai_nvp_pa already computed in EDCanopyStructureMod; only a brief cohort walk is
-    ! needed here to find nvp_ft (the NVP PFT index) for the albedo lookup in R3.
+    ! needed here to find nvp_ft (the NVP PFT index) for the albedo lookup.
     type(fates_cohort_type), pointer :: currentCohort ! cohort pointer (NVP PFT lookup only)
     integer  :: nvp_ft           ! NVP PFT index for EDPftvarcon albedo lookup
     real(r8) :: nvp_frac         ! NVP fractional coverage of patch [0-1]
@@ -155,13 +155,13 @@ contains
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
              currentPatch%rad_error(:)           = hlm_hio_ignore_val
 
-             ! [PORTED by Hui Tang: Step 8 R3 - modify ground albedo for NVP (no-snow case only)]
+             ! [PORTED by Hui Tang: modify ground albedo for NVP (no-snow case only)]
              ! Walk cohort list once to find the NVP PFT index for the albedo lookup.
              ! NVP is below snow, so ground albedo is only modified when frac_sno_eff_si == 0.
              nvp_frac = bc_out(s)%nvp_frac_pa(ifp)
              nvp_ft   = 0
-             ! [PORTED by Hui Tang: R3 - find nvp_ft whenever NVP is present (needed for
-             ! both no-snow ground albedo R3 and SNICAR omega output nvp_omega_pa)]
+             ! [PORTED by Hui Tang: find nvp_ft whenever NVP is present (needed for
+             ! both no-snow ground albedo and SNICAR omega output nvp_omega_pa)]
              if (hlm_use_nvp == itrue .and. nvp_frac > nearzero) then
                 currentCohort => currentPatch%shortest
                 do while (associated(currentCohort))
@@ -187,7 +187,7 @@ contains
                    !       currentPatch%gnd_alb_dif(ib) = ...
                    !    end do
                    ! end if
-                   ! [PORTED by Hui Tang: R3 applies only for Approach A (NVP as ground boundary)]
+                   ! [PORTED by Hui Tang: NVP as ground boundary
                    ! Approach B uses soil albedo as lower boundary; Norman solver handles NVP as
                    ! a canopy leaf layer, so ground albedo must remain the true soil albedo.
                    if (hlm_nvp_rad_model_ground == itrue .and. &
@@ -288,7 +288,7 @@ contains
 
                 ! [PORTED by Hui Tang: NVP absorptance for CLM energy balance when there when no-snow]
                 ! Approach A: Stand-alone Beer's law on below-vascular-canopy fluxes (trd/tri). NVP not in
-                !   Norman's canopy so ftdd/ftii are fluxes incident on NVP from above.
+                !   Norman's canopy so ftdd/ftii are fluxes incident on NVP from above. 
                 ! Approach B: NVP IS in Norman's canopy; sum Norman's per-layer absorbed fractions
                 !   (fabd_sun_z + fabd_sha_z) for NVP cohort layers. These are per m2 ground,
                 !   area-weighted. k_nvp band-independent => apply PAR-band value to all swb bands.
