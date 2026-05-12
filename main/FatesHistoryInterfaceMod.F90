@@ -5206,11 +5206,14 @@ contains
                total_area_site = 0._r8
                cpatch => sites(s)%oldest_patch
                do while(associated(cpatch))
-                  ifp = cpatch%patchno
-                  nvp_frac_site  = nvp_frac_site  + bc_out(s)%nvp_frac_pa(ifp) * bc_out(s)%canopy_fraction_pa(ifp)
-                  nvp_dz_site    = nvp_dz_site    + bc_out(s)%nvp_dz_pa(ifp)   * bc_out(s)%canopy_fraction_pa(ifp)
-                  nvp_lai_site   = nvp_lai_site   + bc_out(s)%lai_nvp_pa(ifp)  * bc_out(s)%canopy_fraction_pa(ifp)
-                  total_area_site = total_area_site + bc_out(s)%canopy_fraction_pa(ifp)
+                  ! [PORTED by Hui Tang: skip bare-ground patch (patchno=0) — bc_out arrays start at 1]
+                  if (cpatch%nocomp_pft_label .ne. nocomp_bareground) then
+                     ifp = cpatch%patchno
+                     nvp_frac_site  = nvp_frac_site  + bc_out(s)%nvp_frac_pa(ifp) * bc_out(s)%canopy_fraction_pa(ifp)
+                     nvp_dz_site    = nvp_dz_site    + bc_out(s)%nvp_dz_pa(ifp)   * bc_out(s)%canopy_fraction_pa(ifp)
+                     nvp_lai_site   = nvp_lai_site   + bc_out(s)%lai_nvp_pa(ifp)  * bc_out(s)%canopy_fraction_pa(ifp)
+                     total_area_site = total_area_site + bc_out(s)%canopy_fraction_pa(ifp)
+                  end if
                   cpatch => cpatch%younger
                end do
                if (total_area_site > nearzero) then
