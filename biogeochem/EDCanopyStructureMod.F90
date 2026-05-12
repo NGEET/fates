@@ -1378,6 +1378,7 @@ contains
     ! [PORTED by Hui Tang: NVP aggregation locals]
     real(r8) :: nvp_crown_area   ! sum of c_area over all NVP cohorts in patch [m2/ha]
                                  ! used to compute nvp_frac_pa and to normalize nvp_dz_pa
+    logical  :: has_vascular_veg ! .true. if any non-NVP cohort has treelai+treesai > nearzero
     
     do s = 1,nsites
 
@@ -1552,11 +1553,44 @@ contains
              ! we are essentially calculating it inside FATES to tell the
              ! host to tell itself when to do things (circuitous). Just have
              ! to determine where else it is used
-
-             if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
-                bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
+             ! [PORTED by Hui Tang: fix spurious snocan on NVP-only patches]
+             ! calc_areaindex applies an unconditional ai_min=0.1 floor, so
+             ! elai_pa+esai_pa=0.2 even for a pure NVP patch (no vascular canopy).
+             ! Checking > 0 therefore always sets frac_veg_nosno_alb=1, which
+             ! triggers CLM canopy snow interception on the surface mat under snow.
+             ! Fix: when use_nvp is active, scan cohorts directly for real vascular
+             ! LAI; this is immune to the ai_min artifact and future changes to it.
+             if (hlm_use_nvp == itrue) then
+                has_vascular_veg = .false.
+                currentCohort => currentPatch%shortest
+                do while (associated(currentCohort))
+                   if (lb_params%stomatal_intercept(currentCohort%pft) > nearzero .and. &
+                       (currentCohort%treelai + currentCohort%treesai) > nearzero) then
+                      has_vascular_veg = .true.
+                      exit
+                   end if
+                   currentCohort => currentCohort%taller
+                end do
+                if (has_vascular_veg) then
+                   bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
+                else
+                   bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
+                   ! [PORTED by Hui Tang: zero elai/esai/tlai/tsai sent to CLM for NVP-only patches]
+                   ! calc_areaindex's ai_min=0.1 floor leaves elai_pa=esai_pa=0.1 even when no
+                   ! vascular canopy exists. esai_pa/tsai_pa are not touched by the NVP subtraction
+                   ! block above. Zero all four here so CLM does not use the artificial floor value
+                   ! in canopy hydrology, radiation, or canopy fluxes for NVP-only patches.
+                   bc_out(s)%elai_pa(ifp) = 0.0_r8
+                   bc_out(s)%esai_pa(ifp) = 0.0_r8
+                   bc_out(s)%tlai_pa(ifp) = 0.0_r8
+                   bc_out(s)%tsai_pa(ifp) = 0.0_r8
+                end if
              else
-                bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
+                if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
+                   bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
+                else
+                   bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
+                end if
              end if
 
           else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
