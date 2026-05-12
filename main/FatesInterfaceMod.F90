@@ -563,7 +563,9 @@ contains
       allocate(bc_in%eair_pa(maxpatch_total))
       allocate(bc_in%oair_pa(maxpatch_total))
       allocate(bc_in%cair_pa(maxpatch_total))
-      allocate(bc_in%rb_pa(maxpatch_total))
+      ! [PORTED by Hui Tang: initialize rb_pa to 100 s/m so NVP-only patches excluded from
+      ! filter_exposedvegp (frac_veg_nosno=0) never cause division-by-zero in photosynthesis]
+      allocate(bc_in%rb_pa(maxpatch_total))            ; bc_in%rb_pa(:)       = 100.0_r8
       allocate(bc_in%t_veg_pa(maxpatch_total))
       ! [PORTED by Hui Tang: NVP surface temperature and wet fraction for photosynthesis]
       allocate(bc_in%t_nvp_pa(maxpatch_total))     ; bc_in%t_nvp_pa(:)    = 274.0_r8
