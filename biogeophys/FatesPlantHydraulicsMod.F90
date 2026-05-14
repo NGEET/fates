@@ -4655,8 +4655,8 @@ function xylemtaper_Savage(pexp, dz) result(chi_tapnotap)
     return
 
 end function xylemtaper_Savage
-# =====================================================================================
-# xylem hydraulic conductance  following scaling for conduit width from Olson 2020 (https://nph.onlinelibrary.wiley.com/doi/10.1111/nph.16961)
+! =====================================================================================
+! xylem hydraulic conductance  following scaling for conduit width from Olson 2020 (https://nph.onlinelibrary.wiley.com/doi/10.1111/nph.16961)
 function xylemtaper(a, L) result(ratio)
 
   implicit none
