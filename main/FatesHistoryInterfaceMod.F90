@@ -6571,7 +6571,7 @@ contains
     ! cohort size x crown damage       (site_cdsc_r8)     : SZCD
     ! cohort size x crown damage x pft (site_cdpf_r8)     : CDPF
 
-    if (hlm_use_sp) then
+    if (hlm_use_sp .eq. itrue) then
       drop_in_sp = 'inactive'
     else
       drop_in_sp = 'active'
