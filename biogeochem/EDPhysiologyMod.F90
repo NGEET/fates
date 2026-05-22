@@ -2682,8 +2682,8 @@ contains
 
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 & 
-                        EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+                        min(1.0_r8, EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft))
                      
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
                      ! recruitment does not occur.
