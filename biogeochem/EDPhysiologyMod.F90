@@ -2352,7 +2352,7 @@ contains
                         seedling_h2o_mort_rate + &
                         (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
           if (total_seedling_mort_rate > 1.0_r8) then 
-            write(fates_log(), *) 'TRS total seedling mortatliy rate > 1', &
+            write(fates_log(), *) 'TRS total seedling mortality rate > 1', &
                   'pft=', pft, 'uncapped=', total_seedling_mort_rate, &
                   'seedling_light_mort_rate=', seedling_light_mort_rate, & 
                   'seedling_h2o_mort_rate=', seedling_h2o_mort_rate
@@ -2467,7 +2467,7 @@ contains
              ! Cap emergence rate at 1, rate can exceed 1 for some parameter combinations,
              ! leading to negative seed bank, write to log if this is the case 
              if (seedling_emerg_rate > 1.0_r8) then
-               write(fates_log(),*) 'TRS seedling_emerg_rate > 1' &
+               write(fates_log(),*) 'TRS seedling_emerg_rate > 1', &
                      'pft=', pft, 'uncapped=', seedling_emerg_rate, &
                      'photoblastic_germ_modifier=', photoblastic_germ_modifier, &
                      'wetness_index=', wetness_index
@@ -2708,11 +2708,11 @@ contains
                      ! cap at 1 (prevent seed_germ from going negative) and write to fates log 
 
                      if (sdlng2sap_rate > 1.0_r8) then
-                        write(fates_log(), *) 'TRS seedling-to-sapling transition rate > 1' &
-                              'pft=', ft, 'uncapped=', sdlng2sap_rate, 
+                        write(fates_log(), *) 'TRS seedling-to-sapling transition rate > 1', &
+                              'pft=', ft, 'uncapped=', sdlng2sap_rate,         &
                               'sdlng2sap_par=', sdlng2sap_par
                      end if 
-                      
+
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 & 
                         min(1.0_r8, sdlng2sap_rate)
