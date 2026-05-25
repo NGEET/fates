@@ -685,6 +685,7 @@ contains
       allocate(bc_out%lai_nvp_pa(maxpatch_total))
       ! [PORTED by Hui Tang: allocate NVP single-scatter albedo for SNICAR layer-0]
       allocate(bc_out%nvp_omega_pa(maxpatch_total,num_swb))
+      bc_out%nvp_omega_pa(:,:) = 0._r8   ! [PORTED by Hui Tang: init to zero; bareground patch skipped by radiation code so its nvp_omega_pa is never set — uninit NaN would corrupt nvp_omega_vis_col]
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
