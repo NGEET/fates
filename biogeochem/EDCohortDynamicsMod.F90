@@ -388,7 +388,7 @@ contains
 
          ! live biomass pools are terminally depleted by grazing in grasses. 
          if(prt_params%phen_leaf_habit(currentCohort%pft) == ievergreen .and. &
-              prt_params%woody(currentCohort%) .eq. itrue) then
+              prt_params%woody(currentCohort%) .eq. ifalse) then
             if ( ( leaf_c + fnrt_c ) < 1e-10_r8) then
                terminate = itrue
                termination_type = i_term_mort_type_cstarv
