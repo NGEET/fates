@@ -231,6 +231,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_leafc_si
   integer :: ih_sapwc_si
   integer :: ih_fnrtc_si
+  integer :: ih_crtc_si
   integer :: ih_fnrtc_sl
   integer :: ih_reproc_si
   integer :: ih_totvegc_si
@@ -603,6 +604,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_resp_m_canopy_si_scls
   integer :: ih_leaf_md_canopy_si_scls
   integer :: ih_root_md_canopy_si_scls
+  integer :: ih_croot_md_canopy_si_scls
   integer :: ih_carbon_balance_canopy_si_scls
   integer :: ih_bstore_md_canopy_si_scls
   integer :: ih_bdead_md_canopy_si_scls
@@ -623,6 +625,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_resp_m_understory_si_scls
   integer :: ih_leaf_md_understory_si_scls
   integer :: ih_root_md_understory_si_scls
+  integer :: ih_croot_md_understory_si_scls
   integer :: ih_carbon_balance_understory_si_scls
   integer :: ih_bsw_md_understory_si_scls
   integer :: ih_bdead_md_understory_si_scls
@@ -2425,6 +2428,7 @@ contains
     real(r8) :: struct_m           ! Structural mass ""
     real(r8) :: leaf_m             ! Leaf mass ""
     real(r8) :: fnrt_m             ! Fineroot mass ""
+    real(r8) :: crt_m              ! Coarse root mass ""
     real(r8) :: store_m            ! Storage mass ""
     real(r8) :: alive_m            ! Alive biomass (sap+leaf+fineroot+repro+storage) ""
     real(r8) :: total_m            ! Total vegetation mass
@@ -2825,6 +2829,7 @@ contains
                   call ccohort%prt%GetBiomass(element_list(el), &
                        sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
 
+                  
                   ! Plant multi-element states and fluxes
                   ! Zero states, and set the fluxes
                   if( element_list(el).eq.carbon12_element )then
@@ -2839,6 +2844,12 @@ contains
                      this%hvars(ih_fnrtc_si)%r81d(io_si) =                        &
                           this%hvars(ih_fnrtc_si)%r81d(io_si) + ccohort%n *         &
                           fnrt_m / m2_per_ha
+
+                     crt_m = (sapw_m + struct_m) *  (1.0_r8 - prt_params%allom_agb_frac(ccohort%pft))
+
+                     this%hvars(ih_crtc_si)%r81d(io_si) =                        &
+                          this%hvars(ih_crtc_si)%r81d(io_si) + ccohort%n *         &
+                          crt_m / m2_per_ha
                      this%hvars(ih_reproc_si)%r81d(io_si) =                       &
                           this%hvars(ih_reproc_si)%r81d(io_si)+ ccohort%n *         &
                           repro_m / m2_per_ha
@@ -3146,6 +3157,7 @@ contains
     real(r8) :: store_m_turnover   ! storage turnover rate [kg/yr]
     real(r8) :: leaf_m_turnover    ! leaf turnover rate [kg/yr]
     real(r8) :: fnrt_m_turnover    ! fine-root turnover rate [kg/yr]
+    real(r8) :: crt_m_turnover     ! coarse-root turnover rate [kg/yr]
     real(r8) :: struct_m_turnover  ! structural turnover rate [kg/yr]
     real(r8) :: sapw_m_net_alloc   ! mass allocated to sapwood [kg/yr]
     real(r8) :: store_m_net_alloc  ! mass allocated to storage [kg/yr]
@@ -3315,6 +3327,7 @@ contains
            hio_crown_fracarea_understory_si_scls => this%hvars(ih_crown_fracarea_understory_si_scls)%r82d, &
            hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
            hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
+           hio_croot_md_canopy_si_scls           => this%hvars(ih_croot_md_canopy_si_scls)%r82d, &
            hio_carbon_balance_canopy_si_scls    => this%hvars(ih_carbon_balance_canopy_si_scls)%r82d, &
            hio_bsw_md_canopy_si_scls            => this%hvars(ih_bsw_md_canopy_si_scls)%r82d, &
            hio_bdead_md_canopy_si_scls          => this%hvars(ih_bdead_md_canopy_si_scls)%r82d, &
@@ -3328,6 +3341,7 @@ contains
            hio_npp_stor_canopy_si_scls         => this%hvars(ih_npp_stor_canopy_si_scls)%r82d, &
            hio_leaf_md_understory_si_scls       => this%hvars(ih_leaf_md_understory_si_scls)%r82d, &
            hio_root_md_understory_si_scls       => this%hvars(ih_root_md_understory_si_scls)%r82d, &
+           hio_croot_md_understory_si_scls       => this%hvars(ih_croot_md_understory_si_scls)%r82d, &
            hio_carbon_balance_understory_si_scls=> this%hvars(ih_carbon_balance_understory_si_scls)%r82d, &
            hio_bstore_md_understory_si_scls     => this%hvars(ih_bstore_md_understory_si_scls)%r82d, &
            hio_bsw_md_understory_si_scls        => this%hvars(ih_bsw_md_understory_si_scls)%r82d, &
@@ -3714,6 +3728,8 @@ contains
                       fnrt_m_turnover   = ccohort%prt%GetTurnover(fnrt_organ, carbon12_element) * days_per_year
                       struct_m_turnover = ccohort%prt%GetTurnover(struct_organ, carbon12_element) * days_per_year
 
+                      crt_m_turnover = (sapw_m_turnover + struct_m_turnover) * (1.0_r8 - prt_params%allom_agb_frac(ccohort%pft))
+                      
                       ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
                       sapw_m_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_year
                       store_m_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_year
@@ -4030,6 +4046,8 @@ contains
                                 leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_root_md_canopy_si_scls(io_si,scls) = hio_root_md_canopy_si_scls(io_si,scls) + &
                                 fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                           hio_croot_md_canopy_si_scls(io_si,scls) = hio_croot_md_canopy_si_scls(io_si,scls) + &
+                                crt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_bsw_md_canopy_si_scls(io_si,scls) = hio_bsw_md_canopy_si_scls(io_si,scls) + &
                                 sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_bstore_md_canopy_si_scls(io_si,scls) = hio_bstore_md_canopy_si_scls(io_si,scls) + &
@@ -4153,6 +4171,8 @@ contains
                                 leaf_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_root_md_understory_si_scls(io_si,scls) = hio_root_md_understory_si_scls(io_si,scls) + &
                                 fnrt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                           hio_croot_md_understory_si_scls(io_si,scls) = hio_croot_md_understory_si_scls(io_si,scls) + &
+                                crt_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_bsw_md_understory_si_scls(io_si,scls) = hio_bsw_md_understory_si_scls(io_si,scls) + &
                                 sapw_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_bstore_md_understory_si_scls(io_si,scls) = hio_bstore_md_understory_si_scls(io_si,scls) + &
@@ -6911,6 +6931,12 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_fnrtc_si)
 
+       call this%set_history_var(vname='FATES_CROOTC', units='kg m-2',            &
+            long='total biomass in live plant coarse roots in kg carbon per m2',    &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_crtc_si)
+
        call this%set_history_var(vname='FATES_REPROC', units='kg m-2',            &
             long='total biomass in live plant reproductive tissues in kg carbon per m2', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -8843,6 +8869,13 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_root_md_canopy_si_scls)
 
+          call this%set_history_var(vname='FATES_CROOTCTURN_CANOPY_SZ',              &
+               units = 'kg m-2 s-1',                                                &
+               long='coarse root turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
+               initialize=initialize_variables, index = ih_croot_md_canopy_si_scls)
+
           call this%set_history_var(vname='FATES_STORECTURN_CANOPY_SZ',              &
                units = 'kg m-2 s-1',                                                &
                long='storage turnover (non-mortal) for canopy plants by size class in kg carbon per m2 per second', &
@@ -8928,6 +8961,14 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables,                                     &
                index = ih_root_md_understory_si_scls)
+
+          call this%set_history_var(vname='FATES_CROOTCTURN_USTORY_SZ',          &
+               units = 'kg m-2 s-1',                                                &
+               long='coarse root turnover (non-mortal) for understory plants by size class in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
+               initialize=initialize_variables,                                     &
+               index = ih_croot_md_understory_si_scls)
 
           call this%set_history_var(vname='FATES_STORECTURN_USTORY_SZ',              &
                units = 'kg m-2 s-1',                                                &
