@@ -1712,68 +1712,37 @@ contains
    type(fates_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
-    real(r8) :: layer_area
-    real(r8) :: lai_norm_area
-    real(r8) :: areacanopies
-    
-    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
-    ! to be taller than cohorts in the top canopy layer, we must iterate through the
-    ! patch by canopy layer first.  Given that canopy_layer_tlai is a patch level variable
-    ! we could iterate through each cohort in any direction as long as we go down through
-    ! the canopy layers.
-    canopyloop: do cl = 1,nclmax
+   
+   ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
+   ! to be taller than cohorts in the top canopy layer, we must iterate through the 
+   ! patch by canopy layer first.  Given that canopy_layer_tlai is a patch level variable
+   ! we could iterate through each cohort in any direction as long as we go down through
+   ! the canopy layers.
 
-       ! Determine the area represented by this canopy layer.
-       layer_area = 0.0_r8
-       currentCohort => currentPatch%tallest
-       do while(associated(currentCohort))
-          if (currentCohort%canopy_layer .eq. cl) then
-             layer_area = layer_area + currentCohort%c_area
-          end if
-          currentCohort => currentCohort%shorter
-       end do
+   canopyloop: do cl = 1,nclmax
+      currentCohort => currentPatch%tallest
+      cohortloop: do while(associated(currentCohort))
 
-       ! Use layer 1 canopy area when available, otherwise use this layer's own area.
-       ! If understory area exceeds canopy area, normalize by the larger footprint.
-       lai_norm_area = max(currentPatch%total_canopy_area, layer_area)
+         ! Only update the current cohort tree lai if lai of the above layers have been calculated
+         if (currentCohort%canopy_layer .eq. cl) then
+            
+            ft     = currentCohort%pft
+            ! Update the cohort level lai and related variables
+            call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
+                 currentPatch%total_canopy_area)
+            
+            ! Update the number of number of vegetation layers
+            currentPatch%nleaf(cl,ft) = max(currentPatch%nleaf(cl,ft),currentCohort%NV)
 
-       areacanopies = 0.0_r8
-       currentCohort => currentPatch%tallest
-       cohortloop: do while(associated(currentCohort))
+            ! Update the patch canopy layer tlai (LAI per canopy area)
+            currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) +  &
+                 currentCohort%treelai *currentCohort%c_area/currentPatch%total_canopy_area
+            
+         end if
+         currentCohort => currentCohort%shorter
 
-          ft = currentCohort%pft
-          areacanopies = areacanopies + currentCohort%c_area
-          if(areacanopies .gt. nearzero .and. currentPatch%total_canopy_area .lt. nearzero) then
-             write(*,*) 'canopy is nearzero but areacanopies is not',currentPatch%total_canopy_area,currentPatch%area,currentPatch%nocomp_pft_label
-             write(*,*) 'cl,ft,carea,areacanopies',cl,ft,currentCohort%c_area, areacanopies
-          endif
-
-          ! Only update the current cohort tree lai if lai of the above layers have been calculated
-          if (currentCohort%canopy_layer .eq. cl) then
-
-             if(currentPatch%total_canopy_area.lt.nearzero)then
-                write(*,*) 'totcanopyarea > nearzero', cl, currentPatch%total_canopy_area
-                write(*,*) 'carea', ft, currentCohort%c_area,currentCohort%n,currentPatch%canopy_layer_tlai
-             endif
-
-             ! Update the cohort level lai and related variables
-             call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
-                  lai_norm_area)
-
-             ! Update the number of number of vegetation layers
-             currentPatch%nleaf(cl,ft) = max(currentPatch%nleaf(cl,ft),currentCohort%NV)
-
-             ! Update the patch canopy layer tlai (LAI per effective canopy area)
-             if (lai_norm_area > nearzero) then
-                currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) +  &
-                     currentCohort%treelai *currentCohort%c_area/lai_norm_area
-             end if
-
-          end if
-          currentCohort => currentCohort%shorter
-
-       end do cohortloop
-    end do canopyloop
+      end do cohortloop
+   end do canopyloop
 
   end subroutine UpdatePatchLAI
   ! ===============================================================================================
