@@ -2845,7 +2845,7 @@ contains
                           this%hvars(ih_fnrtc_si)%r81d(io_si) + ccohort%n *         &
                           fnrt_m / m2_per_ha
 
-                     crt_m = (sapw_m + struct_m) *  prt_params%allom_agb_frac(ccohort%pft)
+                     crt_m = (sapw_m + struct_m) *  (1.0_r8 - prt_params%allom_agb_frac(ccohort%pft))
 
                      this%hvars(ih_crtc_si)%r81d(io_si) =                        &
                           this%hvars(ih_crtc_si)%r81d(io_si) + ccohort%n *         &
@@ -3728,7 +3728,7 @@ contains
                       fnrt_m_turnover   = ccohort%prt%GetTurnover(fnrt_organ, carbon12_element) * days_per_year
                       struct_m_turnover = ccohort%prt%GetTurnover(struct_organ, carbon12_element) * days_per_year
 
-                      crt_m_turnover = (sapw_m_turnover + struct_m_turnover) * prt_params%allom_agb_frac(ccohort%pft)
+                      crt_m_turnover = (sapw_m_turnover + struct_m_turnover) * (1.0_r8 - prt_params%allom_agb_frac(ccohort%pft))
                       
                       ! Net change from allocation and transport [kgC/day] * [day/yr] = [kgC/yr]
                       sapw_m_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_year
