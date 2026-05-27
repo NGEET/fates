@@ -2536,8 +2536,29 @@ contains
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
+      integer                           :: recruit_clayer      ! layer assigned to newly recruited cohorts
       logical                           :: use_this_pft         ! logical flag for whether or not to allow a given PFT to recruit
+      real(r8)                          :: layer1_canopy_area   ! computed total crown area currently in canopy layer 1
+      type(fates_cohort_type), pointer  :: currentCohort
       !---------------------------------------------------------------------------
+      ! Minimal canopy-layer safeguard for recruitment:
+      ! if no crown area exists in layer 1, force new recruits into layer 1.
+      layer1_canopy_area = 0._r8
+      currentCohort => currentPatch%tallest
+      do while (associated(currentCohort))
+         if (currentCohort%canopy_layer == 1) then
+            call carea_allom(currentCohort%dbh,currentCohort%n,currentSite%spread, &
+                 currentCohort%pft,currentCohort%crowndamage,currentCohort%c_area)
+            layer1_canopy_area = layer1_canopy_area + currentCohort%c_area
+         end if
+         currentCohort => currentCohort%shorter
+      end do
+
+      recruit_clayer = currentPatch%NCL_p
+      if (recruit_clayer > 1 .and. layer1_canopy_area <= nearzero) then
+         recruit_clayer = 1
+      end if
+
 
       do ft = 1, numpft
 
@@ -2568,7 +2589,7 @@ contains
             height             = EDPftvarcon_inst%hgt_min(ft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
-            l2fr               = currentSite%rec_l2fr(ft, currentPatch%NCL_p)
+            l2fr               = currentSite%rec_l2fr(ft, recruit_clayer)
             crowndamage        = 1 ! new recruits are undamaged
 
             ! calculate DBH from initial height
@@ -2801,7 +2822,7 @@ contains
                call create_cohort(currentSite, currentPatch, ft, cohort_n,     &
                   height, 0.0_r8, dbh, prt, efleaf_coh, effnrt_coh, efstem_coh,  &
                   leaf_status, recruitstatus, init_recruit_trim, 0.0_r8,       &
-                  currentPatch%NCL_p, crowndamage, currentSite%spread, bc_in)
+                  recruit_clayer, crowndamage, currentSite%spread, bc_in)
 
                ! Note that if hydraulics is on, the number of cohorts may have
                ! changed due to hydraulic constraints.
