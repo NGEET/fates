@@ -449,6 +449,20 @@ contains
                            t_cohort = bc_in(s)%t_veg_pa(ifp)
                         end if
 
+                        ! [DBG NVP PHOTO] cohort-level state for NVP cohorts
+                        if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                           write(fates_log(),*) '[NVP PHOTO DBG cohort] ft=',ft,' cl=',cl, &
+                                ' nvp_dz=',currentCohort%nvp_dz, &
+                                ' treelai=',currentCohort%treelai, &
+                                ' treesai=',currentCohort%treesai, &
+                                ' canopy_mask=',currentPatch%canopy_mask(cl,ft), &
+                                ' t_nvp=',bc_in(s)%t_nvp_pa(ifp), &
+                                ' fwet_nvp=',bc_in(s)%fwet_nvp_pa(ifp), &
+                                ' dayl_factor=',bc_in(s)%dayl_factor_pa(ifp), &
+                                ' coszen=',sites(s)%coszen, &
+                                ' vcmax25top=',currentCohort%vcmax25top
+                        end if
+
                         ! Calculate the cohort specific elai profile
                         ! And the top and bottom edges of the veg area index
                         ! of each layer bin are. Note, if the layers
@@ -773,7 +787,17 @@ contains
                                     ! [PORTED by Hui Tang: scale vcmax by NVP wetness fraction
                                     !  following Porada et al. 2013: full capacity at fwet >= 0.6]
                                     if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                       ! [DBG NVP PHOTO] leaf-layer inputs: PAR, vcmax before/after fwet scaling
+                                       write(fates_log(),*) '[NVP PHOTO DBG vcmax] iv=',iv, &
+                                            ' isunsha=',isunsha, &
+                                            ' par_abs=',par_abs,' leaf_area=',leaf_area, &
+                                            ' vcmax25top=',currentCohort%vcmax25top, &
+                                            ' nscaler=',nscaler, &
+                                            ' btran_eff=',btran_eff, &
+                                            ' vcmax_z_pre=',vcmax_z, &
+                                            ' fwet_nvp=',bc_in(s)%fwet_nvp_pa(ifp)
                                        vcmax_z = vcmax_z * min(1._r8, bc_in(s)%fwet_nvp_pa(ifp) / 0.6_r8)
+                                       write(fates_log(),*) '  vcmax_z_post=',vcmax_z
                                     end if
 
 
@@ -851,6 +875,15 @@ contains
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
+                                    ! [DBG NVP PHOTO] leaf-level photosynthesis result
+                                    if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                       write(fates_log(),*) '[NVP PHOTO DBG psn] iv=',iv, &
+                                            ' isunsha=',isunsha, &
+                                            ' fsun=',fsun,' area_frac=',area_frac, &
+                                            ' laisun=',laisun,' laisha=',laisha, &
+                                            ' psn_ll=',psn_ll,' anet_ll=',anet_ll, &
+                                            ' psn_z=',psn_z(iv,ft,cl)
+                                    end if
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
 
                                     
@@ -928,7 +961,13 @@ contains
                                    cohort_eleaf_area)                       !out
                            end if
 
-                              
+                           ! [DBG NVP PHOTO] final cohort-level GPP
+                           if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                              write(fates_log(),*) '[NVP PHOTO DBG gpp] ft=',ft,' cl=',cl, &
+                                   ' gpp_tstep=',currentCohort%gpp_tstep, &
+                                   ' rdark=',currentCohort%rdark
+                           end if
+
                            ! Net Uptake does not need to be scaled, just transfer directly
                            currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
                            

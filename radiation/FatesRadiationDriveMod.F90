@@ -295,6 +295,10 @@ contains
                 if (hlm_use_nvp == itrue) then
                    if (hlm_nvp_rad_model_ground == itrue) then
                       ! Approach A: Beer's law absorptance from below-vascular-canopy flux
+                      ! [DIAGNOSTIC - remove after debugging]
+                      write(fates_log(),'(a,4(1x,g14.6))') &
+                           '[DBG NVP RAD] ifp, coszen, nvp_frac, lai_nvp_pa:', &
+                           real(ifp,r8), bc_in(s)%coszen, nvp_frac, bc_out(s)%lai_nvp_pa(ifp)
                       call NVPBeerLawAbsorptance(nvp_frac, bc_out(s)%lai_nvp_pa(ifp), &
                            bc_out(s)%fabd_nvp_pa(ifp,:), bc_out(s)%fabi_nvp_pa(ifp,:))
                    else

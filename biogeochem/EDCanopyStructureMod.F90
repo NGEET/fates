@@ -1544,6 +1544,11 @@ contains
                    ! Coverage fraction relative to full patch area
                    bc_out(s)%nvp_frac_pa(ifp) = nvp_crown_area / AREA
                 end if
+                ! [DIAGNOSTIC - remove after debugging]
+                write(fates_log(),'(a,i4,4(1x,g14.6))') &
+                     '[DBG NVP CS] ifp, nvp_crown_area, nvp_frac_pa, lai_nvp_pa, nvp_dz_pa:', &
+                     ifp, nvp_crown_area, bc_out(s)%nvp_frac_pa(ifp), &
+                     bc_out(s)%lai_nvp_pa(ifp), bc_out(s)%nvp_dz_pa(ifp)
              end if
 
              ! Fraction of vegetation free of snow. This is used to flag those
