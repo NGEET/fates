@@ -494,18 +494,31 @@ contains
                          nvp_absv_dir = bc_out(s)%fabd_nvp_pa(ifp,ipar)  ! Beer's law (NVPBeerLawAbsorptance)
                          nvp_absv_dif = bc_out(s)%fabi_nvp_pa(ifp,ipar)
                       end if
+                      ! [PORTED by Hui Tang: split NVP LAI and PAR between sunlit/shaded
+                      !  channels using f_sun from the Norman solver call.
+                      !  Approach A puts total NVP absorption in ed_parsha_z/ed_laisha_z and
+                      !  zeroes ed_parsun_z/ed_laisun_z, but f_sun from Norman is 1.0 when NVP
+                      !  is the only cohort (no overlying LAI), making area_frac=1-f_sun=0 for
+                      !  the shade branch → psn_z=0.  Instead, split proportionally:
+                      !    ed_laisun_z = lai_nvp_pa * f_sun
+                      !    ed_laisha_z = lai_nvp_pa * (1-f_sun)
+                      !  and assign the same PAR rate per unit leaf area to both channels so
+                      !  total absorbed PAR is conserved.  When f_sun=1 all LAI is sunlit
+                      !  (isunsha=1 active); when f_sun=0 all LAI is shaded (isunsha=2 active
+                      !  with area_frac=1); the general case splits correctly.]
                       do cl = 1, cpatch%ncl_p
                          do ft = 1, numpft
                             if (lb_params%stomatal_intercept(ft) <= nearzero) then
                                do iv = 1, cpatch%nrad(cl,ft)
-                                  cpatch%ed_parsun_z(cl,ft,iv) = 0._r8
+                                  ! Total NVP PAR absorption rate per unit leaf area [W/m2 leaf]
+                                  ! (same for both sun and shade channels in ground-boundary model)
+                                  cpatch%ed_parsun_z(cl,ft,iv) = nvp_absv_dir*trd_nvp + nvp_absv_dif*tri_nvp
                                   cpatch%ed_parsha_z(cl,ft,iv) = nvp_absv_dir*trd_nvp + nvp_absv_dif*tri_nvp
-                                  ! Set NVP LAI for ConvertPar: elai_profile=0 (excluded from Norman),
-                                  ! so ed_laisha_z must be set explicitly here.
-                                  ! lai_nvp_pa [m2 thallus/m2 NVP crown] x canopy_area_profile gives
-                                  ! total thallus per ground area consumed by ConvertPar.
-                                  cpatch%ed_laisun_z(cl,ft,iv) = 0._r8
-                                  cpatch%ed_laisha_z(cl,ft,iv) = bc_out(s)%lai_nvp_pa(ifp)
+                                  ! Split NVP LAI by f_sun from Norman solver (already set above)
+                                  cpatch%ed_laisun_z(cl,ft,iv) = bc_out(s)%lai_nvp_pa(ifp) * &
+                                       cpatch%f_sun(cl,ft,iv)
+                                  cpatch%ed_laisha_z(cl,ft,iv) = bc_out(s)%lai_nvp_pa(ifp) * &
+                                       (1._r8 - cpatch%f_sun(cl,ft,iv))
                                end do
                             end if
                          end do
