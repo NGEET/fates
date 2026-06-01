@@ -115,6 +115,9 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
+  use FatesAllometryMod, only : NVP_allom                ! [PORTED by Hui Tang: NVP SP mode]
+  use FatesInterfaceTypesMod, only : hlm_use_nvp         ! [PORTED by Hui Tang: NVP SP mode]
+  use LeafBiophysicsMod, only : lb_params                ! [PORTED by Hui Tang: NVP PFT identification]
   use PRTGenericMod, only : prt_carbon_allom_hyp
   use PRTGenericMod, only : prt_cnp_flex_allom_hyp
   use PRTGenericMod, only : prt_vartypes
@@ -1993,6 +1996,7 @@ contains
     real(r8) :: dbh      ! cohort dbh [cm]
     real(r8) :: cohort_n ! cohort density [/m2]
     real(r8) :: c_area   ! cohort canopy area [m2]
+    real(r8) :: nvp_dz   ! [PORTED by Hui Tang: NVP layer thickness from NVP allometry]
 
     if (associated(currentCohort%shorter)) then
       write(fates_log(),*) 'SP mode has >1 cohort'
@@ -2019,6 +2023,18 @@ contains
     currentCohort%c_area = c_area
     currentCohort%treelai = tlai
     currentCohort%treesai = tsai
+
+    ! [PORTED by Hui Tang: NVP SP mode — override leaf_c, c_area, nvp_dz using NVP allometry]
+    ! In SP mode, calculate_SP_properties uses tree allometry (leafc_from_treelai) for all PFTs.
+    ! For NVP, we must instead use NVP allometry: given prescribed treelai, compute the
+    ! consistent leaf_c and nvp_dz. c_area = parea so nvp_frac_pa = parea/AREA = patch fraction.
+    if (hlm_use_nvp == itrue) then
+       if (lb_params%stomatal_intercept(currentCohort%pft) <= nearzero) then
+          currentCohort%c_area = parea
+          call NVP_allom(currentCohort%treelai, leaf_c, nvp_dz, inverse=.true.)
+          currentCohort%nvp_dz = nvp_dz
+       end if
+    end if
 
     if (init .eq. ifalse) then
       call SetState(currentCohort%prt, leaf_organ, carbon12_element, leaf_c, 1)
