@@ -22,6 +22,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_sp
+  use FatesInterfaceTypesMod        , only : hlm_use_nvp      ! [PORTED by Hui Tang: NVP SP aggregation]
   use FatesInterfaceTypesMod        , only : bc_in_type
   use FatesInterfaceTypesMod        , only : bc_out_type
   use FatesInterfaceTypesMod        , only : hlm_masterproc
@@ -830,8 +831,11 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
+    type (fates_cohort_type), pointer :: currentCohort    ! [PORTED by Hui Tang: NVP SP aggregation]
     type(site_massbal_type), pointer :: site_cmass
     real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
+    integer  :: ifp           ! [PORTED by Hui Tang: NVP SP aggregation patch index]
+    real(r8) :: nvp_crown_area ! [PORTED by Hui Tang: NVP crown area accumulator]
     !-----------------------------------------------------------------------
 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -857,6 +861,39 @@ contains
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting) )then
        call canopy_structure(currentSite, bc_in)
     endif
+
+    ! [PORTED by Hui Tang: NVP bc_out aggregation for SP mode]
+    ! canopy_structure is skipped in SP mode, but NVP still needs nvp_frac_pa/lai_nvp_pa/nvp_dz_pa
+    ! in bc_out for Beer's law radiation. Replicate only the NVP aggregation loop here.
+    if (hlm_use_sp == itrue .and. hlm_use_nvp == itrue .and. (.not.is_restarting)) then
+       bc_out%nvp_dz_pa(:)   = 0._r8
+       bc_out%nvp_frac_pa(:) = 0._r8
+       bc_out%lai_nvp_pa(:)  = 0._r8
+       currentPatch => currentSite%oldest_patch
+       do while (associated(currentPatch))
+          ifp = currentPatch%patchno
+          if (currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
+             nvp_crown_area = 0._r8
+             currentCohort => currentPatch%shortest
+             do while (associated(currentCohort))
+                if (currentCohort%nvp_dz > nearzero) then
+                   bc_out%nvp_dz_pa(ifp) = bc_out%nvp_dz_pa(ifp) + &
+                        currentCohort%nvp_dz * currentCohort%c_area
+                   bc_out%lai_nvp_pa(ifp) = bc_out%lai_nvp_pa(ifp) + &
+                        currentCohort%treelai * currentCohort%c_area
+                   nvp_crown_area = nvp_crown_area + currentCohort%c_area
+                end if
+                currentCohort => currentCohort%taller
+             end do
+             if (nvp_crown_area > nearzero) then
+                bc_out%nvp_dz_pa(ifp) = bc_out%nvp_dz_pa(ifp) / nvp_crown_area
+                bc_out%lai_nvp_pa(ifp) = bc_out%lai_nvp_pa(ifp) / nvp_crown_area
+                bc_out%nvp_frac_pa(ifp) = nvp_crown_area / AREA
+             end if
+          end if
+          currentPatch => currentPatch%younger
+       end do
+    end if
 
     call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
