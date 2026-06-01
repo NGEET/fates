@@ -255,6 +255,9 @@ contains
                                                  ! (leaf+stem) at the bottom of the layer
     real(r8),dimension(150) :: cohort_layer_elai ! exposed leaf area index of the layer
     real(r8),dimension(150) :: cohort_layer_esai ! exposed stem area index of the layer
+    ! [PORTED by Hui Tang: NVP elai for ScaleLeafLayerFluxToCohort in Norman solver path]
+    ! elai_profile=0 for NVP (not sent to CLM); this temporary holds lai_nvp_pa instead.
+    real(r8),dimension(150) :: nvp_elai_tmp      ! temporary NVP LAI for GPP scaling [m2 leaf/m2 crown]
     real(r8)               :: cohort_elai        ! exposed leaf area index of the cohort 
     real(r8)               :: cohort_esai        ! exposed stem area index of the cohort
     real(r8)               :: laisun,laisha      ! m2 of exposed or shaded leaves per m2 of crown
@@ -469,7 +472,13 @@ contains
                         ! sink below the ground snow line, then the effective
                         ! LAI and SAI start to shrink to zero, as well as
                         ! the difference between vaitop and vaibot.
-                        if(currentCohort%treesai>0._r8)then
+                        ! [PORTED by Hui Tang: include NVP cohorts (treesai=0) so that
+                        !  VegAreaLayer computes cohort_layer_elai from treelai.  Without this,
+                        !  the else branch zeros cohort_layer_elai, making both the Norman PAR
+                        !  path (laisun=laisha=0 in two-stream) and ScaleLeafLayerFluxToCohort
+                        !  (cohort_layer_eleaf_area=0 → gpp=0) fail for NVP cohorts.]
+                        if(currentCohort%treesai>0._r8 .or. &
+                             (hlm_use_nvp==itrue .and. currentCohort%nvp_dz>nearzero))then
                            do iv = 1,currentCohort%nv
                               call VegAreaLayer(currentCohort%treelai, &
                                    currentCohort%treesai,              &
@@ -924,11 +933,21 @@ contains
 
                            if(hlm_radiation_model.eq.norman_solver) then
 
+                              ! [PORTED by Hui Tang: NVP elai_profile=0 (not sent to CLM);
+                              !  use lai_nvp_pa as the effective leaf area for GPP scaling.
+                              !  lai_nvp_pa [m2 thallus/m2 crown] matches the units of
+                              !  elai_profile and is the correct NVP LAI for photosynthesis.]
+                              if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                 nvp_elai_tmp(1:nv) = bc_out(s)%lai_nvp_pa(ifp)
+                              else
+                                 nvp_elai_tmp(1:nv) = currentPatch%elai_profile(cl,ft,1:nv)
+                              end if
+
                               call ScaleLeafLayerFluxToCohort(nv,         & !in
                                    psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
-                                   currentPatch%elai_profile(cl,ft,1:nv), & !in
+                                   nvp_elai_tmp(1:nv),                    & !in [PORTED: lai_nvp_pa for NVP, elai_profile otherwise]
                                    c13disc_z(1:nv,ft,cl),                 & !in
                                    currentCohort%c_area,                  & !in
                                    currentCohort%n,                       & !in
