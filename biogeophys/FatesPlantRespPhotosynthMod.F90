@@ -593,6 +593,14 @@ contains
                                     btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                                  endif
 
+                                 ! [PORTED by Hui Tang: NVP has no fine roots, so btran_ft=0 and
+                                 !  would zero vcmax via LeafLayerBiophysicalRates line 1989.
+                                 !  Set btran_eff=1 here; fwet_nvp scaling below replaces the
+                                 !  water limitation (vcmax_z *= min(1, fwet_nvp/0.6)).]
+                                 if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                    btran_eff = 1.0_r8
+                                 end if
+
                                  ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                                  ! (2010) Biogeosciences, 7, 1833-1859

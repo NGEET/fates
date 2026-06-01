@@ -833,7 +833,7 @@
       "dims": ["fates_pft"],
       "long_name": "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants  btran_on_",
       "units": "index",
-      "data": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      "data": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
     },
     "fates_leaf_c3psn": {
       "dtype": "integer",
