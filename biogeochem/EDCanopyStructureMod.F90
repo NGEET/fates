@@ -1436,7 +1436,6 @@ contains
                 bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
                 bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
                 bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
-                bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = 1
              endif
              ! -----------------------------------------------------------------------------
 
@@ -1462,11 +1461,6 @@ contains
 
              bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
-             if(currentPatch%nocomp_pft_label.gt.0)then
-                bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = EDPftvarcon_inst%voc_pftindex(currentPatch%nocomp_pft_label)
-             else
-                bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = 1 ! dummy for bare ground. 
-             endif
 
              ! Calculate area indices for output boundary to HLM
              ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles

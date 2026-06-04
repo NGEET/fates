@@ -249,6 +249,10 @@ contains
     allocate(bc_pconst%eca_alpha_ptase(numpft))
     allocate(bc_pconst%eca_lambda_ptase(numpft))
     allocate(bc_pconst%j_uptake(nlevdecomp))
+    allocate(bc_pconst%wesley_veg_index(numpft))
+    allocate(bc_pconst%wesley_sum_thresh(numpft))
+    allocate(bc_pconst%wesley_aut_thresh(numpft))
+    allocate(bc_pconst%voc_pftindex(numpft))
     
     return
   end subroutine allocate_bcpconst
@@ -273,6 +277,11 @@ contains
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
+
+    bc_pconst%wesley_veg_index(1:numpft)  = EDPftvarcon_inst%wesley_veg_index(1:numpft)
+    bc_pconst%wesley_sum_thresh(1:numpft) = EDPftvarcon_inst%wesley_sum_thresh(1:numpft)
+    bc_pconst%wesley_aut_thresh(1:numpft) = EDPftvarcon_inst%wesley_aut_thresh(1:numpft)
+    bc_pconst%voc_pftindex(1:numpft)   = EDPftvarcon_inst%voc_pftindex(1:numpft)
     
     return
   end subroutine set_bcpconst
@@ -411,7 +420,6 @@ contains
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
-    fates%bc_out(s)%nocomp_MEGAN_pft_label_pa(:) = 0
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -753,7 +761,6 @@ contains
       allocate(bc_out%frac_veg_nosno_alb_pa(maxpatch_total))
 
       allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
-      allocate(bc_out%nocomp_MEGAN_pft_label_pa(maxpatch_total))      
       allocate(bc_out%drydep_season_pa(maxpatch_total))
 
       ! Plant-Hydro BC's
