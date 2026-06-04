@@ -307,7 +307,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_seeds_in_local_si       ! carbon only
   integer :: ih_ungerm_seed_bank_si     ! carbon only
   integer :: ih_seedling_pool_si        ! carbon only
-  integer :: ih_phen_day_si                ! phenology day
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
   integer :: ih_patch_weighted_95thpctile_height_si
@@ -2490,7 +2489,6 @@ contains
          hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
          hio_ungerm_seed_bank_si => this%hvars(ih_ungerm_seed_bank_si)%r81d, &
          hio_seedling_pool_si    => this%hvars(ih_seedling_pool_si)%r81d, &
-         hio_phen_day_si         => this%hvars(ih_phen_day_si)%r81d, &
          hio_seeds_in_si         => this%hvars(ih_seeds_in_si)%r81d, &
          hio_seeds_in_local_si   => this%hvars(ih_seeds_in_local_si)%r81d, &
          hio_bdead_si            => this%hvars(ih_bdead_si)%r81d, &
@@ -2596,7 +2594,6 @@ contains
          ! Model days elapsed since leaf on/off for cold-deciduous
          hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
          hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
-         hio_phen_day_si(io_si) = real(sites(s)%phen_model_date,r8)
 
          ! site-level fire variables:
 
@@ -3385,6 +3382,7 @@ contains
              hio_secondary_agb_si_agesinceanthro  => this%hvars(ih_secondary_agb_si_agesinceanthro)%r82d, &
              hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
+          model_day_int = nint(hlm_model_day)
 
           ! ---------------------------------------------------------------------------------
           ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -3394,7 +3392,7 @@ contains
           siteloop: do s = 1,nsites
 
              io_si  = sites(s)%h_gid
-             model_day_int = sites(s)%phen_model_date
+
              ! C13 will not get b4b restarts on the first day because
              ! there is no mechanism to remember the previous day's values
              ! through a restart. This should be added with the next refactor
@@ -5478,7 +5476,7 @@ contains
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-            if (cpatch%total_canopy_area .gt. rsnbl_math_prec ) then
+            if (cpatch%total_canopy_area .gt. rsnbl_math_prec) then
                ! for TVEG, since it is only defined on vegetated area of vegetated patches, normalize by the total vegetated area
                hio_tveg_si_landuse(io_si,cpatch%land_use_label) = hio_tveg_si_landuse(io_si,cpatch%land_use_label) + &
                     bc_in(s)%t_veg_pa(cpatch%patchno) * cpatch%total_canopy_area/canopy_area_bylanduse(cpatch%land_use_label)
@@ -6871,12 +6869,6 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_seedling_pool_si)
-
-       call this%set_history_var(vname='FATES_PHEN_DAY', units='days',         &
-            long='phenology day',     &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index = ih_phen_day_si)
 
        call this%set_history_var(vname='FATES_SEEDS_IN', units='kg m-2 s-1',      &
             long='seed production rate in kg carbon per m2 second',               &
