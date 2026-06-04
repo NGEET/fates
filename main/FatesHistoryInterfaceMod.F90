@@ -9233,25 +9233,25 @@ contains
 
           call this%set_history_var(vname='FATES_SWABS_LU', units='W m-2', &
                long='fates absorbed shortwave radiation by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_sw_abs_si_landuse )
 
           call this%set_history_var(vname='FATES_NETLW_LU', units='W m-2', &
                long='fates net longwave flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_lw_net_si_landuse )
 
           call this%set_history_var(vname='FATES_SHFLUX_LU', units='W m-2', &
                long='fates sensible heat flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_shflux_si_landuse )
 
           call this%set_history_var(vname='FATES_LHFLUX_LU', units='W m-2', &
                long='fates latent heat flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_landuse )
 
