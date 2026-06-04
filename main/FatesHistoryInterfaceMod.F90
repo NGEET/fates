@@ -3382,7 +3382,6 @@ contains
              hio_secondary_agb_si_agesinceanthro  => this%hvars(ih_secondary_agb_si_agesinceanthro)%r82d, &
              hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
-          model_day_int = nint(hlm_model_day)
 
           ! ---------------------------------------------------------------------------------
           ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -3392,7 +3391,8 @@ contains
           siteloop: do s = 1,nsites
 
              io_si  = sites(s)%h_gid
-
+             ! make this consistent with what is in the phenology
+             model_day_int = sites(s)%phen_model_date
              ! C13 will not get b4b restarts on the first day because
              ! there is no mechanism to remember the previous day's values
              ! through a restart. This should be added with the next refactor
