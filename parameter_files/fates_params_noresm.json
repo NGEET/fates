@@ -688,7 +688,7 @@
       "dims": ["fates_pft"],
       "long_name": "Fraction of PFT killed during land use clearing to rangeland",
       "units": "fraction",
-      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      "data":  [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     },
     "fates_landuse_harvest_pprod10":{
       "dtype": "float",
