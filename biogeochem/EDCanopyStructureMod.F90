@@ -805,6 +805,9 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
+    integer  :: min_occupied_clayer ! find the lowest layer with cohorts. 
+    integer  :: layer_shift
+    logical  :: has_veg_cohort
 
     !----------------------------------------------------------------------
 
@@ -903,6 +906,50 @@ contains
              currentCohort => currentCohort%taller
 
           enddo ! ends 'do while(associated(currentCohort))
+
+           ! Find out the minimum canopy layer than contains cohorts with c_area > nearzero
+           ! If cohorts exist in lower layers, but layer 1 has no area,
+           ! shift all occupied layers upward so the minimum occupied layer is 1.
+           if (currentPatch%total_canopy_area <= nearzero) then
+              min_occupied_clayer = nclmax + 1 !set this to a high number and work upwards. 
+              has_veg_cohort = .false.
+              currentCohort => currentPatch%shortest
+              do while(associated(currentCohort))
+                 if (currentCohort%c_area > nearzero) then
+                    has_veg_cohort = .true.
+                    min_occupied_clayer = min(min_occupied_clayer,currentCohort%canopy_layer) !which is the lowest canopy lauyer with cohorts? 
+                 end if
+                 currentCohort => currentCohort%taller
+              end do
+
+              ! Do we have any cohorts, and is the minimum layer for these cohorts lower than the 'canopy' (i.e. do we only have 'understorey' cohorts?? 
+              if (has_veg_cohort .and. min_occupied_clayer > 1) then
+                 layer_shift = min_occupied_clayer - 1
+
+                 ! If so, then shift all those cohorts up by (at least) one canopy layer, while retaiing the clayer structure of these cohorts. 
+                 currentCohort => currentPatch%shortest
+                 do while(associated(currentCohort))
+                    currentCohort%canopy_layer = max(1,currentCohort%canopy_layer-layer_shift)
+                    currentCohort => currentCohort%taller
+                 end do
+
+                 currentPatch%NCL_p = NumCanopyLayers(currentPatch)
+
+                 ! in light of this change, recalculate the total canopy area. 
+                 currentPatch%total_canopy_area = 0.0_r8
+                 currentPatch%total_tree_area   = 0.0_r8
+                 currentCohort => currentPatch%shortest
+                 do while(associated(currentCohort))
+                    if(currentCohort%canopy_layer==1)then
+                       currentPatch%total_canopy_area = currentPatch%total_canopy_area + currentCohort%c_area
+                       if( prt_params%woody(currentCohort%pft) == itrue)then
+                          currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
+                       endif
+                    endif
+                    currentCohort => currentCohort%taller
+                 enddo
+              end if
+           end if
 
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
