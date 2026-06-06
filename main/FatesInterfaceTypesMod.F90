@@ -784,7 +784,6 @@ module FatesInterfaceTypesMod
      integer, allocatable :: wesley_pft_label_pa(:) ! For dry deposition, each FATES PFT needs to correspond to a PFT from the 'wesley 1989' scheme 
      integer, allocatable :: drydep_season_pa(:) ! For dry deposition, we need to define the season index, from 1-5, for the purposes of detrmining the deposition velocity parameters. See drydep code for details of season indices. 
 
-     integer, allocatable :: nocomp_MEGAN_pft_label_pa(:) ! Index to map from FATES NOCOMP PFT identity into MEGAN PFT space. 
           
       ! FATES Hydraulics
 
@@ -862,6 +861,10 @@ module FatesInterfaceTypesMod
                                                 ! layers and the uptake layers
                                                 ! in FATES (is either incrementally
                                                 ! increasing, or all 1s)
+       integer, pointer :: wesley_veg_index(:)
+       integer, pointer :: wesley_sum_thresh(:)
+       integer, pointer :: wesley_aut_thresh(:)
+       integer, pointer :: voc_pftindex(:)
 
    end type bc_pconst_type
 
