@@ -1626,7 +1626,7 @@
       "dims": ["fates_litterclass"],
       "long_name": "fuel surface area to volume ratio",
       "units": "cm-1",
-      "data": [13.0, 3.58, 0.98, 0.2, 66.0, 66.0]
+      "data": [13.0, 3.58, 0.98, 0.2, 35.0, 35.0]
     },
     "fates_fire_low_moisture_Coeff":{
       "dtype": "float",
@@ -1675,7 +1675,7 @@
       "dims": ["fates_litterclass"],
       "long_name": "maximum rate of litter and CWD transfer from non-decomposing class into decomposing class",
       "units": "yr-1",
-      "data": [0.52, 0.383, 0.383, 0.19, 1.0, 999.0]
+      "data": [0.52, 0.383, 0.383, 0.19, 3.0, 999.0]
     },
     "fates_litterclass_name":{
       "dtype": "string",
