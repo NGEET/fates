@@ -17,6 +17,7 @@ module FatesRadiationDriveMod
   use EDParamsMod,        only : maxpft
   use EDParamsMod       , only : GetNVegLayers
   use EDParamsMod       , only : nvp_extinction_coeff  ! [PORTED by Hui Tang: NVP Beer's law k from parameter file]
+  use EDParamsMod       , only : nvp_alb_wet, nvp_alb_dry  ! [PORTED by Hui Tang: NVP fwet-dependent albedo end-members]
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
@@ -106,6 +107,7 @@ contains
     type(fates_cohort_type), pointer :: currentCohort ! cohort pointer (NVP PFT lookup only)
     integer  :: nvp_ft           ! NVP PFT index for EDPftvarcon albedo lookup
     real(r8) :: nvp_frac         ! NVP fractional coverage of patch [0-1]
+    real(r8) :: alb_nvp_gnd      ! [PORTED by Hui Tang] fwet-dependent NVP broadband albedo [-]
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -192,12 +194,18 @@ contains
                    ! a canopy leaf layer, so ground albedo must remain the true soil albedo.
                    if (hlm_nvp_rad_model_ground == itrue .and. &
                         bc_in(s)%frac_sno_eff_si <= 0._r8) then
+                      ! [PORTED by Hui Tang: use the fwet-dependent moss albedo (nvp_alb_wet->nvp_alb_dry
+                      !  as the thallus dries) as the NVP ground reflectance, instead of the static leaf
+                      !  reflectance rhol. Consistent with the (1-alb_nvp) absorptance reduction in
+                      !  NVPBeerLawAbsorptance, so dry moss reflects more and absorbs less.]
+                      alb_nvp_gnd = nvp_alb_wet + (nvp_alb_dry - nvp_alb_wet) * &
+                           (1._r8 - max(0._r8, min(1._r8, bc_in(s)%fwet_nvp_pa(ifp))))
                       do ib = 1, num_swb
                          currentPatch%gnd_alb_dir(ib) = &
-                              nvp_frac * EDPftvarcon_inst%rhol(nvp_ft,ib) + &
+                              nvp_frac * alb_nvp_gnd + &
                               (1._r8 - nvp_frac) * bc_in(s)%albgr_dir_rb(ib)
                          currentPatch%gnd_alb_dif(ib) = &
-                              nvp_frac * EDPftvarcon_inst%rhol(nvp_ft,ib) + &
+                              nvp_frac * alb_nvp_gnd + &
                               (1._r8 - nvp_frac) * bc_in(s)%albgr_dif_rb(ib)
                       end do
                    end if
@@ -300,6 +308,7 @@ contains
                            '[DBG NVP RAD] ifp, coszen, nvp_frac, lai_nvp_pa:', &
                            real(ifp,r8), bc_in(s)%coszen, nvp_frac, bc_out(s)%lai_nvp_pa(ifp)
                       call NVPBeerLawAbsorptance(nvp_frac, bc_out(s)%lai_nvp_pa(ifp), &
+                           bc_in(s)%fwet_nvp_pa(ifp), &
                            bc_out(s)%fabd_nvp_pa(ifp,:), bc_out(s)%fabi_nvp_pa(ifp,:))
                    else
                       ! Approach B: sum Norman per-layer output for NVP cohorts
@@ -333,20 +342,29 @@ contains
 
   ! ======================================================================================
 
-  subroutine NVPBeerLawAbsorptance(nvp_frac, lai_nvp, fabd_nvp, fabi_nvp)
+  subroutine NVPBeerLawAbsorptance(nvp_frac, lai_nvp, fwet_nvp, fabd_nvp, fabi_nvp)
     ! [PORTED by Hui Tang: Beer's law NVP absorptance - extracted from FatesNormalizedCanopyRadiation]
     ! Computes Beer's law absorbed fraction per unit ground area for all radiation bands.
     ! k_nvp is band-independent so fabd_nvp == fabi_nvp.
     ! Used for CLM energy balance (sabg_lyr layer 0) and Approach A photosynthesis PAR.
+    ! [PORTED by Hui Tang: the moss reflects an fwet-dependent albedo (rises from nvp_alb_wet when
+    !  saturated to nvp_alb_dry when dry; widely documented for moss/lichen). Absorptance is the
+    !  intercepted fraction times (1-albedo); this reduces sabg_lyr(p,0) when the moss is dry and
+    !  prevents the dry-moss thermal runaway.]
     implicit none
     real(r8), intent(in)  :: nvp_frac              ! NVP fractional patch coverage [0-1]
     real(r8), intent(in)  :: lai_nvp               ! NVP thallus LAI [m2 thallus / m2 NVP crown]
+    real(r8), intent(in)  :: fwet_nvp              ! NVP wet fraction [0-1]
     real(r8), intent(out) :: fabd_nvp(num_swb)     ! Beer's law direct absorptance per band [-]
     real(r8), intent(out) :: fabi_nvp(num_swb)     ! Beer's law diffuse absorptance per band [-]
     integer :: ib
+    real(r8) :: alb_nvp                            ! fwet-dependent moss broadband albedo [-]
     if (nvp_frac > nearzero) then
+       alb_nvp = nvp_alb_wet + (nvp_alb_dry - nvp_alb_wet) * &
+                 (1._r8 - max(0._r8, min(1._r8, fwet_nvp)))
        do ib = 1, num_swb
-          fabd_nvp(ib) = nvp_frac * (1._r8 - exp(-nvp_extinction_coeff * lai_nvp))
+          fabd_nvp(ib) = nvp_frac * (1._r8 - exp(-nvp_extinction_coeff * lai_nvp)) * &
+                         (1._r8 - alb_nvp)
           fabi_nvp(ib) = fabd_nvp(ib)   ! band-independent: identical to direct
        end do
     else

@@ -66,6 +66,10 @@ module EDParamsMod
    ! [PORTED by Hui Tang: NVP (moss/lichen) Beer's law extinction coefficient]
    real(r8), protected, public :: nvp_extinction_coeff                ! Beer's law extinction coeff for NVP radiation absorption [-]
 
+   ! [PORTED by Hui Tang: NVP (moss/lichen) broadband albedo end-members; scaled by fwet_nvp]
+   real(r8), protected, public :: nvp_alb_wet                         ! NVP albedo when saturated (fwet=1) [-]
+   real(r8), protected, public :: nvp_alb_dry                         ! NVP albedo when dry (fwet=0) [-]
+
    ! [PORTED by Hui Tang: NVP (moss/lichen) allometry parameters]
    real(r8), protected, public :: nvp_bulk_density                    ! NVP bulk density [kg m-3]
    real(r8), protected, public :: nvp_sla                             ! NVP specific leaf area [m2 g-1]
@@ -496,6 +500,13 @@ module EDParamsMod
     ! [PORTED by Hui Tang: read NVP Beer's law extinction coefficient]
     param_p => pstruct%GetParamFromName("fates_nvp_extinction_coeff")
     nvp_extinction_coeff = param_p%r_data_scalar
+
+    ! [PORTED by Hui Tang: read NVP fwet-dependent albedo end-members]
+    param_p => pstruct%GetParamFromName("fates_nvp_alb_wet")
+    nvp_alb_wet = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_nvp_alb_dry")
+    nvp_alb_dry = param_p%r_data_scalar
 
     ! [PORTED by Hui Tang: read NVP allometry parameters]
     param_p => pstruct%GetParamFromName("fates_nvp_bulk_density")
