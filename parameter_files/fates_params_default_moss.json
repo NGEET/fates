@@ -1743,14 +1743,14 @@
       "dims": ["scalar"],
       "long_name": "NVP (moss/lichen) bulk density",
       "units": "kg m-3",
-      "data": [75.0]
+      "data": [10.0]
     },
     "fates_nvp_sla": {
       "dtype": "float",
       "dims": ["scalar"],
       "long_name": "NVP (moss/lichen) specific leaf area",
       "units": "m2 g-1",
-      "data": [0.3]
+      "data": [0.01]
     },
     "fates_fire_active_crown_fire": {
       "dtype": "integer",
