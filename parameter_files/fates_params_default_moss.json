@@ -1738,6 +1738,20 @@
       "units": "unitless",
       "data": [0.5]
     },
+    "fates_nvp_alb_wet": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "NVP (moss/lichen) broadband albedo when saturated (fwet_nvp=1)",
+      "units": "unitless",
+      "data": [0.15]
+    },
+    "fates_nvp_alb_dry": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "NVP (moss/lichen) broadband albedo when dry (fwet_nvp=0)",
+      "units": "unitless",
+      "data": [0.4]
+    },
     "fates_nvp_bulk_density": {
       "dtype": "float",
       "dims": ["scalar"],
