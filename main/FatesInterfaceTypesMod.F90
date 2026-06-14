@@ -225,6 +225,9 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
+  integer, public ::  hlm_use_interstitial_bareground               !  Flag to use count the FATES interstitial bareground area
+                                                                    !  with the HLM bareground patch
+                                                                    !  1 = TRUE, 0 = FALSE
   
   ! Flag specifying what types of history fields to allocate and prepare
   ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step

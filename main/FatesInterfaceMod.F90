@@ -1574,6 +1574,7 @@ contains
          hlm_use_fixed_biogeog = unset_int
          hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
+         hlm_use_interstitial_bareground = unset_int
          hlm_use_inventory_init = unset_int
          hlm_use_dbh_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
@@ -2048,6 +2049,12 @@ contains
                hlm_use_sp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+               end if
+
+            case('use_interstitial_bareground')
+               hlm_use_interstitial_bareground = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_interstitial_bareground= ',ival,' to FATES'
                end if
 
             case('use_planthydro')
