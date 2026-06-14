@@ -1352,14 +1352,12 @@ contains
     type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
-    real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
     
     do s = 1,nsites
 
        total_patch_area = 0._r8
-       total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
@@ -1456,8 +1454,6 @@ contains
                   (currentPatch%area/AREA)
 
              total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
-
-             total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
 
              bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
