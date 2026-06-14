@@ -714,6 +714,11 @@ module FatesInterfaceTypesMod
       ! omega(ib) = rhol(nvp_ft,ib) + taul(nvp_ft,ib); set in FatesRadiationDriveMod after
       ! nvp_ft lookup; transferred to surfalb_inst%nvp_omega_*_col in wrap_canopy_radiation.
       real(r8), allocatable :: nvp_omega_pa(:,:) ! NVP single-scatter albedo (patch, numrad) [-]
+      ! [PORTED by Hui Tang (2026-06-13): NVP (moss) ground reflectance, fwet-dependent and band-
+      ! independent (nvp_alb_wet/dry are scalars). Exported so the CLM SurfaceAlbedoMod blends it into
+      ! albsod (snow-free ground albedo) for ALL snow conditions — replacing the snl==0-only in-FATES
+      ! gnd_alb blend, so sabg(p)=trd*(1-albgrd) carries the exposed moss in both regimes.]
+      real(r8), allocatable :: alb_nvp_gnd_pa(:)  ! NVP moss ground reflectance (patch) [-]
 
       ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
       

@@ -181,34 +181,20 @@ contains
                       bc_out(s)%nvp_omega_pa(ifp,ib) = EDPftvarcon_inst%rhol(nvp_ft,ib) + &
                                                         EDPftvarcon_inst%taul(nvp_ft,ib)
                    end do
-                   ! No-snow case only: modify ground albedo for Norman solver (R3)
-                   ! Previous implementation (kept for reference):
-                   ! if (bc_in(s)%frac_sno_eff_si <= 0._r8) then
-                   !    do ib = 1, num_swb
-                   !       currentPatch%gnd_alb_dir(ib) = ...
-                   !       currentPatch%gnd_alb_dif(ib) = ...
-                   !    end do
-                   ! end if
-                   ! [PORTED by Hui Tang: NVP as ground boundary
-                   ! Approach B uses soil albedo as lower boundary; Norman solver handles NVP as
-                   ! a canopy leaf layer, so ground albedo must remain the true soil albedo.
-                   if (hlm_nvp_rad_model_ground == itrue .and. &
-                        bc_in(s)%frac_sno_eff_si <= 0._r8) then
-                      ! [PORTED by Hui Tang: use the fwet-dependent moss albedo (nvp_alb_wet->nvp_alb_dry
-                      !  as the thallus dries) as the NVP ground reflectance, instead of the static leaf
-                      !  reflectance rhol. Consistent with the (1-alb_nvp) absorptance reduction in
-                      !  NVPBeerLawAbsorptance, so dry moss reflects more and absorbs less.]
-                      alb_nvp_gnd = nvp_alb_wet + (nvp_alb_dry - nvp_alb_wet) * &
-                           (1._r8 - max(0._r8, min(1._r8, bc_in(s)%fwet_nvp_pa(ifp))))
-                      do ib = 1, num_swb
-                         currentPatch%gnd_alb_dir(ib) = &
-                              nvp_frac * alb_nvp_gnd + &
-                              (1._r8 - nvp_frac) * bc_in(s)%albgr_dir_rb(ib)
-                         currentPatch%gnd_alb_dif(ib) = &
-                              nvp_frac * alb_nvp_gnd + &
-                              (1._r8 - nvp_frac) * bc_in(s)%albgr_dif_rb(ib)
-                      end do
-                   end if
+                   ! [PORTED by Hui Tang (2026-06-13): compute the fwet-dependent moss ground reflectance
+                   !  UNCONDITIONALLY (all snow conditions) and EXPORT it via bc_out, so CLM's
+                   !  SurfaceAlbedoMod blends it into albsod for both snow-free and snow-covered cases.
+                   !  Same formula as the legacy gated blend below (which still uses this value); the gate
+                   !  is removed in the next step once the CLM-side blend is in place.]
+                   alb_nvp_gnd = nvp_alb_wet + (nvp_alb_dry - nvp_alb_wet) * &
+                        (1._r8 - max(0._r8, min(1._r8, bc_in(s)%fwet_nvp_pa(ifp))))
+                   bc_out(s)%alb_nvp_gnd_pa(ifp) = alb_nvp_gnd
+                   ! [PORTED by Hui Tang (2026-06-13): Phase 3 — the moss ground-albedo blend now happens
+                   !  CLM-side in SurfaceAlbedoMod (albgrd += frac_nvp_eff_alb*(alb_nvp_gnd - albsod)), for
+                   !  BOTH snow regimes. FATES receives the moss-modified ground automatically via
+                   !  gnd_alb_dir = bc_in%albgr_dir_rb = albgrd_col (clmfates_interfaceMod). The old
+                   !  snl==0-only in-FATES blend is REMOVED to avoid double-counting (it re-added the moss
+                   !  on top of the now-already-blended albgrd). nvp_frac retained only for the export above.]
                 end if
              end if
 

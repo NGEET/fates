@@ -411,6 +411,8 @@ contains
     fates%bc_out(s)%lai_nvp_pa(:)    = 0.0_r8 ! no NVP LAI by default
     ! [PORTED by Hui Tang: zero NVP single-scatter albedo for SNICAR layer-0]
     fates%bc_out(s)%nvp_omega_pa(:,:) = 0.0_r8 ! omega=0 until nvp_ft resolved in radiation
+    ! [PORTED by Hui Tang (2026-06-13): zero NVP moss ground reflectance until set in radiation]
+    fates%bc_out(s)%alb_nvp_gnd_pa(:) = 0.0_r8
 
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -686,6 +688,9 @@ contains
       ! [PORTED by Hui Tang: allocate NVP single-scatter albedo for SNICAR layer-0]
       allocate(bc_out%nvp_omega_pa(maxpatch_total,num_swb))
       bc_out%nvp_omega_pa(:,:) = 0._r8   ! [PORTED by Hui Tang: init to zero; bareground patch skipped by radiation code so its nvp_omega_pa is never set — uninit NaN would corrupt nvp_omega_vis_col]
+      ! [PORTED by Hui Tang (2026-06-13): NVP moss ground reflectance for the CLM-side albedo blend]
+      allocate(bc_out%alb_nvp_gnd_pa(maxpatch_total))
+      bc_out%alb_nvp_gnd_pa(:) = 0._r8   ! init to zero; bareground patch never sets it
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
