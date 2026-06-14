@@ -766,10 +766,12 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: displa_pa(:) ! displacement height [m]
       real(r8), allocatable :: dleaf_pa(:)  ! leaf characteristic dimension/width/diameter [m]
 
-      real(r8), allocatable :: canopy_fraction_pa(:) ! Area fraction of each patch in the site
-                                                     ! Use most likely for weighting
-                                                     ! This is currently the projected canopy
-                                                     ! area of each patch [0-1]
+      real(r8), allocatable :: patch_fraction(:) ! Area fraction of each patch in the site
+                                                 ! Use most likely for weighting
+                                                 ! This is either the projected canopy
+                                                 ! area of each patch [0-1] or the actual
+                                                 ! are fraction that each patch contributes 
+                                                 ! to the site
 
       real(r8), allocatable :: frac_veg_nosno_alb_pa(:) ! This is not really a fraction
                                                         ! this is actually binary based on if any
