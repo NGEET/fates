@@ -36,6 +36,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
+  use FatesInterfaceTypesMod     , only : hlm_use_interstitial_bareground
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1351,6 +1352,7 @@ contains
     integer :: s, ifp, c, p
     type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
+    real(r8) :: local_patch_fraction
     real(r8) :: total_patch_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
@@ -1358,7 +1360,8 @@ contains
     do s = 1,nsites
 
        total_patch_area = 0._r8
-       bc_out(s)%canopy_fraction_pa(:) = 0._r8
+       local_patch_fraction = 0._r8
+       bc_out(s)%patch_fraction(:) = 0._r8
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
@@ -1443,17 +1446,25 @@ contains
              ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants
              ! currentPatch%area/AREA is the fraction of the soil covered by this patch.
 
-             if(currentPatch%area.gt.0.0_r8)then
-                bc_out(s)%canopy_fraction_pa(ifp) = &
-                     min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+             ! If we are accounting for the interstitial bareground within the HLM bareground patch
+             ! we use the projected total canopy area fraction as the output boundary condition.
+             ! Otherwise we simply use the fraction of the area that the patch contributes to the given site.  
+             if (hlm_use_interstitial_bareground == itrue) then
+                local_patch_fraction = min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)
              else
-                bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+                 local_patch_fraction = 1.0_r8
+             end if
+
+             if(currentPatch%area.gt.0.0_r8)then
+                bc_out(s)%patch_fraction(ifp) = local_patch_fraction*(currentPatch%area/AREA)
+             else
+                bc_out(s)%patch_fraction(ifp) = 0.0_r8
              endif
 
-             bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+             bare_frac_area = (1.0_r8 - local_patch_fraction) * &
                   (currentPatch%area/AREA)
 
-             total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
+             total_patch_area = total_patch_area + bc_out(s)%patch_fraction(ifp) + bare_frac_area
 
              bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
@@ -1480,7 +1491,7 @@ contains
                 bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
              end if
 
-          else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
+          else  ! nocomp or SP, (i.e.currentPatch%nocomp_pft_label .eq. 0
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
@@ -1507,7 +1518,7 @@ contains
           do while(associated(currentPatch))
              ifp = currentPatch%patchno
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+                bc_out(s)%patch_fraction(ifp) = bc_out(s)%patch_fraction(ifp)/total_patch_area
              endif ! veg patch
              currentPatch => currentPatch%younger
           end do
