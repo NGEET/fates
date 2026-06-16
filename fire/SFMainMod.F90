@@ -220,6 +220,8 @@ contains
 
     ! initialize site parameters to zero
     currentSite%NF_successful = 0.0_r8
+    currentSite%rxfire_area_fi = 0.0_r8
+    currentSite%rxfire_area_fuel = 0.0_r8
 
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
