@@ -85,6 +85,18 @@ module EDCanopyStructureMod
   
   real(r8), parameter :: co_area_target_precision = 1.0E-9_r8 
 
+  ! Relative precision target used alongside the absolute targets above.
+  !    Area conservation checks compare differences of two large, similarly
+  !    sized areas (e.g. cohort crown areas, layer areas, patch areas). For
+  !    such differences a fixed absolute threshold becomes meaningless once
+  !    the operands are large, because a single rounding of an operand of
+  !    magnitude x already produces a residual of order ulp(x) ~ 2.2e-16*x.
+  !    To avoid spuriously tripping error checks on rounding noise, the
+  !    comparisons below use max(absolute_target, rel_area_precision*|operand|).
+  !    rel_area_precision is set to relative machine precision for r8 so that
+  !    a difference below machine precision is never treated as a real error.
+  real(r8), parameter :: rel_area_precision = 1.0E-15_r8
+
   integer, parameter :: demotion_phase  = 1
   integer, parameter :: promotion_phase = 2
   
@@ -564,7 +576,8 @@ contains
 
          sumpd_area = 0._r8
          ic  = 1
-         do while( ic<=n_layer .and. (promdem_area-sumpd_area)>co_area_target_precision) 
+         do while( ic<=n_layer .and. (promdem_area-sumpd_area) > &
+              max(co_area_target_precision, rel_area_precision*promdem_area)) 
 
             cohort => layer_co(ic)%p
 
@@ -611,7 +624,8 @@ contains
          !    the cohort area within precision checks then fail
          
          
-         whole_or_part: if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
+         whole_or_part: if( ((layer_co(ic)%pd_area - cohort%c_area) > &
+              max(co_area_target_precision, rel_area_precision*cohort%c_area) ) .or. &
               (layer_co(ic)%pd_area < 0._r8) ) then
             write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
             write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
@@ -620,7 +634,8 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
 
          
-         elseif ( abs(layer_co(ic)%pd_area - cohort%c_area) < co_area_target_precision ) then
+         elseif ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
+              max(co_area_target_precision, rel_area_precision*cohort%c_area) ) then
 
             ! Whole cohort promotion/demotion
             cohort%canopy_layer = cohort%canopy_layer + ilyr_change
@@ -875,7 +890,8 @@ contains
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
 
-                if (currentPatch%total_canopy_area - (1._r8-imperfect_fraction)*currentPatch%area > area_error_1) then
+                if (currentPatch%total_canopy_area - (1._r8-imperfect_fraction)*currentPatch%area > &
+                     max(area_error_1, rel_area_precision*currentPatch%area)) then
                    write(fates_log(),*) 'too much canopy in summary', s, &
                         currentPatch%nocomp_pft_label, currentPatch%total_canopy_area - (1._r8-imperfect_fraction)*currentPatch%area
                    call endrun(msg=errMsg(sourcefile, __LINE__))
