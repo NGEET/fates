@@ -7,6 +7,26 @@ import code  # For development: code.interact(local=dict(globals(), **locals()))
 from pathlib import Path
 import datetime
 
+def replace_nulls_float(data, mask):
+    if isinstance(data, list):
+        return [replace_nulls_float(d, m) for d, m in zip(data, mask)]
+    return None if mask else data
+
+def replace_nulls_int(data, fill):
+    if isinstance(data, list):
+        return [replace_nulls_int(d, fill) for d in data]
+    return None if (fill is not None and data == fill) else data
+
+def clean_string(s):
+    s = s.decode('utf-8').strip() if isinstance(s, bytes) else str(s).strip()
+    return s if s != "" else None
+
+def clean_array(arr):
+    if arr.ndim == 1:
+        return [clean_string(s) for s in arr]
+    return [clean_array(arr[i]) for i in range(arr.shape[0])]
+
+
 def fates_nc_to_json_structured(nc_path, json_path):
 
     time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -31,50 +51,48 @@ def fates_nc_to_json_structured(nc_path, json_path):
     for dim_name, size in ds.dims.items():
         root["dimensions"][dim_name] = int(size)
 
+
     for var_name, da in ds.data_vars.items():
 
-        val = da.values.flatten()
+        raw = da.values  # Keep the original shape
+
         # 1. Determine the simple type string
         if np.issubdtype(da.dtype, np.floating):
             dtype_str = "float"
-            is_null = np.isnan(val) | (val > 1e30)
-            # For floats, replace NaN with None
-            data_list = [float(x) if not n else None for x, n in zip(val, is_null)]
+            # Build a same-shape boolean mask for null values
+            is_null = np.isnan(raw) | (raw > 1e30)
+            # Use numpy's vectorized approach to build a nested list preserving shape
+            # np.where can't produce None, so we use a Python-side conversion via tolist
+            float_vals = raw.tolist()  # nested lists, preserving shape
+            data_list = replace_nulls_float(float_vals, is_null.tolist())
         
         elif np.issubdtype(da.dtype, np.integer):
             dtype_str = "int"
-            # Check for the common NetCDF _FillValue or missing_value
             fill_value = da.attrs.get('_FillValue') or da.attrs.get('missing_value')
-            data_list = [int(x) if x != fill_value else None for x in val]
-        
+            int_vals = raw.tolist()  # nested lists, preserving shape
+            data_list = replace_nulls_int(int_vals, fill_value)
+
         elif da.dtype.kind in ['S', 'U', 'O']:
             dtype_str = "string"
-            raw_values = da.values
-            # For strings, an empty string or a specific fill string becomes None
-            def clean_string(s):
-                s = s.decode('utf-8').strip() if isinstance(s, bytes) else str(s).strip()
-                return s if s != "" else None
-        
-            if raw_values.ndim == 0:
-                data_list = [clean_string(raw_values.item())]
+            if raw.ndim == 0:
+                data_list = [clean_string(raw.item())]
             else:
-                data_list = [clean_string(i) for i in raw_values.flatten()]
+                # Preserve shape for string arrays too
+                data_list = clean_array(raw)
+
         else:
             print(f'Encountered unknown kind of variable')
             print(f'Variable name: {var_name}')
             print(f'da.dtype.kind: {da.dtype.kind}')
             print(f'Exiting')
             exit(2)
-            #dtype_str = "unknown"
-            #data_list = da.values.tolist()
-
 
         # 3. Build the parameter entry
         param_entry = {
             "dtype": dtype_str,
             "dims": list(da.dims) if da.dims else ["scalar"],
-            "data": data_list
-        }
+            "data": data_list  }
+
 
         # 4. Elevate attributes (and clean them of bytes)
         for attr_name, attr_val in da.attrs.items():
