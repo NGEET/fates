@@ -104,6 +104,10 @@ module LeafBiophysicsMod
   ! Constants used to define conductance models
   integer, parameter :: medlyn_model = 2
   integer, parameter :: ballberry_model = 1
+  ! [PORTED by Hui Tang: NVP (moss/lichen) boundary-layer-only CO2 model. NVP has no
+  !  stomata; CO2 uptake is limited by the leaf boundary layer (gb) and a water-film
+  !  resistance scaled by fwet_nvp. Selected when fates_leaf_stomatal_model = 3.]
+  integer, parameter :: nvp_model = 3
 
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
@@ -902,7 +906,7 @@ contains
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
        gs0, gs1, gs2, &
-       anet,agross,gs,fval)
+       anet,agross,gs,fval, fwet_nvp)
 
     ! -----------------------------------------------------------------------------------
     ! DESCRIPTION:
@@ -948,7 +952,11 @@ contains
     real(r8), intent(out) :: agross         ! gross leaf photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
-    
+    ! [PORTED by Hui Tang: NVP (moss/lichen) wet fraction; present only for NVP cohorts.
+    !  Used by the nvp_model branch of the ci prediction below.]
+    real(r8), intent(in), optional :: fwet_nvp  ! NVP wet fraction [0-1]
+
+    real(r8) :: fwet_nvp_loc      ! local NVP wet fraction (0 if absent -> dry)
     !real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
     real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
@@ -963,6 +971,10 @@ contains
     real(r8) :: r1,r2             ! The roots from the quadratic
     logical  :: err
     !------------------------------------------------------------------------------
+
+    ! [PORTED by Hui Tang: default NVP wet fraction to dry (0) when not supplied.]
+    fwet_nvp_loc = 0._r8
+    if (present(fwet_nvp)) fwet_nvp_loc = fwet_nvp
 
     ! Photosynthesis limitation rate calculations
     if (lb_params%c3psn(ft) == c3_path_index)then
@@ -1060,7 +1072,13 @@ contains
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
     !call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
-    if ( lb_params%stomatal_model == medlyn_model ) then
+    if ( lb_params%stomatal_model == nvp_model ) then
+       ! [PORTED by Hui Tang: NVP (moss/lichen) has no stomata, so skip the stomatal
+       !  conductance solve. gs is set to the intercept (gs0) and is NOT used in the
+       !  NVP ci prediction below (boundary-layer-only). This makes veg_esat/can_vpress
+       !  irrelevant for NVP and avoids using their (intentionally unset) values.]
+       gs = gs0
+    else if ( lb_params%stomatal_model == medlyn_model ) then
        call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2, &
             leaf_co2_ppress,can_press,gb,gs)
     else
@@ -1073,8 +1091,20 @@ contains
     ! (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
     
     ! fval = ci_input - ci_predicted
-    fval = ci - (can_co2_ppress - anet * can_press * &
-         (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
+    if ( lb_params%stomatal_model == nvp_model ) then
+       ! [PORTED by Hui Tang: NVP (moss/lichen) boundary-layer-only ci prediction.
+       !  Moved here from LeafLayerPhotosynthesis so the solver converges on a ci that
+       !  is consistent with this prediction (this also covers the CiBisection path,
+       !  which calls CiFunc). CO2 diffuses across the leaf boundary layer (gb) only;
+       !  a water-film resistance scales diffusion by (1-fwet_nvp)^12 (Porada et al.
+       !  2013): dry (fwet->0) -> factor 1 (standard boundary layer); saturated
+       !  (fwet->1) -> factor clamped to 0.1^12, the water film blocking CO2 uptake.]
+       fval = ci - (can_co2_ppress - anet * can_press * h2o_co2_bl_diffuse_ratio / &
+            (gb * max((max(1.0_r8 - fwet_nvp_loc, 0.1_r8))**12, 0.000001_r8)))
+    else
+       fval = ci - (can_co2_ppress - anet * can_press * &
+            (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
+    end if
 
   end subroutine CiFunc
 
@@ -1083,7 +1113,7 @@ contains
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
        gs0,gs1,gs2,ci_tol, &
-       anet,agross,gs,ci,solve_iter)
+       anet,agross,gs,ci,solve_iter, fwet_nvp)
 
     ! -----------------------------------------------------------------------------------
     !
@@ -1115,6 +1145,8 @@ contains
     real(r8), intent(out)  :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out)  :: ci             ! Input (trial) intracellular leaf CO2 (Pa)
     integer, intent(inout) :: solve_iter     ! number of bisections required
+    ! [PORTED by Hui Tang: NVP wet fraction, forwarded to CiFunc for the nvp_model branch.]
+    real(r8), intent(in), optional :: fwet_nvp  ! NVP wet fraction [0-1]
 
     ! With bisection, we need to keep track of three different ci values at any given time
     ! The high, the low and the bisection.
@@ -1139,13 +1171,13 @@ contains
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
          gs0,gs1,gs2, &
-         anet,agross,gs,fval_h)
-    
+         anet,agross,gs,fval_h, fwet_nvp)
+
     call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
          gs0,gs1,gs2, &
-         anet,agross,gs,fval_l)
+         anet,agross,gs,fval_l, fwet_nvp)
 
     ! It is necessary that our starting points are on opposite sides of the root
     if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
@@ -1157,14 +1189,14 @@ contains
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
             gs0,gs1,gs2, &
-            anet,agross,gs,fval_h)
+            anet,agross,gs,fval_h, fwet_nvp)
 
        ci_l = 2000._r8
        call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, veg_esat, &
          gs0,gs1,gs2, &
-         anet,agross,gs,fval_l)
+         anet,agross,gs,fval_l, fwet_nvp)
        
        ! It is necessary that our starting points are on opposite sides of the root
        if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
@@ -1193,7 +1225,7 @@ contains
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
             gs0,gs1,gs2, &
-            anet,agross,gs,fval_b)
+            anet,agross,gs,fval_b, fwet_nvp)
 
        if(abs(fval_b)<ci_tol) then
           !loop_continue = .false.
@@ -1371,7 +1403,7 @@ contains
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2, &
-               anet,agross,gs,fval)
+               anet,agross,gs,fval, fwet_nvp)
           
           ! fval = ci_input - ci_predicted
           ! ci_predicted = ci_input - fval
@@ -1394,7 +1426,7 @@ contains
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2,ci_tol, &
-               anet,agross,gs,ci,solve_iter)
+               anet,agross,gs,ci,solve_iter, fwet_nvp)
           loop_continue = .false.
           exit iter_loop
        end if
@@ -1410,15 +1442,10 @@ contains
     c13disc = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
          min (can_co2_ppress, max (ci, 0._r8)) / can_co2_ppress
 
-    ! [PORTED by Hui Tang: for NVP (stomatal_model==3), override ci using boundary-layer-only
-    !  diffusion scaled by a fwet water-film resistance term (Porada 2013 approach).
-    !  When dry (fwet->0): (1-fwet)->1, standard boundary-layer resistance.
-    !  When saturated (fwet->1): (1-fwet) clamped to 0.1, very high resistance
-    !  because the water film blocks CO2 diffusion into the tissue.]
-    if (present(fwet_nvp)) then
-       ci = can_co2_ppress - anet * can_press * h2o_co2_bl_diffuse_ratio / &
-            (gb * max((max(1.0_r8 - fwet_nvp, 0.1_r8))**12, 0.000001_r8))
-    end if
+    ! [PORTED by Hui Tang: the NVP (moss/lichen) boundary-layer-only ci override that
+    !  previously lived here has been moved into CiFunc (guarded by stomatal_model ==
+    !  nvp_model), so the iterative solver — and the CiBisection fallback — converge on a
+    !  ci consistent with that prediction. fwet_nvp is forwarded to CiFunc/CiBisection above.]
 
     return
   end subroutine LeafLayerPhotosynthesis
