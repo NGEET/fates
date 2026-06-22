@@ -26,6 +26,7 @@ module FatesSizeAgeTypeIndicesMod
   public :: get_height_index
   public :: get_sizeagepft_class_index
   public :: get_agepft_class_index
+  public :: get_layeragepft_class_index
   public :: get_cdamagesize_class_index
   public :: get_cdamagesizepft_class_index
   public :: coagetype_class_index
@@ -226,6 +227,27 @@ contains
           (pft-1) * nlevsclass * nlevdamage
 
   end function get_cdamagesizepft_class_index
+
+  ! =====================================================================================
+
+  function get_layeragepft_class_index(layer,age,pft) result(layer_by_age_by_pft_class)
+     
+     ! Get the 1D index for a canopy layer x patch age x pft triplet
+     
+     ! Arguments
+     integer,intent(in) :: layer
+     real(r8),intent(in) :: age
+     integer,intent(in)  :: pft
+
+     integer             :: age_class
+     integer             :: layer_by_age_by_pft_class
+     
+     age_class         = get_age_class_index(age)
+     
+     layer_by_age_by_pft_class = (pft-1)*nclmax*nlevage + &
+          (age_class-1)*nclmax + layer
+          
+  end function get_layeragepft_class_index
 
   ! =====================================================================================
 

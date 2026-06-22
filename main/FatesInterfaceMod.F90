@@ -1265,6 +1265,9 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
+       allocate( fates_hdim_agmap_levcanagepft(nclmax * nlevage * numpft))
+       allocate( fates_hdim_pftmap_levcanagepft(nclmax * nlevage * numpft))
+       allocate( fates_hdim_canmap_levcanagepft(nclmax * nlevage * numpft))
        allocate( fates_hdim_agmap_levagefuel(nlevage * num_fuel_classes))
        allocate( fates_hdim_fscmap_levagefuel(nlevage * num_fuel_classes))
 
@@ -1436,6 +1439,18 @@ contains
              i=i+1
              fates_hdim_agmap_levagepft(i) = iage
              fates_hdim_pftmap_levagepft(i) = ipft
+          end do
+       end do
+
+       i=0
+       do ipft=1,numpft
+          do iage=1,nlevage
+             do ican=1,nclmax
+                i=i+1
+                fates_hdim_pftmap_levcanagepft(i) = ipft
+                fates_hdim_agmap_levcanagepft(i) = iage
+                fates_hdim_canmap_levcanagepft(i) = ican
+             end do
           end do
        end do
 
