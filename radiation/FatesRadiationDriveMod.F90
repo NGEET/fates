@@ -484,7 +484,7 @@ contains
                 !   Also set ed_laisha_z since elai_profile=0 for NVP in Approach A.
                 ! Approach B (NVP as leaf layer): override snow case only using SNICAR fractions;
                 !   no-snow case is handled by Norman solver via standard fabd_sun_z/fabd_sha_z.
-                if (hlm_use_nvp == itrue .and. bc_in(s)%coszen > 0._r8) then
+                if (hlm_use_nvp == itrue .and. sites(s)%coszen > 0._r8) then
                    trd_nvp = bc_in(s)%solad_parb(ifp,ipar) * bc_out(s)%ftdd_parb(ifp,ipar)
                    tri_nvp = bc_in(s)%solad_parb(ifp,ipar) * bc_out(s)%ftid_parb(ifp,ipar) + &
                               bc_in(s)%solai_parb(ifp,ipar) * bc_out(s)%ftii_parb(ifp,ipar)
