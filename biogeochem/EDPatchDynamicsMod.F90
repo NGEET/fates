@@ -1541,6 +1541,13 @@ contains
                 end do
 
                 buffer_patch_used_if: if ( buffer_patch_used ) then
+                   ! The buffer patch has now absorbed all of the area carved off the changed
+                   ! patches and is about to be redistributed into patches with explicit, valid
+                   ! nocomp PFT labels for this land use type. Clear the land-use-change flag it
+                   ! inherited (via fuse_2_patches) from its donors so the remapped output patches
+                   ! are not spuriously reprocessed on a later timestep.
+                   buffer_patch%changed_landuse_this_ts = .false.
+
                    ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
                    if (abs(sum(nocomp_pft_area_vector(:) - nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
                       write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
@@ -1758,6 +1765,11 @@ contains
          currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
          hlm_regeneration_model)
+
+    ! Conserve the land-use-change flag: a piece split off a patch that still needs its
+    ! nocomp PFT identity remapped to the new land use type must inherit the flag, so it
+    ! is not left behind as an orphan patch.
+    new_patch%changed_landuse_this_ts = currentPatch%changed_landuse_this_ts
 
     ! Initialize the litter pools to zero, these
     ! pools will be populated shortly
@@ -3321,6 +3333,12 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
+
+    ! Conserve the land-use-change flag: if either patch still needs its nocomp PFT
+    ! identity remapped to the new land use type (changed_landuse_this_ts), the fused
+    ! patch must remain flagged so it is not silently left as an orphan (a patch whose
+    ! nocomp_pft_label is not valid for its land_use_label).
+    rp%changed_landuse_this_ts = rp%changed_landuse_this_ts .or. dp%changed_landuse_this_ts
 
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
