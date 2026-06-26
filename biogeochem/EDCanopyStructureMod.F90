@@ -1355,8 +1355,9 @@ contains
     real(r8) :: local_patch_fraction
     real(r8) :: total_patch_area
     real(r8) :: total_patch_leaf_stem_area
-    real(r8) :: weight  ! Weighting for cohort variables in patch
-    
+    real(r8) :: weight          ! Weighting for cohort variables in patch
+    real(r8) :: weighting_area  ! Area to normalize against depending on insterstitial bareground handling
+
     do s = 1,nsites
 
        total_patch_area = 0._r8
@@ -1390,17 +1391,27 @@ contains
 
              bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-             ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
-             ! Roughness length and displacement height used by the HLM
-             ! use total LAI + SAI to weight the leaft characteristic dimension
+             ! Define the characteristic roughness length and displacement height used by the HLM
+             ! Nominally, FATES uses canopy-only crown area weighting for all cohorts in the patch
+             ! when the interstitial bareground is being collapsed into the HLM bareground patch.
+             ! When we account for the bareground as part of the patch, the full area is accounted
+             ! for in the calculation.
+             ! If there is no canopy and we are considering the interstitial bareground we do
+             ! something else.
+             ! Use total LAI + SAI to weight the leaft characteristic dimension
              ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
 
              if (currentPatch%total_canopy_area > nearzero) then
+               if (hlm_use_interstitial_bareground .eq. itrue) then
+                 weighting_area = currentPatch%total_canopy_area
+               else
+                 weighting_area = currentPatch%area
+               end if
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
                    if (currentCohort%canopy_layer .eq. 1) then
-                      weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                      weight = min(1.0_r8,currentCohort%c_area/weighting_area)
                       bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
                            EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
                       bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
@@ -1434,9 +1445,12 @@ contains
                 endif
              else
                 ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
-                bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-                bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-                bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                if (hlm_use_interstitial_bareground .eq. itrue) then
+                   bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+                   bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+                   bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                ! else do something else if interstitial bareground is not being used by the HLM
+                end if
              endif
              ! -----------------------------------------------------------------------------
 
