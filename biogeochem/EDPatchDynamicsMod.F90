@@ -3206,9 +3206,13 @@ contains
 
                 ! find the largest patch in this land-use label (the disposal target)
                 largest_patch => null()
+
+                ! Prefer a non-bareground recipient when nocomp is enabled; fall back to
+                ! bareground only if no other target exists.
                 tmpptr => currentSite%youngest_patch
                 do while(associated(tmpptr))
-                   if (tmpptr%land_use_label .eq. i_lulabel) then
+                   if (tmpptr%land_use_label .eq. i_lulabel .and. &
+                        (hlm_use_nocomp .eq. ifalse .or. tmpptr%nocomp_pft_label .ne. nocomp_bareground)) then
                       if (.not.associated(largest_patch)) then
                          largest_patch => tmpptr
                       else if (tmpptr%area .gt. largest_patch%area) then
@@ -3217,6 +3221,20 @@ contains
                    endif
                    tmpptr => tmpptr%older
                 end do
+
+                if (.not.associated(largest_patch)) then
+                   tmpptr => currentSite%youngest_patch
+                   do while(associated(tmpptr))
+                      if (tmpptr%land_use_label .eq. i_lulabel) then
+                         if (.not.associated(largest_patch)) then
+                            largest_patch => tmpptr
+                         else if (tmpptr%area .gt. largest_patch%area) then
+                            largest_patch => tmpptr
+                         endif
+                      endif
+                      tmpptr => tmpptr%older
+                   end do
+                endif
 
                 ! find the smallest patch in this land-use label that is not the disposal
                 ! target itself - this is the blocking/orphan patch to remove
