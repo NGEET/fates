@@ -89,6 +89,7 @@ contains
   subroutine btran_ed( nsites, sites, bc_in, bc_out)
 
     use FatesPlantHydraulicsMod, only : BTranForHLMDiagnosticsFromCohortHydr
+    use FatesInterfaceTypesMod    , only : hlm_use_nocomp
 
 
     ! ---------------------------------------------------------------------------------
@@ -143,110 +144,139 @@ contains
           ifp = cpatch%patchno
           
           if_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then ! only for veg patches
+             if (hlm_use_nocomp .eq. itrue) then
+                ft = cpatch%nocomp_pft_label
+                call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                      bc_in(s)%max_rooting_depth_index_col )
+                  cpatch%btran_ft(ft) = 0.0_r8
+                  do j = 1,bc_in(s)%nlevsoil
+                    ! Calculations are only relevant where liquid water exists
+                    ! see clm_fates%wrap_btran for calculation with CLM/ALM
+                    if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
+                        smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
+                        rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
+                            (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+                        root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
+                        ! root water uptake is not linearly proportional to root density,
+                        ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
+                        cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + root_resis(ft,j)
+                    else
+                        root_resis(ft,j) = 0._r8
+                    end if
+                  end do !j
+                  ! Normalize root resistances to get layer contribution to ET
+                  do j = 1,bc_in(s)%nlevsoil  
+                    if (cpatch%btran_ft(ft)  >  nearzero) then
+                        root_resis(ft,j) = root_resis(ft,j)/cpatch%btran_ft(ft)
+                    else
+                        root_resis(ft,j) = 0._r8
+                    end if
+                  end do
+             else
+                do ft = 1,numpft
+                   call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
+                        bc_in(s)%max_rooting_depth_index_col ) 
 
-             ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
-
-             do ft = 1,numpft
-
-                  call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
-                       bc_in(s)%max_rooting_depth_index_col ) 
-
-                cpatch%btran_ft(ft) = 0.0_r8
-                do j = 1,bc_in(s)%nlevsoil
-
-                   ! Calculations are only relevant where liquid water exists
-                   ! see clm_fates%wrap_btran for calculation with CLM/ALM
-
-                   if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
-
-                      smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
-
-                      rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j))*               &
-                           (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
-
-                      root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
-
-                      ! root water uptake is not linearly proportional to root density,
-                      ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
-
-                      cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + root_resis(ft,j)
-
-                   else
-                      root_resis(ft,j) = 0._r8
-                   end if
-
-                end do !j
-
-                ! Normalize root resistances to get layer contribution to ET
-                do j = 1,bc_in(s)%nlevsoil  
-                   if (cpatch%btran_ft(ft)  >  nearzero) then
-                      root_resis(ft,j) = root_resis(ft,j)/cpatch%btran_ft(ft)
-                   else
-                      root_resis(ft,j) = 0._r8
-                   end if
-                end do
-
-             end do !PFT
-
+                   cpatch%btran_ft(ft) = 0.0_r8
+                   do j = 1,bc_in(s)%nlevsoil
+                      ! Calculations are only relevant where liquid water exists
+                      ! see clm_fates%wrap_btran for calculation with CLM/ALM
+                      if ( check_layer_water(bc_in(s)%h2o_liqvol_sl(j),bc_in(s)%tempk_sl(j)) )  then
+                          smp_node = max(smpsc(ft), bc_in(s)%smp_sl(j))
+                          rresis  = min( (bc_in(s)%eff_porosity_sl(j)/bc_in(s)%watsat_sl(j)) * &
+                                    (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
+                          root_resis(ft,j) = sites(s)%rootfrac_scr(j)*rresis
+                          ! root water uptake is not linearly proportional to root density,
+                          ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
+                          cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + root_resis(ft,j)
+                      else
+                          root_resis(ft,j) = 0._r8
+                      end if
+                   end do !j
+                   ! Normalize root resistances to get layer contribution to ET
+                   do j = 1,bc_in(s)%nlevsoil  
+                      if (cpatch%btran_ft(ft)  >  nearzero) then
+                         root_resis(ft,j) = root_resis(ft,j)/cpatch%btran_ft(ft)
+                      else
+                         root_resis(ft,j) = 0._r8
+                      end if
+                   end do
+                end do !PFT
+             endif
              ! PFT-averaged point level root fraction for extraction purposese.
              ! The cohort's conductance g_sb_laweighted, contains a weighting factor
              ! based on the cohort's leaf area. units: [m/s] * [m2]
-
-             pftgs(1:maxpft) = 0._r8
-             ccohort => cpatch%tallest
-             do while(associated(ccohort))
-                pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
-                ccohort => ccohort%shorter
-             enddo
-
-             ! Process the boundary output, this is necessary for calculating the soil-moisture
-             ! sink term across the different layers in driver/host.  Photosynthesis will
-             ! pass the host a total transpiration for the patch.  This needs rootr to be
-             ! distributed over the soil layers.
-             sum_pftgs = sum(pftgs(1:numpft))
-
-             do j = 1, bc_in(s)%nlevsoil
-                bc_out(s)%rootr_pasl(ifp,j) = 0._r8
-                do ft = 1,numpft
-                   if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
-                      !bit-retart test as a result? FIX(RF,032414)  
-                      bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                           root_resis(ft,j) * pftgs(ft)/sum_pftgs
-                   else
-                      bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                           root_resis(ft,j) * 1._r8/real(numpft,r8)
-                   end if
+             if (hlm_use_nocomp .eq. itrue) then
+                ft = cpatch%nocomp_pft_label
+                sum_pftgs = 0._r8
+                ccohort => cpatch%tallest
+                do while(associated(ccohort))
+                    if (ccohort%pft .eq. cpatch%nocomp_pft_label) then
+                       sum_pftgs = sum_pftgs + ccohort%g_sb_laweight
+                    end if
+                    ccohort => ccohort%shorter
                 enddo
-             enddo
-
-             ! Calculate the BTRAN that is passed back to the HLM
-             ! used only for diagnostics. If plant hydraulics is turned off
-             ! we are using the patchxpft level btran calculation
-
-             if(hlm_use_planthydro.eq.ifalse) then
-                !weight patch level output BTRAN for the
-                bc_out(s)%btran_pa(ifp) = 0.0_r8
-                do ft = 1,numpft
-                   if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
-                      !bit-retart test as a result? FIX(RF,032414)   
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum_pftgs
-                   else
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
-                   end if
+                bc_out(s)%btran_pa(ifp) = cpatch%btran_ft(ft)
+                do j = 1, bc_in(s)%nlevsoil
+                   bc_out(s)%rootr_pasl(ifp,j) = root_resis(ft,j)
+                end do
+             else
+                pftgs(1:maxpft) = 0._r8
+                ccohort => cpatch%tallest
+                do while(associated(ccohort))
+                    pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
+                    ccohort => ccohort%shorter
                 enddo
-             end if
 
-             temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
+                ! Process the boundary output, this is necessary for calculating the soil-moisture
+                ! sink term across the different layers in driver/host.  Photosynthesis will
+                ! pass the host a total transpiration for the patch.  This needs rootr to be
+                ! distributed over the soil layers.
+                sum_pftgs = sum(pftgs(1:numpft))
 
-             if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-
-                if(debug) write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
-                
-                do j = 1,bc_in(s)%nlevsoil
-                   bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
+                do j = 1, bc_in(s)%nlevsoil
+                    bc_out(s)%rootr_pasl(ifp,j) = 0._r8
+                    do ft = 1,numpft
+                      if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
+                          !bit-retart test as a result? FIX(RF,032414)  
+                          bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
+                              root_resis(ft,j) * pftgs(ft)/sum_pftgs
+                      else
+                          bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
+                              root_resis(ft,j) * 1._r8/real(numpft,r8)
+                      end if
+                    enddo
                 enddo
-                
-             end if
+
+                ! Calculate the BTRAN that is passed back to the HLM
+                ! used only for diagnostics. If plant hydraulics is turned off
+                ! we are using the patchxpft level btran calculation
+
+                if(hlm_use_planthydro.eq.ifalse) then
+                    !weight patch level output BTRAN for the
+                    bc_out(s)%btran_pa(ifp) = 0.0_r8
+                    do ft = 1,numpft
+                      if( sum_pftgs > 0._r8)then !prevent problem with the first timestep - might fail
+                          !bit-retart test as a result? FIX(RF,032414)   
+                          bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)/sum_pftgs
+                      else
+                          bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
+                      end if
+                    enddo
+                end if
+
+                temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
+
+                if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
+
+                    if(debug) write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
+                    
+                    do j = 1,bc_in(s)%nlevsoil
+                      bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
+                    enddo
+                    
+                end if
+             end if ! no-comp
           endif if_bare
           cpatch => cpatch%younger
        end do
