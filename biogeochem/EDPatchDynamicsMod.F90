@@ -2933,6 +2933,9 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_site_type) , pointer :: currentSite
     type(fates_patch_type), pointer :: currentPatch,tpp,tmpptr
+    type(fates_patch_type), pointer :: largest_patch    ! disposal target for an orphan patch
+    type(fates_patch_type), pointer :: smallest_patch   ! smallest (blocking/orphan) patch to dispose of
+    character(len=1024) :: warn_msg                      ! for defining a warning message
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
@@ -3190,21 +3193,109 @@ contains
              ! against relative biomass size, it shoudnt ever get above 2 (which would mean fusing 
              ! a zero with a nonzero biomass in a given category)
              if (profiletol .gt. 100._r8) then
-                write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
-                write(fates_log(),*) 'probably this means there are too many distinct categorical '
-                write(fates_log(),*) 'patch types for the maximum number of patches'
-                call dump_site(currentSite)
-                write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
-                do i = 1, n_landuse_cats
-                   write(fates_log(),*) 'i, currentSite%area_pft(:,i)',i, currentSite%area_pft(:,i)
-                end do
+
+                ! We have relaxed the patch-fusion tolerance all the way and still cannot get
+                ! nopatches(i_lulabel) down to maxpatches_by_landuse(i_lulabel). This happens when
+                ! there is an irreducible "orphan" patch in this land-use label whose
+                ! nocomp_pft_label does not match any other patch in the same land-use label, so
+                ! the categorical fusion above can never merge it. Rather than crash, gracefully
+                ! dispose of the smallest blocking patch by relabelling its nocomp_pft_label to
+                ! that of the largest patch in the same land-use label and fusing it into that
+                ! patch. This branch only executes in the previously-fatal case, so healthy runs
+                ! are unaffected.
+
+                ! find the largest patch in this land-use label (the disposal target)
+                largest_patch => null()
+
+                ! Prefer a non-bareground recipient when nocomp is enabled; fall back to
+                ! bareground only if no other target exists.
                 tmpptr => currentSite%youngest_patch
                 do while(associated(tmpptr))
-                   write(fates_log(),*) tmpptr%area, tmpptr%nocomp_pft_label, tmpptr%land_use_label
+                   if (tmpptr%land_use_label .eq. i_lulabel .and. &
+                        (hlm_use_nocomp .eq. ifalse .or. tmpptr%nocomp_pft_label .ne. nocomp_bareground)) then
+                      if (.not.associated(largest_patch)) then
+                         largest_patch => tmpptr
+                      else if (tmpptr%area .gt. largest_patch%area) then
+                         largest_patch => tmpptr
+                      endif
+                   endif
                    tmpptr => tmpptr%older
                 end do
-                
-                call endrun(msg=errMsg(sourcefile, __LINE__))                
+
+                if (.not.associated(largest_patch)) then
+                   tmpptr => currentSite%youngest_patch
+                   do while(associated(tmpptr))
+                      if (tmpptr%land_use_label .eq. i_lulabel) then
+                         if (.not.associated(largest_patch)) then
+                            largest_patch => tmpptr
+                         else if (tmpptr%area .gt. largest_patch%area) then
+                            largest_patch => tmpptr
+                         endif
+                      endif
+                      tmpptr => tmpptr%older
+                   end do
+                endif
+
+                ! find the smallest patch in this land-use label that is not the disposal
+                ! target itself - this is the blocking/orphan patch to remove
+                smallest_patch => null()
+                tmpptr => currentSite%youngest_patch
+                do while(associated(tmpptr))
+                   if (tmpptr%land_use_label .eq. i_lulabel .and. &
+                        .not.associated(tmpptr,largest_patch)) then
+                      if (.not.associated(smallest_patch)) then
+                         smallest_patch => tmpptr
+                      else if (tmpptr%area .lt. smallest_patch%area) then
+                         smallest_patch => tmpptr
+                      endif
+                   endif
+                   tmpptr => tmpptr%older
+                end do
+
+                if (associated(largest_patch) .and. associated(smallest_patch)) then
+
+                   warn_msg = 'fuse_patches could not reduce patch count for a land-use label; '// &
+                              'relabelling and fusing the smallest (orphan) patch into the '// &
+                              'largest patch of the same land-use label. '// &
+                              'lu label: '//trim(I2S(i_lulabel))// &
+                              ' orphan nocomp pft: '//trim(I2S(smallest_patch%nocomp_pft_label))// &
+                              ' orphan area: '//trim(N2S(smallest_patch%area))
+                   call FatesWarn(warn_msg,index=5)
+
+                   ! relabel BEFORE fusing so that the nocomp_pft_label check in
+                   ! fuse_2_patches passes (donor and recipient labels must match)
+                   smallest_patch%nocomp_pft_label = largest_patch%nocomp_pft_label
+                   smallest_patch%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
+                   call fuse_2_patches(csite, smallest_patch, largest_patch)
+                   call fuse_cohorts(csite, largest_patch, bc_in)
+                   call largest_patch%SortCohorts()
+                   call largest_patch%ValidateCohorts()
+
+                   ! reset the tolerance and keep iterating; we removed one patch so the
+                   ! count will eventually fall to/below the maximum
+                   profiletol = ED_val_patch_fusion_tol
+
+                else
+
+                   ! we could not identify a disposal target/donor pair; fall back to the
+                   ! original diagnostic dump and crash
+                   write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
+                   write(fates_log(),*) 'probably this means there are too many distinct categorical '
+                   write(fates_log(),*) 'patch types for the maximum number of patches'
+                   call dump_site(currentSite)
+                   write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
+                   do i = 1, n_landuse_cats
+                      write(fates_log(),*) 'i, currentSite%area_pft(:,i)',i, currentSite%area_pft(:,i)
+                   end do
+                   tmpptr => currentSite%youngest_patch
+                   do while(associated(tmpptr))
+                      write(fates_log(),*) tmpptr%area, tmpptr%nocomp_pft_label, tmpptr%land_use_label
+                      tmpptr => tmpptr%older
+                   end do
+
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                endif
              endif
           else
              iterate = 0
@@ -3460,13 +3551,54 @@ contains
              end do
 
              if ( .not. gotfused ) then
-                !! somehow didn't find a patch to fuse with.
-                warn_msg = 'small nocomp patch wasnt able to find '// &
-                           'another patch to fuse with. '// &
-                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
-                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
-                           'area: '//trim(N2S(currentPatch%area))
-                call FatesWarn(warn_msg,index=5)
+                !! somehow didn't find a patch of the same (nocomp_pft_label, land_use_label)
+                !! kind to fuse with. Left in place, this tiny patch becomes an irreducible
+                !! "orphan" that later blocks fuse_patches (its categorical labels match no
+                !! other patch in its land-use label). Dispose of it here by relabelling its
+                !! nocomp_pft_label to that of the largest patch in the same land-use label
+                !! and fusing that patch into it (keeping currentPatch as the recipient so the
+                !! enclosing loop's pointer remains valid).
+
+                ! find the largest patch in the same land-use label (disposal partner)
+                largest_patch => null()
+                patchpointer => currentSite%youngest_patch
+                do while(associated(patchpointer))
+                   if ( .not.associated(patchpointer,currentPatch) .and. &
+                        patchpointer%land_use_label .eq. currentPatch%land_use_label .and. &
+                        patchpointer%nocomp_pft_label .ne. nocomp_bareground ) then
+                      if (.not.associated(largest_patch)) then
+                         largest_patch => patchpointer
+                      else if (patchpointer%area .gt. largest_patch%area) then
+                         largest_patch => patchpointer
+                      endif
+                   endif
+                   patchpointer => patchpointer%older
+                end do
+
+                if ( associated(largest_patch) ) then
+                   warn_msg = 'small nocomp patch wasnt able to find a matching patch to '// &
+                              'fuse with; relabelling and fusing into the largest patch of '// &
+                              'the same land-use label. '// &
+                              'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                              'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                              'area: '//trim(N2S(currentPatch%area))
+                   call FatesWarn(warn_msg,index=5)
+
+                   ! relabel currentPatch to the allowed pft before fusing so the
+                   ! nocomp_pft_label check in fuse_2_patches passes
+                   currentPatch%nocomp_pft_label = largest_patch%nocomp_pft_label
+                   currentPatch%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
+                   call fuse_2_patches(currentSite, largest_patch, currentPatch)
+                   gotfused = .true.
+                else
+                   !! truly nothing else in this land-use label to fuse into; warn as before
+                   warn_msg = 'small nocomp patch wasnt able to find '// &
+                              'another patch to fuse with. '// &
+                              'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                              'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                              'area: '//trim(N2S(currentPatch%area))
+                   call FatesWarn(warn_msg,index=5)
+                endif
              endif
 
           else nocomp_if
