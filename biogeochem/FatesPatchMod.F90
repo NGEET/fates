@@ -1068,13 +1068,14 @@ module FatesPatchMod
       ! DESCRIPTION:
       ! Validates a patch's cohort linked list
       !
-      
+  use FatesInterfaceTypesMod    , only : hlm_use_nocomp
       ! ARGUMENTS:
       class(fates_patch_type), intent(in), target :: this ! patch
            
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
       integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
+      logical                          :: debug=.true.
 
       ! check initial conditions
       if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
@@ -1139,7 +1140,18 @@ module FatesPatchMod
           additional_msg=errMsg(sourcefile, __LINE__))
           return
       end if
-        
+
+      ! extra check for nocomp
+      if (debug .and. hlm_use_nocomp .eq. itrue) then
+         currentCohort => this%shortest
+         do while (associated(currentCohort))
+            if (this%nocomp_pft_label .ne. currentCohort%pft) then
+               write(fates_log(),*)'ERROR use_nocomp is true but a cohorts pft does not match nocomp_label:',currentCohort%pft,this%nocomp_pft_label
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+            currentCohort => currentCohort%taller
+         end do
+      endif
     end subroutine ValidateCohorts
     
     !===========================================================================
