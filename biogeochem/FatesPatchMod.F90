@@ -1146,7 +1146,8 @@ module FatesPatchMod
          currentCohort => this%shortest
          do while (associated(currentCohort))
             if (this%nocomp_pft_label .ne. currentCohort%pft) then
-               write(fates_log(),*)'ERROR use_nocomp is true but a cohorts pft does not match nocomp_label:',currentCohort%pft,this%nocomp_pft_label
+               write(fates_log(),*)'ERROR use_nocomp is true but a cohorts pft does not match nocomp_label (cpft,ncpft,c_area):', &
+                                     currentCohort%pft,this%nocomp_pft_label,currentCohort%c_area
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
             currentCohort => currentCohort%taller
