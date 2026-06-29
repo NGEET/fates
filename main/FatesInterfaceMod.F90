@@ -411,7 +411,7 @@ contains
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
     
-    fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
+    fates%bc_out(s)%patch_fraction(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
     if (hlm_use_planthydro.eq.itrue) then
@@ -744,7 +744,7 @@ contains
       allocate(bc_out%displa_pa(maxpatch_total))
       allocate(bc_out%z0m_pa(maxpatch_total))
 
-      allocate(bc_out%canopy_fraction_pa(maxpatch_total))
+      allocate(bc_out%patch_fraction(maxpatch_total))
       allocate(bc_out%frac_veg_nosno_alb_pa(maxpatch_total))
 
       allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
@@ -1574,6 +1574,7 @@ contains
          hlm_use_fixed_biogeog = unset_int
          hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
+         hlm_use_interstitial_bareground = unset_int
          hlm_use_inventory_init = unset_int
          hlm_use_dbh_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
@@ -2048,6 +2049,12 @@ contains
                hlm_use_sp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+               end if
+
+            case('use_interstitial_bareground')
+               hlm_use_interstitial_bareground = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_interstitial_bareground= ',ival,' to FATES'
                end if
 
             case('use_planthydro')

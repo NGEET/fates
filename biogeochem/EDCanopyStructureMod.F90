@@ -36,6 +36,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
+  use FatesInterfaceTypesMod     , only : hlm_use_interstitial_bareground
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1351,16 +1352,17 @@ contains
     integer :: s, ifp, c, p
     type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
+    real(r8) :: local_patch_fraction
     real(r8) :: total_patch_area
-    real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
-    real(r8) :: weight  ! Weighting for cohort variables in patch
-    
+    real(r8) :: weight          ! Weighting for cohort variables in patch
+    real(r8) :: weighting_area  ! Area to normalize against depending on insterstitial bareground handling
+
     do s = 1,nsites
 
        total_patch_area = 0._r8
-       total_canopy_area = 0._r8
-       bc_out(s)%canopy_fraction_pa(:) = 0._r8
+       local_patch_fraction = 0._r8
+       bc_out(s)%patch_fraction(:) = 0._r8
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
@@ -1389,17 +1391,27 @@ contains
 
              bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-             ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
-             ! Roughness length and displacement height used by the HLM
-             ! use total LAI + SAI to weight the leaft characteristic dimension
+             ! Define the characteristic roughness length and displacement height used by the HLM
+             ! Nominally, FATES uses canopy-only crown area weighting for all cohorts in the patch
+             ! when the interstitial bareground is being collapsed into the HLM bareground patch.
+             ! When we account for the bareground as part of the patch, the full area is accounted
+             ! for in the calculation.
+             ! If there is no canopy and we are considering the interstitial bareground we do
+             ! something else.
+             ! Use total LAI + SAI to weight the leaft characteristic dimension
              ! Avoid this if running in satellite phenology mode
              ! ----------------------------------------------------------------------------
 
              if (currentPatch%total_canopy_area > nearzero) then
+               if (hlm_use_interstitial_bareground .eq. itrue) then
+                 weighting_area = currentPatch%total_canopy_area
+               else
+                 weighting_area = currentPatch%area
+               end if
                 currentCohort => currentPatch%shortest
                 do while(associated(currentCohort))
                    if (currentCohort%canopy_layer .eq. 1) then
-                      weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                      weight = min(1.0_r8,currentCohort%c_area/weighting_area)
                       bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
                            EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
                       bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
@@ -1433,9 +1445,12 @@ contains
                 endif
              else
                 ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
-                bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-                bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
-                bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                if (hlm_use_interstitial_bareground .eq. itrue) then
+                   bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+                   bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+                   bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+                ! else do something else if interstitial bareground is not being used by the HLM
+                end if
              endif
              ! -----------------------------------------------------------------------------
 
@@ -1445,19 +1460,25 @@ contains
              ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants
              ! currentPatch%area/AREA is the fraction of the soil covered by this patch.
 
-             if(currentPatch%area.gt.0.0_r8)then
-                bc_out(s)%canopy_fraction_pa(ifp) = &
-                     min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+             ! If we are accounting for the interstitial bareground within the HLM bareground patch
+             ! we use the projected total canopy area fraction as the output boundary condition.
+             ! Otherwise we simply use the fraction of the area that the patch contributes to the given site.  
+             if (hlm_use_interstitial_bareground == itrue) then
+                local_patch_fraction = min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)
              else
-                bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+                 local_patch_fraction = 1.0_r8
+             end if
+
+             if(currentPatch%area.gt.0.0_r8)then
+                bc_out(s)%patch_fraction(ifp) = local_patch_fraction*(currentPatch%area/AREA)
+             else
+                bc_out(s)%patch_fraction(ifp) = 0.0_r8
              endif
 
-             bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+             bare_frac_area = (1.0_r8 - local_patch_fraction) * &
                   (currentPatch%area/AREA)
 
-             total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
-
-             total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
+             total_patch_area = total_patch_area + bc_out(s)%patch_fraction(ifp) + bare_frac_area
 
              bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
@@ -1484,7 +1505,7 @@ contains
                 bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
              end if
 
-          else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
+          else  ! nocomp or SP, (i.e.currentPatch%nocomp_pft_label .eq. 0
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
@@ -1511,7 +1532,7 @@ contains
           do while(associated(currentPatch))
              ifp = currentPatch%patchno
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
+                bc_out(s)%patch_fraction(ifp) = bc_out(s)%patch_fraction(ifp)/total_patch_area
              endif ! veg patch
              currentPatch => currentPatch%younger
           end do

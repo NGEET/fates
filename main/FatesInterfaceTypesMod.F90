@@ -225,6 +225,9 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
+  integer, public ::  hlm_use_interstitial_bareground               !  Flag to use count the FATES interstitial bareground area
+                                                                    !  with the HLM bareground patch
+                                                                    !  1 = TRUE, 0 = FALSE
   
   ! Flag specifying what types of history fields to allocate and prepare
   ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
@@ -766,10 +769,12 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: displa_pa(:) ! displacement height [m]
       real(r8), allocatable :: dleaf_pa(:)  ! leaf characteristic dimension/width/diameter [m]
 
-      real(r8), allocatable :: canopy_fraction_pa(:) ! Area fraction of each patch in the site
-                                                     ! Use most likely for weighting
-                                                     ! This is currently the projected canopy
-                                                     ! area of each patch [0-1]
+      real(r8), allocatable :: patch_fraction(:) ! Area fraction of each patch in the site
+                                                 ! Use most likely for weighting
+                                                 ! This is either the projected canopy
+                                                 ! area of each patch [0-1] or the actual
+                                                 ! are fraction that each patch contributes 
+                                                 ! to the site
 
       real(r8), allocatable :: frac_veg_nosno_alb_pa(:) ! This is not really a fraction
                                                         ! this is actually binary based on if any
