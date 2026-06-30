@@ -1075,7 +1075,7 @@ module FatesPatchMod
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
       integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
-      logical                          :: debug=.true.
+      logical                          :: debug=.false.
 
       ! check initial conditions
       if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
