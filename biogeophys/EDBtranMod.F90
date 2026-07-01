@@ -176,7 +176,6 @@ contains
                   pftgs(ft) = 0._r8
                 endif
              end do
-             
                
              ! THIS SHOULD REALLY BE A COHORT LOOP ONCE WE HAVE rootfr_ft FOR COHORTS (RGK)
              cpatch%btran_ft(:) = 0.0_r8
@@ -214,6 +213,7 @@ contains
                 endif ! valid_pfts
              end do ! PFT
 
+               ! remove this check when merging to noresm
                if (debug) then
                   do ft=1,numpft
                   if (sum(root_resis(ft,1:bc_in(s)%nlevsoil)) .ne. cpatch%btran_ft(ft)) then
@@ -258,9 +258,12 @@ contains
 
              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
-             if(abs(1.0_r8-temprootr) > rsnbl_math_prec)then
-                if(debug) write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs,bc_out(s)%btran_pa(ifp)
-                call endrun(msg=errMsg(sourcefile, __LINE__))
+             if(abs(1.0_r8-temprootr) > rsnbl_math_prec .and. abs(temprootr) > rsnbl_math_prec)then
+                if (debug) then 
+                   write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs,bc_out(s)%btran_pa(ifp)
+                   ! remove this endrun later.
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                endif
                 temprootr = abs(temprootr)
                 do j = 1,bc_in(s)%nlevsoil
                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
