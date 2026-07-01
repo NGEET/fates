@@ -1162,7 +1162,7 @@ module FatesPatchMod
       ! LOCAL VARIABLES
       class(fates_cohort_type), pointer           :: currentCohort
       integer                                     :: l_rc=0
-      if ( (.not. hlm_use_nocomp)) return
+      if ( (hlm_use_nocomp .eq. ifalse)) return
 
       currentCohort => this%shortest
       do while (associated(currentCohort))
