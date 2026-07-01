@@ -262,6 +262,7 @@ module FatesPatchMod
       procedure :: Create
       procedure :: CountCohorts
       procedure :: ValidateCohorts
+      procedure :: CheckCohortsPfts
       procedure :: InsertCohort
       procedure :: SortCohorts
       procedure :: UpdateTreeGrassArea
@@ -1141,20 +1142,51 @@ module FatesPatchMod
           return
       end if
 
-      ! extra check for nocomp
-      if (debug .and. hlm_use_nocomp .eq. itrue) then
-         currentCohort => this%shortest
-         do while (associated(currentCohort))
-            if (this%nocomp_pft_label .ne. currentCohort%pft) then
-               write(fates_log(),*)'ERROR use_nocomp is true but a cohorts pft does not match nocomp_label (cpft,ncpft,c_area):', &
-                                     currentCohort%pft,this%nocomp_pft_label,currentCohort%c_area
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-            currentCohort => currentCohort%taller
-         end do
-      endif
     end subroutine ValidateCohorts
     
+    !===========================================================================
+
+    subroutine CheckCohortsPfts(this, mode, rc)
+      !
+      ! DESCRIPTION:
+      ! IF we decide that Nocomp patches MUST have cohorts with %pft == nocom_pft_label
+      ! Here we either check or cohort%pfts
+      !
+       use FatesInterfaceTypesMod    , only : hlm_use_nocomp
+
+      ! ARGUMENTS
+      class(fates_patch_type), intent(in), target :: this ! patch
+      integer, intent(in)                         :: mode ! mode: 0 skip check, 1 check, 2 assign
+      integer, intent(out), optional              :: rc   ! return code
+
+      ! LOCAL VARIABLES
+      class(fates_cohort_type), pointer           :: currentCohort
+      integer                                     :: l_rc=0
+      if ( (.not. hlm_use_nocomp)) return
+
+      currentCohort => this%shortest
+      do while (associated(currentCohort))
+        if (this%nocomp_pft_label .ne. currentCohort%pft) then
+            l_rc = 1
+            !if (mode == 1) then
+               write(fates_log(),*)'ERROR use_nocomp is true but a cohorts pft does not match nocomp_label (cpft,ncpft,c_area):', &
+                                  currentCohort%pft,this%nocomp_pft_label,this%land_use_label
+            
+            if (mode .ne. 0) then
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            endif
+            if (mode == 2) then
+               currentCohort%pft = this%nocomp_pft_label
+            endif
+        end if
+        currentCohort => currentCohort%taller
+      end do
+      if (present(rc)) then
+         rc= l_rc
+      endif
+      return
+    end subroutine CheckCohortsPfts
+
     !===========================================================================
     
     subroutine CountCohorts(this)
