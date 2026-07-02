@@ -30,7 +30,7 @@ module EDBtranMod
   private
 
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
   character(len=*), parameter :: sourcefile = __FILE__
   
   public :: btran_ed
