@@ -3540,8 +3540,9 @@ contains
     !
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
-    !
-    !
+    ! USES:
+    use EDCohortDynamicsMod  , only : terminate_cohorts
+    use FatesCohortMod       , only : fates_cohort_type
     ! !ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
@@ -3806,7 +3807,7 @@ contains
                    patchpointer%nocomp_pft_label = largest_patch%nocomp_pft_label
                    patchpointer%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
                    call fuse_2_patches(currentSite, patchpointer, largest_patch)
-
+                   
                    ! start over in the loop to make sure we are removing every patch with the targeted land use type
                    patchpointer => currentSite%youngest_patch
 
@@ -3823,7 +3824,7 @@ contains
           else
              write(fates_log(),*) 'this isnt because the land use was less than allowed'
 
-             !call endrun(msg=errMsg(sourcefile, __LINE__))
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           
              ! Note to user. If you DO decide to remove the end-run above this line
              ! Make sure that you keep the pointer below this line, or you will get
