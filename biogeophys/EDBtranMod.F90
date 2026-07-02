@@ -217,7 +217,7 @@ contains
                if (debug) then
                   do ft=1,numpft
                   if (sum(root_resis(ft,1:bc_in(s)%nlevsoil)) .ne. cpatch%btran_ft(ft)) then
-                     write(fates_log(),*) 'MVD: btran_ft not equal rresist ',cpatch%nocomp_pft_label,ft
+                     write(fates_log(),*) 'btran_ft not equal rresist ',cpatch%nocomp_pft_label,ft
                      write(fates_log(),*)' btran sum', cpatch%btran_ft(ft),sum(root_resis(ft,1:bc_in(s)%nlevsoil))
                      write(fates_log(),*)' rootr ',root_resis(ft,1:bc_in(s)%nlevsoil)
                      call endrun(msg=errMsg(sourcefile, __LINE__))
