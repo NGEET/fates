@@ -87,6 +87,7 @@ Module EDCohortDynamicsMod
   use DamageMainMod,          only : undamaged_class
   use FatesConstantsMod,      only : i_term_mort_type_cstarv
   use FatesConstantsMod,      only : i_term_mort_type_canlev
+  use FatesConstantsMod,      only : i_term_mort_type_nocomp
   use FatesConstantsMod,      only : i_term_mort_type_numdens
 
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)  
@@ -288,7 +289,7 @@ contains
     ! terminates all cohorts when they get too small
     !
     ! !USES:
-    
+    use FatesInterfaceTypesMod     , only : hlm_use_nocomp
     !
     ! !ARGUMENTS
     type (ed_site_type) , intent(inout) :: currentSite
@@ -345,7 +346,7 @@ contains
        ! ----------------------------------------------------------------------
 
        ! Number density is so low it breaks math
-       if (currentCohort%n < min_n_safemath) then
+       if (currentCohort%n < min_n_safemath .and. level == 1) then
           terminate = itrue
           termination_type = i_term_mort_type_numdens
           if ( debug ) then
@@ -354,42 +355,40 @@ contains
           endif
        endif
 
-       ! Not enough n or dbh. The patch area is clamped to min_patch_area so a
-       ! vanishingly small patch cannot inflate the apparent number density and
-       ! keep a numerically dead cohort alive.
-       if  (currentCohort%n/max(currentPatch%area, min_patch_area) <= min_npm2 .or. &
-            currentCohort%n <= min_nppatch .or. &
-            (currentCohort%dbh < 0.00001_r8 .and. store_c < calloc_abs_error) ) then
-          terminate = itrue
-          termination_type = i_term_mort_type_numdens
-          if ( debug ) then
-             write(fates_log(),*) 'terminating cohorts 1', &
-                  currentCohort%n/currentPatch%area,currentCohort%dbh, &
-                  currentCohort%pft,call_index
-          endif
-       endif
 
-       ! Any individual carbon pool is meaningfully negative (beyond allocation
-       ! round-off). A struct_c-dominated sum can remain positive while a live
-       ! pool has gone negative, so the pools are checked individually.
-       if ( struct_c < -calloc_abs_error .or. sapw_c  < -calloc_abs_error .or. &
-            leaf_c   < -calloc_abs_error .or. fnrt_c  < -calloc_abs_error .or. &
-            store_c  < -calloc_abs_error ) then
-          terminate = itrue
-          termination_type = i_term_mort_type_cstarv
-          if ( debug ) then
-             write(fates_log(),*) 'terminating cohorts 6', &
-                  struct_c,sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
-          endif
-       endif
 
        ! The rest of these are biological starvation checks, only allowed if we
        ! are not dealing with a recruit (level 2)
+       if (currentcohort%n <  min_n_safemath .and. level == 1) then
+          terminate = itrue
+          termination_type = i_term_mort_type_numdens
+          if ( debug ) then
+             write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area, &
+                  currentCohort%dbh,currentCohort%pft,call_index
+          endif
+       endif
+
+       ! The rest of these are only allowed if we are not dealing with a recruit (level 2)
        if_level_2: if (.not.currentCohort%isnew .and. level == 2) then
 
+         ! Not enough n or dbh
+         if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
+              currentCohort%n <= min_nppatch .or. &
+              (currentCohort%dbh < 0.00001_r8 .and. store_c < 0._r8) ) then
+            terminate = itrue
+            termination_type = i_term_mort_type_numdens
+            if ( debug ) then
+               write(fates_log(),*) 'terminating cohorts 1', &
+                    currentCohort%n/currentPatch%area,currentCohort%dbh, &
+                    currentCohort%pft,call_index
+            endif
+         endif
+
+        
+
          ! live biomass pools are terminally depleted
-         if ( ( sapw_c+leaf_c+fnrt_c ) < calloc_abs_error  .or.  &
-               store_c  < calloc_abs_error) then
+         if ( ( sapw_c+leaf_c+fnrt_c ) < 1e-10_r8  .or.  &
+               store_c  < 1e-10_r8) then
             terminate = itrue
             termination_type = i_term_mort_type_cstarv
             if ( debug ) then
@@ -412,7 +411,7 @@ contains
          ! live biomass pools are terminally depleted by grazing in grasses. 
          if(prt_params%phen_leaf_habit(currentCohort%pft) == ievergreen .and. &
               prt_params%woody(currentCohort%pft) .eq. ifalse) then
-            if ( ( leaf_c + fnrt_c ) < calloc_abs_error) then
+            if ( ( leaf_c + fnrt_c ) < 1e-10_r8) then
                terminate = itrue
                termination_type = i_term_mort_type_cstarv
                if ( debug ) then
@@ -431,6 +430,14 @@ contains
          termination_type = i_term_mort_type_canlev
          if ( debug ) then
             write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
+         endif
+      endif
+      if (hlm_use_nocomp == itrue .and. level == 4 .and. &
+          currentPatch%nocomp_pft_label .ne. currentCohort%pft) then
+         terminate = itrue
+         termination_type = i_term_mort_type_nocomp
+         if ( debug ) then
+            write(fates_log(),*) 'terminating cohorts 7', currentPatch%nocomp_pft_label,currentCohort%pft,call_index
          endif
       endif
 

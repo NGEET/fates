@@ -262,7 +262,7 @@ contains
                 if (debug) then 
                    write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs,bc_out(s)%btran_pa(ifp)
                    ! remove this endrun later.
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
+                   !call endrun(msg=errMsg(sourcefile, __LINE__))
                 endif
                 temprootr = abs(temprootr)
                 do j = 1,bc_in(s)%nlevsoil

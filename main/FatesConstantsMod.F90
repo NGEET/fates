@@ -384,9 +384,10 @@ integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that 
 
   
   ! some integers related to termination mortality
-  integer, parameter, public :: n_term_mort_types = 3
+  integer, parameter, public :: n_term_mort_types = 4
   integer, parameter, public :: i_term_mort_type_cstarv = 1
   integer, parameter, public :: i_term_mort_type_canlev = 2
   integer, parameter, public :: i_term_mort_type_numdens = 3
+  integer, parameter, public :: i_term_mort_type_nocomp = 4
 
 end module FatesConstantsMod
