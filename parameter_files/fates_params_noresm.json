@@ -891,7 +891,7 @@
       "dims": ["fates_pft"],
       "long_name": "background mortality rate",
       "units": "1/yr",
-      "data": [0.02, 0.02, 0.02, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.014, 0.014, 0.05, 0.014]
+      "data": [0.02, 0.02, 0.02, 0.014, 0.004, 0.014, 0.004, 0.004, 0.004, 0.004, 0.004, 0.014, 0.014, 0.05, 0.014]
     },
     "fates_mort_freezetol":{
       "dtype": "float",
@@ -926,7 +926,7 @@
       "dims": ["fates_pft"],
       "long_name": "Mortality dbh senescence inflection point. If _ this mortality term is off. Setting this value turns on size dependent mortality",
       "units": "dbh cm",
-      "data": [140, 155, 175, 175, 140, 135, 175, null, null, null, null, null, null, null, null]
+      "data": [122, 135, 175, 130, 140, 120, 175, null, null, null, null, null, null, null, null]
     },
     "fates_mort_prescribed_canopy":{
       "dtype": "float",
@@ -954,7 +954,7 @@
       "dims": ["fates_pft"],
       "long_name": "Mortality dbh senescence rate of change. Sensible range is around 0.03-0.06. Larger values give steeper mortality curves.",
       "units": "mortality rate dbh^-1",
-      "data": [0.055, 0.055, 0.04, 0.04, 0.055, 0.055, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04]
+      "data": [0.059, 0.061, 0.04, 0.057, 0.055, 0.059, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04]
     },
     "fates_mort_scalar_coldstress":{
       "dtype": "float",
