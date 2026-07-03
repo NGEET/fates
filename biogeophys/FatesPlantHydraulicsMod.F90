@@ -4369,13 +4369,13 @@ subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
         v_node  = ccohort_hydr%v_ag(i)
         th_node = ccohort_hydr%th_ag(i) 
         thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i) 
-        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node !! CXU? * denh2o 
+        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
      elseif (i==n_hypool_ag+n_hypool_troot) then
         ! Transporting roots
         v_node  = ccohort_hydr%v_troot
         th_node = ccohort_hydr%th_troot
         thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
-        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node !! CXU? * denh2o 
+        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
      elseif (i>n_hypool_ag+n_hypool_troot .and. &
              i<=n_hypool_ag+n_hypool_troot+n_hypool_aroot ) then
         ! Fine Roots
@@ -4383,7 +4383,7 @@ subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
            v_node  = ccohort_hydr%v_aroot_layer(ilayer)
            th_node = ccohort_hydr%th_aroot(ilayer)
            thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
-           totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node !! CXU? * denh2o 
+           totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
         enddo
      else
         ! Soil (Rhizosphere) Layers
@@ -4413,7 +4413,7 @@ subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
                    v_node/shell_sum_v*dtime*AREA
            endif
            ! [m3/m3]*[m3]*[kg/m3] = [kg/plant]
-           availW = max(th_node-thr,0._r8)*v_node !! CXU? * denh2o 
+           availW = max(th_node-thr,0._r8)*v_node * denh2o 
            totalAvailW = totalAvailW +max(availw-recruit_water_demand, 0._r8)
         enddo
      end if
