@@ -43,6 +43,8 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : AREA_INV
   use EDTypesMod           , only : dump_site
   use FatesConstantsMod    , only : rsnbl_math_prec
+  use FatesConstantsMod    , only : rel_patch_area_floor
+  use FatesConstantsMod    , only : min_nocomp_pftfrac_perlanduse
   use FatesConstantsMod    , only : fates_tiny
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
@@ -558,6 +560,9 @@ contains
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
     logical  :: clear_all
+    real(r8) :: total_realloc_area          ! total area being reallocated for this land-use label [m2]
+    real(r8) :: area_tol                     ! relative area tolerance for this land-use label [m2]
+    integer  :: dominant_pft                 ! pft with the largest area fraction on this land-use label
     !---------------------------------------------------------------------
 
     if (hlm_use_nocomp .eq. itrue) then
@@ -1445,12 +1450,27 @@ contains
              currentPatch => currentPatch%younger
           end do
 
+          ! Total area being reallocated across this land-use label, and the relative-area
+          ! tolerance derived from it. Using a tolerance that scales with the area being
+          ! reallocated (rather than an absolute rsnbl_math_prec) prevents rounding noise on
+          ! differences of large areas from carving off sub-threshold sliver patches.
+          total_realloc_area = sum(nocomp_pft_area_vector(:))
+          area_tol = max(rsnbl_math_prec, total_realloc_area * rel_patch_area_floor)
+
           ! figure out how may PFTs on each land use type. if only 1, then the next calculation is much simpler: we just need to know which PFT is allowed.
+          ! Admission is gated on min_nocomp_pftfrac_perlanduse (the same floor applied at
+          ! initialization in EDInitMod) rather than nearzero, so the two modules agree on
+          ! which PFTs have meaningful area on a given land-use type.
           n_pfts_by_landuse = 0
+          dominant_pft = 1
           do i_pft = 1,numpft
-             if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero) then
+             if ( currentSite%area_pft(i_pft,i_land_use_label) .ge. min_nocomp_pftfrac_perlanduse) then
                 n_pfts_by_landuse = n_pfts_by_landuse + 1
                 which_pft_allowed = i_pft
+             end if
+             if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. &
+                  currentSite%area_pft(dominant_pft,i_land_use_label) ) then
+                dominant_pft = i_pft
              end if
           end do
           if ( n_pfts_by_landuse .ne. 1) then
@@ -1494,7 +1514,7 @@ contains
                       newp_area = currentPatch%area - area_to_keep
                       fraction_to_keep = area_to_keep / currentPatch%area
 
-                      if (fraction_to_keep .le. nearzero .or. area_to_keep .lt. rsnbl_math_prec) then
+                      if (fraction_to_keep .le. nearzero .or. area_to_keep .lt. area_tol) then
                          ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
 
                          currentPatch%nocomp_pft_label = 0
@@ -1509,7 +1529,7 @@ contains
 
                          buffer_patch_used = .true.
 
-                      elseif ( area_to_keep .ge. rsnbl_math_prec .and. newp_area .ge. rsnbl_math_prec) then
+                      elseif ( area_to_keep .ge. area_tol .and. newp_area .ge. area_tol) then
                          ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                          ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
 
@@ -1541,8 +1561,15 @@ contains
                 end do
 
                 buffer_patch_used_if: if ( buffer_patch_used ) then
+                   ! The buffer patch has now absorbed all of the area carved off the changed
+                   ! patches and is about to be redistributed into patches with explicit, valid
+                   ! nocomp PFT labels for this land use type. Clear the land-use-change flag it
+                   ! inherited (via fuse_2_patches) from its donors so the remapped output patches
+                   ! are not spuriously reprocessed on a later timestep.
+                   buffer_patch%changed_landuse_this_ts = .false.
+
                    ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
-                   if (abs(sum(nocomp_pft_area_vector(:) - nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
+                   if (abs(sum(nocomp_pft_area_vector(:) - nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. area_tol) then
                       write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
                       write(fates_log(),*) currentSite%area_pft(:,i_land_use_label)
                       write(fates_log(),*) '-----'
@@ -1570,10 +1597,10 @@ contains
                    max_val = maxval(newp_area_buffer_frac)
 
                    ! If the max value is the only value in the array then loop through the array to find the max value pft index and insert buffer
-                   if (abs(sum(newp_area_buffer_frac(:)) - max_val) .le. nearzero) then
+                   if (abs(sum(newp_area_buffer_frac(:)) - max_val) .le. rel_patch_area_floor) then
                       i_pft = 1
                       do while(.not. buffer_patch_in_linked_list)
-                         if (abs(newp_area_buffer_frac(i_pft) - max_val) .le. nearzero) then
+                         if (abs(newp_area_buffer_frac(i_pft) - max_val) .le. rel_patch_area_floor) then
                             
                             ! give the buffer patch the intended nocomp PFT label
                             buffer_patch%nocomp_pft_label = i_pft
@@ -1596,8 +1623,8 @@ contains
                    nocomp_pft_loop_2: do i_pft = 1, numpft
 
                       ! Check the area fraction to makes sure that this pft should have area.  Also make sure that the buffer patch hasn't been 
-                      ! added to the linked list already
-                      if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero .and. .not. buffer_patch_in_linked_list) then
+                      ! added to the linked list already. Admission uses min_nocomp_pftfrac_perlanduse (consistent with EDInitMod) rather than nearzero.
+                      if ( currentSite%area_pft(i_pft,i_land_use_label) .ge. min_nocomp_pftfrac_perlanduse .and. .not. buffer_patch_in_linked_list) then
 
                          ! Slightly complicated way of making sure that the same pfts are subtracted from each other which may help to avoid precision
                          ! errors due to differencing between very large and very small areas
@@ -1610,10 +1637,10 @@ contains
                          area_to_keep = buffer_patch%area - newp_area
                          fraction_to_keep = area_to_keep / buffer_patch%area
 
-                         ! only bother doing this if the new new patch area needed is greater than some tiny amount
-                         if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
+                         ! only bother carving off a new patch if the area needed exceeds the relative-area tolerance
+                         if ( newp_area .gt. area_tol) then
 
-                            if (area_to_keep .gt. rsnbl_math_prec) then
+                            if (area_to_keep .gt. area_tol) then
 
                                ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                allocate(temp_patch)
@@ -1659,12 +1686,16 @@ contains
                             call endrun(msg=errMsg(sourcefile, __LINE__))
                          endif
                       else
-                         write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
-                         write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
-                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
-                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))
-
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                         ! The buffer still holds a (typically sub-tolerance) remnant of area that was
+                         ! not carved into its own patch above, because the relative-area gates declined
+                         ! to spawn a sliver. Rather than crash, place the entire remnant into the
+                         ! dominant (largest-area) PFT for this land-use label. This guarantees area
+                         ! conservation and prevents an unplaced buffer or an orphan sliver patch.
+                         buffer_patch%nocomp_pft_label = dominant_pft
+                         nocomp_pft_area_vector_filled(dominant_pft) = &
+                              nocomp_pft_area_vector_filled(dominant_pft) + buffer_patch%area
+                         call InsertPatch(currentSite, buffer_patch)
+                         buffer_patch_in_linked_list = .true.
                       end if
                    end if
                 else
@@ -1678,7 +1709,7 @@ contains
                 end if buffer_patch_used_if
 
                 ! check that the area we have added is the same as the area we have taken away. if not, crash.
-                if ( abs(sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))) .gt. rsnbl_math_prec) then
+                if ( abs(sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))) .gt. area_tol) then
                    write(fates_log(),*) 'patch reallocation logic doesnt add up. difference is: ', sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))
                    write(fates_log(),*) nocomp_pft_area_vector_filled
                    write(fates_log(),*) nocomp_pft_area_vector
@@ -1758,6 +1789,11 @@ contains
          currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
          hlm_regeneration_model)
+
+    ! Conserve the land-use-change flag: a piece split off a patch that still needs its
+    ! nocomp PFT identity remapped to the new land use type must inherit the flag, so it
+    ! is not left behind as an orphan patch.
+    new_patch%changed_landuse_this_ts = currentPatch%changed_landuse_this_ts
 
     ! Initialize the litter pools to zero, these
     ! pools will be populated shortly
@@ -2933,6 +2969,9 @@ contains
     ! !LOCAL VARIABLES:
     type(ed_site_type) , pointer :: currentSite
     type(fates_patch_type), pointer :: currentPatch,tpp,tmpptr
+    type(fates_patch_type), pointer :: largest_patch    ! disposal target for an orphan patch
+    type(fates_patch_type), pointer :: smallest_patch   ! smallest (blocking/orphan) patch to dispose of
+    character(len=1024) :: warn_msg                      ! for defining a warning message
     integer  :: ft,z        !counters for pft and height class
     real(r8) :: norm        !normalized difference between biomass profiles
     real(r8) :: profiletol  !tolerance of patch fusion routine. Starts off high and is reduced if there are too many patches.
@@ -3190,21 +3229,109 @@ contains
              ! against relative biomass size, it shoudnt ever get above 2 (which would mean fusing 
              ! a zero with a nonzero biomass in a given category)
              if (profiletol .gt. 100._r8) then
-                write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
-                write(fates_log(),*) 'probably this means there are too many distinct categorical '
-                write(fates_log(),*) 'patch types for the maximum number of patches'
-                call dump_site(currentSite)
-                write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
-                do i = 1, n_landuse_cats
-                   write(fates_log(),*) 'i, currentSite%area_pft(:,i)',i, currentSite%area_pft(:,i)
-                end do
+
+                ! We have relaxed the patch-fusion tolerance all the way and still cannot get
+                ! nopatches(i_lulabel) down to maxpatches_by_landuse(i_lulabel). This happens when
+                ! there is an irreducible "orphan" patch in this land-use label whose
+                ! nocomp_pft_label does not match any other patch in the same land-use label, so
+                ! the categorical fusion above can never merge it. Rather than crash, gracefully
+                ! dispose of the smallest blocking patch by relabelling its nocomp_pft_label to
+                ! that of the largest patch in the same land-use label and fusing it into that
+                ! patch. This branch only executes in the previously-fatal case, so healthy runs
+                ! are unaffected.
+
+                ! find the largest patch in this land-use label (the disposal target)
+                largest_patch => null()
+
+                ! Prefer a non-bareground recipient when nocomp is enabled; fall back to
+                ! bareground only if no other target exists.
                 tmpptr => currentSite%youngest_patch
                 do while(associated(tmpptr))
-                   write(fates_log(),*) tmpptr%area, tmpptr%nocomp_pft_label, tmpptr%land_use_label
+                   if (tmpptr%land_use_label .eq. i_lulabel .and. &
+                        (hlm_use_nocomp .eq. ifalse .or. tmpptr%nocomp_pft_label .ne. nocomp_bareground)) then
+                      if (.not.associated(largest_patch)) then
+                         largest_patch => tmpptr
+                      else if (tmpptr%area .gt. largest_patch%area) then
+                         largest_patch => tmpptr
+                      endif
+                   endif
                    tmpptr => tmpptr%older
                 end do
-                
-                call endrun(msg=errMsg(sourcefile, __LINE__))                
+
+                if (.not.associated(largest_patch)) then
+                   tmpptr => currentSite%youngest_patch
+                   do while(associated(tmpptr))
+                      if (tmpptr%land_use_label .eq. i_lulabel) then
+                         if (.not.associated(largest_patch)) then
+                            largest_patch => tmpptr
+                         else if (tmpptr%area .gt. largest_patch%area) then
+                            largest_patch => tmpptr
+                         endif
+                      endif
+                      tmpptr => tmpptr%older
+                   end do
+                endif
+
+                ! find the smallest patch in this land-use label that is not the disposal
+                ! target itself - this is the blocking/orphan patch to remove
+                smallest_patch => null()
+                tmpptr => currentSite%youngest_patch
+                do while(associated(tmpptr))
+                   if (tmpptr%land_use_label .eq. i_lulabel .and. &
+                        .not.associated(tmpptr,largest_patch)) then
+                      if (.not.associated(smallest_patch)) then
+                         smallest_patch => tmpptr
+                      else if (tmpptr%area .lt. smallest_patch%area) then
+                         smallest_patch => tmpptr
+                      endif
+                   endif
+                   tmpptr => tmpptr%older
+                end do
+
+                if (associated(largest_patch) .and. associated(smallest_patch)) then
+
+                   warn_msg = 'fuse_patches could not reduce patch count for a land-use label; '// &
+                              'relabelling and fusing the smallest (orphan) patch into the '// &
+                              'largest patch of the same land-use label. '// &
+                              'lu label: '//trim(I2S(i_lulabel))// &
+                              ' orphan nocomp pft: '//trim(I2S(smallest_patch%nocomp_pft_label))// &
+                              ' orphan area: '//trim(N2S(smallest_patch%area))
+                   call FatesWarn(warn_msg,index=5)
+
+                   ! relabel BEFORE fusing so that the nocomp_pft_label check in
+                   ! fuse_2_patches passes (donor and recipient labels must match)
+                   smallest_patch%nocomp_pft_label = largest_patch%nocomp_pft_label
+                   smallest_patch%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
+                   call fuse_2_patches(csite, smallest_patch, largest_patch)
+                   call fuse_cohorts(csite, largest_patch, bc_in)
+                   call largest_patch%SortCohorts()
+                   call largest_patch%ValidateCohorts()
+
+                   ! reset the tolerance and keep iterating; we removed one patch so the
+                   ! count will eventually fall to/below the maximum
+                   profiletol = ED_val_patch_fusion_tol
+
+                else
+
+                   ! we could not identify a disposal target/donor pair; fall back to the
+                   ! original diagnostic dump and crash
+                   write(fates_log(),*) 'profile tolerance is too big, this shouldnt happen.'
+                   write(fates_log(),*) 'probably this means there are too many distinct categorical '
+                   write(fates_log(),*) 'patch types for the maximum number of patches'
+                   call dump_site(currentSite)
+                   write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
+                   do i = 1, n_landuse_cats
+                      write(fates_log(),*) 'i, currentSite%area_pft(:,i)',i, currentSite%area_pft(:,i)
+                   end do
+                   tmpptr => currentSite%youngest_patch
+                   do while(associated(tmpptr))
+                      write(fates_log(),*) tmpptr%area, tmpptr%nocomp_pft_label, tmpptr%land_use_label
+                      tmpptr => tmpptr%older
+                   end do
+
+                   call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                endif
              endif
           else
              iterate = 0
@@ -3322,6 +3449,12 @@ contains
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
 
+    ! Conserve the land-use-change flag: if either patch still needs its nocomp PFT
+    ! identity remapped to the new land use type (changed_landuse_this_ts), the fused
+    ! patch must remain flagged so it is not silently left as an orphan (a patch whose
+    ! nocomp_pft_label is not valid for its land_use_label).
+    rp%changed_landuse_this_ts = rp%changed_landuse_this_ts .or. dp%changed_landuse_this_ts
+
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -3407,8 +3540,9 @@ contains
     !
     ! !DESCRIPTION:
     !  Terminate Patches if they  are too small                          
-    !
-    !
+    ! USES:
+    use EDCohortDynamicsMod  , only : terminate_cohorts
+    use FatesCohortMod       , only : fates_cohort_type
     ! !ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: currentSite
     type(bc_in_type), intent(in)               :: bc_in
@@ -3460,13 +3594,54 @@ contains
              end do
 
              if ( .not. gotfused ) then
-                !! somehow didn't find a patch to fuse with.
-                warn_msg = 'small nocomp patch wasnt able to find '// &
-                           'another patch to fuse with. '// &
-                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
-                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
-                           'area: '//trim(N2S(currentPatch%area))
-                call FatesWarn(warn_msg,index=5)
+                !! somehow didn't find a patch of the same (nocomp_pft_label, land_use_label)
+                !! kind to fuse with. Left in place, this tiny patch becomes an irreducible
+                !! "orphan" that later blocks fuse_patches (its categorical labels match no
+                !! other patch in its land-use label). Dispose of it here by relabelling its
+                !! nocomp_pft_label to that of the largest patch in the same land-use label
+                !! and fusing that patch into it (keeping currentPatch as the recipient so the
+                !! enclosing loop's pointer remains valid).
+
+                ! find the largest patch in the same land-use label (disposal partner)
+                largest_patch => null()
+                patchpointer => currentSite%youngest_patch
+                do while(associated(patchpointer))
+                   if ( .not.associated(patchpointer,currentPatch) .and. &
+                        patchpointer%land_use_label .eq. currentPatch%land_use_label .and. &
+                        patchpointer%nocomp_pft_label .ne. nocomp_bareground ) then
+                      if (.not.associated(largest_patch)) then
+                         largest_patch => patchpointer
+                      else if (patchpointer%area .gt. largest_patch%area) then
+                         largest_patch => patchpointer
+                      endif
+                   endif
+                   patchpointer => patchpointer%older
+                end do
+
+                if ( associated(largest_patch) ) then
+                   warn_msg = 'small nocomp patch wasnt able to find a matching patch to '// &
+                              'fuse with; relabelling and fusing into the largest patch of '// &
+                              'the same land-use label. '// &
+                              'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                              'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                              'area: '//trim(N2S(currentPatch%area))
+                   call FatesWarn(warn_msg,index=5)
+
+                   ! relabel currentPatch to the allowed pft before fusing so the
+                   ! nocomp_pft_label check in fuse_2_patches passes
+                   currentPatch%nocomp_pft_label = largest_patch%nocomp_pft_label
+                   currentPatch%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
+                   call fuse_2_patches(currentSite, largest_patch, currentPatch)
+                   gotfused = .true.
+                else
+                   !! truly nothing else in this land-use label to fuse into; warn as before
+                   warn_msg = 'small nocomp patch wasnt able to find '// &
+                              'another patch to fuse with. '// &
+                              'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                              'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                              'area: '//trim(N2S(currentPatch%area))
+                   call FatesWarn(warn_msg,index=5)
+                endif
              endif
 
           else nocomp_if
@@ -3632,7 +3807,7 @@ contains
                    patchpointer%nocomp_pft_label = largest_patch%nocomp_pft_label
                    patchpointer%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
                    call fuse_2_patches(currentSite, patchpointer, largest_patch)
-
+                   
                    ! start over in the loop to make sure we are removing every patch with the targeted land use type
                    patchpointer => currentSite%youngest_patch
 
@@ -3649,7 +3824,7 @@ contains
           else
              write(fates_log(),*) 'this isnt because the land use was less than allowed'
 
-             !call endrun(msg=errMsg(sourcefile, __LINE__))
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           
              ! Note to user. If you DO decide to remove the end-run above this line
              ! Make sure that you keep the pointer below this line, or you will get

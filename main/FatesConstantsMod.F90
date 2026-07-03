@@ -198,6 +198,12 @@ integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that 
   ! in nocomp simulations, what is the minimum PFT fraction for any given land use type?
   real(fates_r8), parameter, public :: min_nocomp_pftfrac_perlanduse = 0.01_fates_r8
 
+  ! Relative (to the notional site area, or to a local area scale) floor below which a
+  ! patch/disturbance area is considered negligible. Used in place of absolute thresholds
+  ! (nearzero/rsnbl_math_prec) for patch-area comparisons so that the test scales with the
+  ! magnitude of the areas being compared. 1e-9 -> 1e-5 m2 at area=1e4.
+  real(fates_r8), parameter, public :: rel_patch_area_floor = 1.0e-9_fates_r8
+
   ! This is the precision of 8byte reals (~1e-308)
   real(fates_r8), parameter, public :: tinyr8 = tiny(1.0_fates_r8)
 
@@ -378,9 +384,10 @@ integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that 
 
   
   ! some integers related to termination mortality
-  integer, parameter, public :: n_term_mort_types = 3
+  integer, parameter, public :: n_term_mort_types = 4
   integer, parameter, public :: i_term_mort_type_cstarv = 1
   integer, parameter, public :: i_term_mort_type_canlev = 2
   integer, parameter, public :: i_term_mort_type_numdens = 3
+  integer, parameter, public :: i_term_mort_type_nocomp = 4
 
 end module FatesConstantsMod
