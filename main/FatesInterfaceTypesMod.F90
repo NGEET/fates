@@ -625,6 +625,10 @@ module FatesInterfaceTypesMod
       
       ! Shaded canopy LAI
       real(r8),allocatable :: laisha_pa(:)
+
+      ! Average internal CO2 concentration
+      real(r8), allocatable :: ci_pa(:)
+      
       
       ! Logical stating whether a soil layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
@@ -777,7 +781,10 @@ module FatesInterfaceTypesMod
                                                         ! [0,1]
 
      integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
+     integer, allocatable :: wesley_pft_label_pa(:) ! For dry deposition, each FATES PFT needs to correspond to a PFT from the 'wesley 1989' scheme 
+     integer, allocatable :: drydep_season_pa(:) ! For dry deposition, we need to define the season index, from 1-5, for the purposes of detrmining the deposition velocity parameters. See drydep code for details of season indices. 
 
+          
       ! FATES Hydraulics
 
 
@@ -803,10 +810,17 @@ module FatesInterfaceTypesMod
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
       real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
-
+      real(r8) :: npp_site  ! Site level timestep-specific NPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: npp_acc_site ! Sitelevel, timestep-specific accumulated NPP to account for assimilate but not allocated C in HLM balance check
+      real(r8) :: fates_total_carbon_site ! Site level total carbon in FATES (g/m2) for  HLM balance check
+      
       ! direct carbon loss to atm pathways
-      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
-      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, kgC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, kgC m-2 s-1]
+
+      ! non-accumulated fields to pass to the HLM that asks for co2 flux each timestep
+      real(r8) :: grazing_closs_to_atm_tstep_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_tstep_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
 
       ! summary carbon stock variables
       real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, gC m-2]
@@ -847,6 +861,10 @@ module FatesInterfaceTypesMod
                                                 ! layers and the uptake layers
                                                 ! in FATES (is either incrementally
                                                 ! increasing, or all 1s)
+       integer, pointer :: wesley_veg_index(:)
+       integer, pointer :: wesley_sum_thresh(:)
+       integer, pointer :: wesley_aut_thresh(:)
+       integer, pointer :: voc_pftindex(:)
 
    end type bc_pconst_type
 

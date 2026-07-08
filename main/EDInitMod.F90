@@ -418,6 +418,12 @@ contains
     site_in%resources_management%harvest_debt = 0.0_r8
     site_in%resources_management%harvest_debt_sec = 0.0_r8
 
+    ! rxfire vars:
+
+    site_in%rxfire_area_fuel = 0.0_r8
+    site_in%rxfire_area_fi = 0.0_r8
+    site_in%rxfire_area_final = 0.0_r8
+
     ! canopy spread
     site_in%spread = 0._r8
 
@@ -1210,6 +1216,7 @@ contains
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
       real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
+      real(r8), dimension(numpft)      :: l_initd              ! local copy of init_density parameter
       !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()

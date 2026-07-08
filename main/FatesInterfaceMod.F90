@@ -188,7 +188,7 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
-
+   
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -249,6 +249,10 @@ contains
     allocate(bc_pconst%eca_alpha_ptase(numpft))
     allocate(bc_pconst%eca_lambda_ptase(numpft))
     allocate(bc_pconst%j_uptake(nlevdecomp))
+    allocate(bc_pconst%wesley_veg_index(numpft))
+    allocate(bc_pconst%wesley_sum_thresh(numpft))
+    allocate(bc_pconst%wesley_aut_thresh(numpft))
+    allocate(bc_pconst%voc_pftindex(numpft))
     
     return
   end subroutine allocate_bcpconst
@@ -273,6 +277,11 @@ contains
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
+
+    bc_pconst%wesley_veg_index(1:numpft)  = EDPftvarcon_inst%wesley_veg_index(1:numpft)
+    bc_pconst%wesley_sum_thresh(1:numpft) = EDPftvarcon_inst%wesley_sum_thresh(1:numpft)
+    bc_pconst%wesley_aut_thresh(1:numpft) = EDPftvarcon_inst%wesley_aut_thresh(1:numpft)
+    bc_pconst%voc_pftindex(1:numpft)   = EDPftvarcon_inst%voc_pftindex(1:numpft)
     
     return
   end subroutine set_bcpconst
@@ -337,6 +346,7 @@ contains
     ! Output boundaries
     fates%bc_out(s)%active_suction_sl(:) = .false.
     fates%bc_out(s)%fsun_pa(:)      = 0.0_r8
+    fates%bc_out(s)%ci_pa(:)        = 0.0_r8    
     fates%bc_out(s)%laisun_pa(:)    = 0.0_r8
     fates%bc_out(s)%laisha_pa(:)    = 0.0_r8
     fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
@@ -410,7 +420,6 @@ contains
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
-    
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -423,6 +432,9 @@ contains
     ! Land Use realated
     fates%bc_out(s)%gpp_site = 0.0_r8
     fates%bc_out(s)%ar_site = 0.0_r8
+    fates%bc_out(s)%npp_site = 0.0_r8
+    fates%bc_out(s)%npp_acc_site = 0.0_r8
+    fates%bc_out(s)%fates_total_carbon_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 
@@ -633,6 +645,7 @@ contains
       
       ! Radiation
       allocate(bc_out%fsun_pa(maxpatch_total))
+      allocate(bc_out%ci_pa(maxpatch_total))
       allocate(bc_out%laisun_pa(maxpatch_total))
       allocate(bc_out%laisha_pa(maxpatch_total))
       
@@ -748,6 +761,7 @@ contains
       allocate(bc_out%frac_veg_nosno_alb_pa(maxpatch_total))
 
       allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
+      allocate(bc_out%drydep_season_pa(maxpatch_total))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -2399,6 +2413,8 @@ contains
 end subroutine UpdateFatesRMeansTStep
 
 ! ========================================================================================
+
+! ========================================================================================                 
 
 subroutine SeedlingParPatch(cpatch, & 
      atm_par_dir,atm_par_dif, & 

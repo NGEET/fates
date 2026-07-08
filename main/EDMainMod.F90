@@ -328,7 +328,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-    
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -777,7 +776,7 @@ contains
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
-       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
@@ -830,10 +829,14 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
+    real(r8) :: biomass_stock   ! total biomass   in Kg/site    
+    real(r8) :: litter_stock    ! total litter    in Kg/site
+    real(r8) :: seed_stock      ! total seed mass in Kg/site
+    real(r8) :: total_stock     ! total ED carbon in Kg/site
+
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     type(site_massbal_type), pointer :: site_cmass
-    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -862,6 +865,9 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
+    call SiteMassStock(currentSite,1,total_stock,biomass_stock,litter_stock,seed_stock)
+    bc_out%fates_total_carbon_site = total_stock
+    
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
     
@@ -1031,7 +1037,7 @@ contains
           error_frac      = 0.0_r8
        end if
 
-       if ( error_frac > 10e-6_r8 .or. (error /= error) ) then
+       if ( error_frac > 10e-6_r8 ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac

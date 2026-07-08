@@ -15,6 +15,7 @@ Module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
+  use FatesConstantsMod     , only : ievergreen
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -384,6 +385,20 @@ contains
             endif
 
          endif
+
+         ! live biomass pools are terminally depleted by grazing in grasses. 
+         if(prt_params%phen_leaf_habit(currentCohort%pft) == ievergreen .and. &
+              prt_params%woody(currentCohort%pft) .eq. ifalse) then
+            if ( ( leaf_c + fnrt_c ) < 1e-10_r8) then
+               terminate = itrue
+               termination_type = i_term_mort_type_cstarv
+               if ( debug ) then
+                  write(fates_log(),*) 'terminating cohorts 5', &
+                       sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
+               endif
+            endif
+         endif
+
 
       end if if_level_2
       

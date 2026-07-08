@@ -32,6 +32,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ha_per_m2
+  use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
@@ -432,7 +434,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -454,6 +456,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
+    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -944,6 +947,7 @@ contains
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
+    integer :: nchill_threshold  ! how many days of below zero weather do we need to allow cold dec buburst 
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -1116,11 +1120,19 @@ contains
     !   this prevents tropical or warm climate plants that are "cold-deciduous"
     !   from ever re-flushing after they have reached their maximum age (thus
     !   preventing them from competing
-
+    
+    ! if fixed biogeography is on, we don't have an nchill threshold logic, because
+    ! we are only growing cold deciduous trees where they are in real life
+    if(hlm_use_fixed_biogeog .eq. ifalse)then
+       nchill_threshold=1
+    else
+       nchill_threshold=0
+    endif
+    
     if ( any(currentSite%cstatus == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
          (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
-         (currentSite%nchilldays >= 1)) then
+         (currentSite%nchilldays >= nchill_threshold)) then
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int
        currentSite%cndaysleafon = 0
@@ -1167,7 +1179,7 @@ contains
                                                   ! when there is no 'off' period.
        currentSite%grow_deg_days  = 0._r8
 
-       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
+       currentSite%cstatus = phen_cstat_iscold  ! alter status of site to imply that this
        ! site is never really cold enough
        ! for cold deciduous
        currentSite%cleafoffdate = model_day_int    ! record leaf off date
@@ -2978,6 +2990,7 @@ contains
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
