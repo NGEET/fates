@@ -34,7 +34,6 @@ Module EDCohortDynamicsMod
   use EDParamsMod           , only : max_cohort_per_patch
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
-  use EDTypesMod            , only : min_patch_area
   use EDParamsMod            , only : nlevleaf
   use FatesConstantsMod     , only : ican_upper
   use EDTypesMod            , only : elem_diag_type
@@ -87,7 +86,6 @@ Module EDCohortDynamicsMod
   use DamageMainMod,          only : undamaged_class
   use FatesConstantsMod,      only : i_term_mort_type_cstarv
   use FatesConstantsMod,      only : i_term_mort_type_canlev
-  use FatesConstantsMod,      only : i_term_mort_type_nocomp
   use FatesConstantsMod,      only : i_term_mort_type_numdens
 
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)  
@@ -289,7 +287,7 @@ contains
     ! terminates all cohorts when they get too small
     !
     ! !USES:
-    use FatesInterfaceTypesMod     , only : hlm_use_nocomp
+    
     !
     ! !ARGUMENTS
     type (ed_site_type) , intent(inout) :: currentSite
@@ -338,27 +336,7 @@ contains
        struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
        repro_c  = currentCohort%prt%GetState(repro_organ, carbon12_element)
 
-       ! ----------------------------------------------------------------------
-       ! Numerically dangerous states. These are checked at all levels and for
-       ! recruits as well, so that degenerate cohorts are removed before cohort
-       ! fusion (which runs between the level-1 and level-2 termination calls)
-       ! can smear their pathology into otherwise healthy cohorts.
-       ! ----------------------------------------------------------------------
-
-       ! Number density is so low it breaks math
-       if (currentCohort%n < min_n_safemath .and. level == 1) then
-          terminate = itrue
-          termination_type = i_term_mort_type_numdens
-          if ( debug ) then
-             write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area, &
-                  currentCohort%dbh,currentCohort%pft,call_index
-          endif
-       endif
-
-
-
-       ! The rest of these are biological starvation checks, only allowed if we
-       ! are not dealing with a recruit (level 2)
+       ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
           terminate = itrue
           termination_type = i_term_mort_type_numdens
@@ -430,14 +408,6 @@ contains
          termination_type = i_term_mort_type_canlev
          if ( debug ) then
             write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
-         endif
-      endif
-      if (hlm_use_nocomp == itrue .and. level == 4 .and. &
-          currentPatch%nocomp_pft_label .ne. currentCohort%pft) then
-         terminate = itrue
-         termination_type = i_term_mort_type_nocomp
-         if ( debug ) then
-            write(fates_log(),*) 'terminating cohorts 7', currentPatch%nocomp_pft_label,currentCohort%pft,call_index
          endif
       endif
 
