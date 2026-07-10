@@ -51,6 +51,7 @@ Thumbs.db
 
 # Folders created with unit/functional tests
 _build/
+build/
 _run/
 
 
