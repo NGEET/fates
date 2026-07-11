@@ -9,6 +9,10 @@ if (NOT DEFINED HLM_ROOT)
   endif()
 endif()
 get_filename_component(HLM_ROOT "${HLM_ROOT}" ABSOLUTE)
+
+# Force the Fortran compiler to gfortran
+set(CMAKE_Fortran_COMPILER gfortran)
+
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
 list(APPEND CMAKE_MODULE_PATH "${HLM_ROOT}/share/cmake")
 list(APPEND CMAKE_MODULE_PATH "${HLM_ROOT}/components/cmeps/cmake")
