@@ -234,6 +234,7 @@ def build_tests(
     make_j: int,
     clean: bool = False,
     verbose: bool = False,
+    mpilib: Optional[str] = None,
 ):
     """Wrapper function for building tests
 
@@ -243,13 +244,19 @@ def build_tests(
         make_j (int): number of processes to build with
         clean (bool, optional): whether or not to clean the build. Defaults to False.
         verbose (bool, optional): build with verbose make. Defaults to False.
+        mpilib (str, optional): MPI library override (e.g. 'mpich', 'mpi-serial').
+            Overrides the MPILIB environment variable. Defaults to None (use env/default).
     """
-    config = BuildConfig(
+    # Use caller-supplied mpilib if given; otherwise fall back to env var / module default.
+    config_kwargs = dict(
         build_dir=build_dir,
         cmake_dir=cmake_dir,
         make_j=make_j,
         clean=clean,
         verbose=verbose,
     )
+    if mpilib is not None:
+        config_kwargs["mpilib"] = mpilib
+    config = BuildConfig(**config_kwargs)
     builder = TestBuilder(config)
     builder.build()

@@ -81,6 +81,14 @@ def commandline_args():
     )
 
     parser.add_argument(
+        "--mpilib",
+        type=str,
+        default=None,
+        help="MPI library to use (e.g. 'mpi-serial', 'mpich'). Overrides the MPILIB\n"
+        "environment variable. Defaults to the MPILIB env var, or 'mpi-serial'.\n",
+    )
+
+    parser.add_argument(
         "-t",
         "--test-list",
         action="store",
@@ -109,7 +117,8 @@ def main():
 
     # build tests
     build_tests(
-        build_dir, _CMAKE_BASE_DIR, args.make_j, clean=args.clean, verbose=args.verbose
+        build_dir, _CMAKE_BASE_DIR, args.make_j, clean=args.clean, verbose=args.verbose,
+        mpilib=args.mpilib,
     )
 
     # run unit tests
