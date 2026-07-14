@@ -76,7 +76,7 @@ module FatesHistoryInterfaceMod
   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
   use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
   use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-  use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+  use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8, site_canagepft_r8
   use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
   use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
   use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
@@ -133,6 +133,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_layeragepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_agefuel_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_height_index
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
@@ -406,6 +407,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_npp_si_agepft
   integer :: ih_scorch_height_si_pft
   integer :: ih_scorch_height_si_agepft
+  integer :: ih_crownarea_si_agepft
+
+  ! Indices to site by canopy layer by patch age by pft variables
+  integer :: ih_crownarea_si_layeragepft
 
   ! Indices to (site) variables
   integer :: ih_tveg24_si
@@ -847,7 +852,7 @@ module FatesHistoryInterfaceMod
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levcdpf_index_, levcdsc_index_, levcdam_index_ 
-     integer, private :: levscagpft_index_, levagepft_index_
+     integer, private :: levscagpft_index_, levagepft_index_, levcanagepft_index_
      integer, private :: levheight_index_, levagefuel_index_
      integer, private :: levelem_index_, levelpft_index_
      integer, private :: levelcwd_index_, levelage_index_
@@ -897,6 +902,7 @@ module FatesHistoryInterfaceMod
      procedure :: levscag_index
      procedure :: levscagpft_index
      procedure :: levagepft_index
+     procedure :: levcanagepft_index
      procedure :: levheight_index
      procedure :: levelem_index
      procedure :: levelpft_index
@@ -933,6 +939,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscag_index
      procedure, private :: set_levscagpft_index
      procedure, private :: set_levagepft_index
+     procedure, private :: set_levcanagepft_index
      procedure, private :: set_levheight_index
      procedure, private :: set_levagefuel_index
      procedure, private :: set_levclscpf_index
@@ -969,7 +976,7 @@ contains
     use FatesIODimensionsMod, only : levscls, levpft, levage
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
-    use FatesIODimensionsMod, only : levscagpft, levagepft
+    use FatesIODimensionsMod, only : levscagpft, levagepft, levcanagepft
     use FatesIODimensionsMod, only : levcan, levcnlf, levcnlfpft
     use FatesIODimensionsMod, only : fates_bounds_type
     use FatesIODimensionsMod, only : levheight, levagefuel
@@ -1080,6 +1087,11 @@ contains
     call this%set_levagepft_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levagepft, num_threads, &
          fates_bounds%agepft_class_begin, fates_bounds%agepft_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levcanagepft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levcanagepft, num_threads, &
+         fates_bounds%layeragepft_class_begin, fates_bounds%layeragepft_class_end)
 
     dim_count = dim_count + 1
     call this%set_levheight_index(dim_count)
@@ -1223,6 +1235,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%agepft_class_begin, thread_bounds%agepft_class_end)
 
+    index = this%levcanagepft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%layeragepft_class_begin, thread_bounds%layeragepft_class_end)
+
     index = this%levheight_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%height_begin, thread_bounds%height_end)
@@ -1332,6 +1348,9 @@ contains
 
     call this%set_dim_indices(site_agepft_r8, 1, this%column_index())
     call this%set_dim_indices(site_agepft_r8, 2, this%levagepft_index())
+
+    call this%set_dim_indices(site_canagepft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_canagepft_r8, 2, this%levcanagepft_index())
 
     call this%set_dim_indices(site_height_r8, 1, this%column_index())
     call this%set_dim_indices(site_height_r8, 2, this%levheight_index())
@@ -1672,6 +1691,20 @@ contains
   end function levagepft_index
 
   ! ======================================================================================
+  subroutine set_levcanagepft_index(this, index)
+    implicit none
+    class(fates_history_interface_type), intent(inout) :: this
+    integer, intent(in) :: index
+    this%levcanagepft_index_ = index
+  end subroutine set_levcanagepft_index
+
+  integer function levcanagepft_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levcanagepft_index = this%levcanagepft_index_
+  end function levcanagepft_index
+
+  ! ======================================================================================
   subroutine set_levheight_index(this, index)
     implicit none
     class(fates_history_interface_type), intent(inout) :: this
@@ -1993,7 +2026,7 @@ contains
     use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
     use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8, site_canagepft_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
@@ -2083,6 +2116,10 @@ contains
     ! site x age class x pft
     index = index + 1
     call this%dim_kinds(index)%Init(site_agepft_r8, 2)
+
+    ! site x canopy layer x age class x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_canagepft_r8, 2)
 
     ! site x height
     index = index + 1
@@ -4818,12 +4855,14 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-
+ 
     type(fates_cohort_type), pointer :: ccohort
-    type(fates_patch_type),  pointer :: cpatch
-    integer :: s, ft, iagepft, i_agefuel, iscag, iscagpft, i_fuel, i_scls, io_si
-    integer :: iscag_anthrodist  ! what is the equivalent age class for
-                                 ! time-since-anthropogenic-disturbance of secondary forest
+    type(fates_patch_type),  pointer :: cpatch, cpatchq
+    integer :: s, ft, iagepft, icanagepft, i_agefuel, iscag, iscagpft, i_fuel, i_scls, io_si
+    integer :: iscag_anthrodist     ! what is the equivalent age class for
+                                    ! time-since-anthropogenic-disturbance of secondary forest
+    integer :: n_patch_in_age_class ! number of patches in a patch's age class 
+    integer :: age_class            ! patch's age class 
     real(r8) :: mort
     real(r8) :: sapw_m             ! Sapwood mass (elemental, c,n or p) [kg/plant]
     real(r8) :: struct_m           ! Structural mass ""
@@ -4838,20 +4877,22 @@ contains
     real(r8) :: cohort_n_div_site_area       ! Weighting based on cohort density relative to site area
 
     associate( &
-         hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
-         hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
-         hio_scorch_height_si_agepft => this%hvars(ih_scorch_height_si_agepft)%r82d, &
-         hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
-         hio_fracarea_burnt_si_age          => this%hvars(ih_fracarea_burnt_si_age)%r82d, &
-         hio_rx_fracarea_burnt_si_age           => this%hvars(ih_rx_fracarea_burnt_si_age)%r82d, &
-         hio_nonrx_fracarea_burnt_si_age        => this%hvars(ih_nonrx_fracarea_burnt_si_age)%r82d, &
-         hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
-         hio_fuel_amount_si_agfc            => this%hvars(ih_fuel_amount_si_agfc)%r82d, &
+         hio_lai_si_age                       => this%hvars(ih_lai_si_age)%r82d, &
+         hio_ncl_si_age                       => this%hvars(ih_ncl_si_age)%r82d, &
+         hio_scorch_height_si_agepft          => this%hvars(ih_scorch_height_si_agepft)%r82d, &
+         hio_zstar_si_age                     => this%hvars(ih_zstar_si_age)%r82d, &
+         hio_fracarea_burnt_si_age            => this%hvars(ih_fracarea_burnt_si_age)%r82d, &
+         hio_rx_fracarea_burnt_si_age         => this%hvars(ih_rx_fracarea_burnt_si_age)%r82d, &
+         hio_nonrx_fracarea_burnt_si_age      => this%hvars(ih_nonrx_fracarea_burnt_si_age)%r82d, &
+         hio_fire_sum_fuel_si_age             => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
+         hio_fuel_amount_si_agfc              => this%hvars(ih_fuel_amount_si_agfc)%r82d, &
 !         hio_fire_rate_of_spread_front_si_age => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
          hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
-         hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
+         hio_biomass_si_age                   => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
+         hio_crownarea_si_agepft              => this%hvars(ih_crownarea_si_agepft)%r82d, &
+         hio_crownarea_si_layeragepft         => this%hvars(ih_crownarea_si_layeragepft)%r82d, &
          hio_npp_si_age                       => this%hvars(ih_npp_si_age)%r82d, &
          hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
@@ -5002,6 +5043,15 @@ contains
        patchloop2: do while(associated(cpatch))
           cpatch%age_class  = get_age_class_index(cpatch%age)
 
+          ! get number of pathces in this patch's age bin
+          n_patch_in_age_class = 0
+          cpatchq => sites(s)%oldest_patch
+          patchloopq: do while(associated(cpatchq))
+             age_class = get_age_class_index(cpatchq%age)
+             if(age_class == cpatch%age_class) n_patch_in_age_class = n_patch_in_age_class + 1
+             cpatchq => cpatchq%younger
+          end do patchloopq
+
           ! Loop through cohorts on patch
           ccohort => cpatch%shortest
           cohortloop2: do while(associated(ccohort))
@@ -5009,9 +5059,10 @@ contains
              ! If you SUM across all age classes, you should get the mean site value.
              cohort_n_div_site_area = ccohort%n * AREA_INV
    
-             iscag = get_sizeage_class_index(ccohort%dbh, cpatch%age)
-             iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
-             iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
+             iscag      = get_sizeage_class_index(ccohort%dbh, cpatch%age)
+             iagepft    = get_agepft_class_index(cpatch%age,ccohort%pft)
+             icanagepft = get_layeragepft_class_index(ccohort%canopy_layer,cpatch%age,ccohort%pft)
+             iscagpft   = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
 
              ! Biomass
              call ccohort%prt%GetBiomass(carbon12_element, &
@@ -5021,6 +5072,12 @@ contains
              hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) &
                   + total_m * cohort_n_div_site_area
 
+             ! Crown Area              
+             hio_crownarea_si_agepft(io_si, iagepft) = hio_crownarea_si_agepft(io_si, iagepft) & 
+                  + ccohort%c_area / cpatch%area / n_patch_in_age_class
+             hio_crownarea_si_layeragepft(io_si, icanagepft) = hio_crownarea_si_layeragepft(io_si, icanagepft) & 
+                  + ccohort%c_area / cpatch%area / n_patch_in_age_class
+ 
              if (.not. (ccohort%isnew)) then
                 hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
                      ccohort%npp_acc_hold / days_per_year / sec_per_day &  ! [kgC/indiv/yr] -> [kgC/s]
@@ -6525,7 +6582,7 @@ contains
     use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
     use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
     use FatesIOVariableKindMod, only : site_cdsc_r8, site_cdpf_r8, site_cdam_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8, site_canagepft_r8
     use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8, site_clscpf_r8
     use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
@@ -6558,16 +6615,17 @@ contains
     ! cohort crown damage      (site_cd_r8)     : CD
 
     ! Multiple dimensions should have multiple two-code suffixes:
-    ! cohort age x pft                (site_cooage_r8)   : ACPF
-    ! patch age x fuel class          (site_agefuel_r8)  : APFC
-    ! patch age x pft                 (site_agepft_r8)   : APPF
-    ! canopy layer x leaf layer       (site_cnlf_r8)     : CLLL
-    ! canopy layer x leaf layer x pft (site_cnlfpft_r8)  : CLLLPF
-    ! element x cwd size              (site_elcwd_r8)    : ELDC
-    ! cohort size x patch age         (site_scag_r8)     : SZAP
-    ! cohort size x patch age x pft   (site_scagpft_r8)  : SZAPPF
-    ! cohort size x pft               (site_size_pft_r8) : SZPF
-    ! canopy layer x size x pft       (site_clscpf_r8)   : CLSZPF (NOT ACTIVE)
+    ! cohort age x pft                (site_cooage_r8)    : ACPF
+    ! patch age x fuel class          (site_agefuel_r8)   : APFC
+    ! patch age x pft                 (site_agepft_r8)    : APPF
+    ! canopy layer x patch age x pft  (site_canagepft_r8) : CLAPPF
+    ! canopy layer x leaf layer       (site_cnlf_r8)      : CLLL
+    ! canopy layer x leaf layer x pft (site_cnlfpft_r8)   : CLLLPF
+    ! element x cwd size              (site_elcwd_r8)     : ELDC
+    ! cohort size x patch age         (site_scag_r8)      : SZAP
+    ! cohort size x patch age x pft   (site_scagpft_r8)   : SZAPPF
+    ! cohort size x pft               (site_size_pft_r8)  : SZPF
+    ! canopy layer x size x pft       (site_clscpf_r8)    : CLSZPF (NOT ACTIVE)
     ! cohort size x crown damage       (site_cdsc_r8)     : SZCD
     ! cohort size x crown damage x pft (site_cdpf_r8)     : CDPF
 
@@ -8060,7 +8118,7 @@ contains
           call this%set_history_var(vname='FATES_NPLANT_CANOPY_SZAP', units = 'm-2', &
                long='number of canopy plants per m2, per size x age class'//   &
                this%per_ageclass_norm_info('FATES_PATCHAREA/FATES_PATCHAREA_AP'),  &
-               use_default='inactive', avgflag='A', vtype=site_scag_r8,             &
+               use_default='active', avgflag='A', vtype=site_scag_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_nplant_canopy_si_scag)
 
@@ -8105,7 +8163,7 @@ contains
           call this%set_history_var(vname='FATES_NPLANT_SZAPPF',units = 'm-2',       &
                long='number of plants per m2, per size x age x pft class'//        &
                this%per_ageclass_norm_info('FATES_PATCHAREA/FATES_PATCHAREA_AP'),  &
-               use_default='inactive', avgflag='A', vtype=site_scagpft_r8,          &
+               use_default='active', avgflag='A', vtype=site_scagpft_r8,          &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_nplant_si_scagpft)
 
@@ -8128,6 +8186,18 @@ contains
                use_default='inactive', avgflag='A', vtype=site_agepft_r8,           &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_biomass_si_agepft)
+
+          call this%set_history_var(vname='FATES_CROWNAREA_APPF',units = 'proportion',        &
+               long='Crown area per PFT in each age bin as proportion of patch age class area',   &
+               use_default='inactive', avgflag='A', vtype=site_agepft_r8,                 &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                       &
+               initialize=initialize_variables, index = ih_crownarea_si_agepft)
+
+          call this%set_history_var(vname='FATES_CROWNAREA_CLAPPF',units = 'proportion',        &
+               long='Crown area per canopy layer per PFT in each age bin as proportion of patch age class area',   &
+               use_default='inactive', avgflag='A', vtype=site_canagepft_r8,                 &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                       &
+               initialize=initialize_variables, index = ih_crownarea_si_layeragepft)
 
           call this%set_history_var(vname='FATES_SCORCH_HEIGHT_APPF',units = 'm',    &
                long='SPITFIRE flame Scorch Height (calculated per PFT in each patch age bin)'// &

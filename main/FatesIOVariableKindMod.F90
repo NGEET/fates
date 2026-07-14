@@ -39,6 +39,7 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_scag_r8 = 'SI_SCAG_R8'
   character(*), parameter, public :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
   character(*), parameter, public :: site_agepft_r8 = 'SI_AGEPFT_R8'
+  character(*), parameter, public :: site_canagepft_r8 = 'SI_CANAGEPFT_R8'
   character(*), parameter, public :: site_agefuel_r8 = 'SI_AGEFUEL_R8'
   character(*), parameter, public :: site_clscpf_r8 = 'SI_CLSCPF_R8'
   character(*), parameter, public :: site_landuse_r8 = 'SI_LANDUSE_R8'
