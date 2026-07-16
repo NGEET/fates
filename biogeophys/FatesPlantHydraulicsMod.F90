@@ -4341,7 +4341,7 @@ subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
   ! ---------------------------------------------------------------------------
 
   ! Arguments
-  type(ed_cohort_type) , intent(inout), target  :: ccohort  
+  type(fates_cohort_type) , intent(inout),target  :: ccohort  
   type(ed_site_hydr_type), intent(inout),target :: csite_hydr
   type(bc_in_type),intent(in)                   :: bc_in
   real(r8), intent(in)                          :: dtime       ! time step (seconds)
