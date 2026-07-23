@@ -1,0 +1,271 @@
+module test_LeafBiophysics
+  !
+  ! DESCRIPTION:
+  !   Unit tests for LeafBiophysicsMod routines in FATES.
+  !
+  use FatesConstantsMod, only : r8 => fates_r8, tfrz => t_water_freeze_k_1atm
+  use LeafBiophysicsMod, only : QSat, &
+                                StomatalCondMedlyn, &
+                                StomatalCondBallBerry, &
+                                LowstorageMainRespReduction, &
+                                LeafLayerMaintenanceRespiration_Ryan_1991, &
+                                LeafLayerMaintenanceRespiration_Atkin_etal_2017, &
+                                GetCanopyGasParameters, &
+                                lb_params, &
+                                c3_path_index, &
+                                c4_path_index
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestLeafBiophysics
+    contains
+      procedure :: setUp
+      procedure :: tearDown 
+  end type TestLeafBiophysics
+  
+  ! tol: near the 64-bit float representational limit; inline tolerances used where
+  ! hand-calculated values warrant lower precision (e.g. 1.e-6_r8).
+  real(r8), parameter :: tol = 1.e-13_r8
+
+  contains 
+  
+    subroutine setUp(this)
+      ! lb_params is normally loaded from the FATES NetCDF parameter file at run-time;
+      ! here we manually set the minimum fields needed for two synthetic PFTs (C3, C4).
+      class(TestLeafBiophysics), intent(inout) :: this
+
+      allocate(lb_params%c3psn(2))
+      allocate(lb_params%maintresp_leaf_ryan1991_baserate(2))
+      allocate(lb_params%maintresp_leaf_atkin2017_baserate(2))
+      allocate(lb_params%maintresp_reduction_curvature(2))
+      allocate(lb_params%maintresp_reduction_intercept(2))
+
+      ! Pathway flags; module-level constants from LeafBiophysicsMod.
+      lb_params%c3psn(1) = c3_path_index
+      lb_params%c3psn(2) = c4_path_index
+
+      ! FATES default (fates_params_default.cdl): 2.525e-06 gC gN-1 s-1 for all PFTs.
+      lb_params%maintresp_leaf_ryan1991_baserate(1) = 2.525e-6_r8
+      lb_params%maintresp_leaf_ryan1991_baserate(2) = 2.525e-6_r8
+
+      ! FATES default r0 for PFT 1 (tropical broadleaf evergreen): 1.756 umol CO2 m-2 s-1.
+      lb_params%maintresp_leaf_atkin2017_baserate(1) = 1.756_r8
+      lb_params%maintresp_leaf_atkin2017_baserate(2) = 1.756_r8
+
+      ! Non-default values chosen to exercise two branches of LowstorageMainRespReduction:
+      !   1.0 -> linear branch (FATES default is 0.01; 1=linear, 0=maximally curved)
+      !   0.5 -> curved power-law branch
+      lb_params%maintresp_reduction_curvature(1) = 1.0_r8
+      lb_params%maintresp_reduction_curvature(2) = 0.5_r8
+
+      ! Non-default (FATES default=1.0); 0.8 gives non-trivial hand-calculable values.
+      lb_params%maintresp_reduction_intercept(1) = 0.8_r8
+      lb_params%maintresp_reduction_intercept(2) = 0.8_r8
+    end subroutine setUp
+
+    subroutine tearDown(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      deallocate(lb_params%c3psn)
+      deallocate(lb_params%maintresp_leaf_ryan1991_baserate)
+      deallocate(lb_params%maintresp_leaf_atkin2017_baserate)
+      deallocate(lb_params%maintresp_reduction_curvature)
+      deallocate(lb_params%maintresp_reduction_intercept)
+    end subroutine tearDown
+
+    @Test
+    subroutine test_QSat(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: T, p, qs, es, qsdT, esdT
+      
+      ! Test at 25C (298.15 K) and standard pressure (101325 Pa)
+      T = 298.15_r8
+      p = 101325.0_r8
+      call QSat(T, p, qs, es, qsdT, esdT)
+      
+      ! Check qs and es are positive and within physically realistic bounds
+      @assertTrue(qs > 0.0_r8)
+      @assertTrue(es > 0.0_r8)
+      @assertTrue(qsdT > 0.0_r8)
+      @assertTrue(esdT > 0.0_r8)
+      
+      ! Assert exact/computed values to high tolerance
+      ! qs ~ 0.0197_r8, es ~ 3169.2_r8
+      @assertEqual(3169.2169_r8, es, tolerance=1.e-3_r8)
+      @assertEqual(0.019687_r8, qs, tolerance=1.e-5_r8)
+      
+      ! Test for ice range: -10C (263.15 K)
+      T = 263.15_r8
+      call QSat(T, p, qs, es, qsdT, esdT)
+      @assertTrue(qs > 0.0_r8)
+      @assertTrue(es > 0.0_r8)
+      @assertTrue(qsdT > 0.0_r8)
+      @assertTrue(esdT > 0.0_r8)
+    end subroutine test_QSat
+
+    @Test
+    subroutine test_StomatalCondMedlyn(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: anet, veg_esat, can_vpress, gs0, gs1, gs2, leaf_co2_ppress, can_press, gb, gs
+      
+      veg_esat = 3167.0_r8
+      can_vpress = 1500.0_r8
+      gs0 = 10000.0_r8
+      gs1 = 5.0_r8
+      gs2 = 1.0_r8
+      leaf_co2_ppress = 30.0_r8
+      can_press = 101325.0_r8
+      gb = 2000000.0_r8
+      
+      ! Branch 1: anet <= anet_min (trivial solution, gs = gs0)
+      anet = 0.0_r8
+      call StomatalCondMedlyn(anet, veg_esat, can_vpress, gs0, gs1, gs2, leaf_co2_ppress, can_press, gb, gs)
+      @assertEqual(gs0, gs, tolerance=tol)
+      
+      ! Branch 2: gs2 < 0.01_r8 (trivial case, gs = gs0)
+      anet = 10.0_r8
+      call StomatalCondMedlyn(anet, veg_esat, can_vpress, gs0, gs1, 0.0_r8, leaf_co2_ppress, can_press, gb, gs)
+      @assertEqual(gs0, gs, tolerance=tol)
+      
+      ! Branch 3: gs1 < 0.01_r8 (trivial case, gs = gs0 + 1.6 * anet / (leaf_co2_ppress/can_press))
+      call StomatalCondMedlyn(anet, veg_esat, can_vpress, gs0, 0.0_r8, gs2, leaf_co2_ppress, can_press, gb, gs)
+      @assertEqual(gs0 + 1.6_r8 * anet / (leaf_co2_ppress / can_press), gs, tolerance=tol)
+      
+      ! General non-trivial case
+      call StomatalCondMedlyn(anet, veg_esat, can_vpress, gs0, gs1, gs2, leaf_co2_ppress, can_press, gb, gs)
+      @assertTrue(gs > gs0)
+    end subroutine test_StomatalCondMedlyn
+
+    @Test
+    subroutine test_StomatalCondBallBerry(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: a_gs, a_net, veg_esat, can_vpress, gs0, gs1, leaf_co2_ppress, can_press, gb, gs
+      
+      veg_esat = 3167.0_r8
+      can_vpress = 1500.0_r8
+      gs0 = 10000.0_r8
+      gs1 = 9.0_r8
+      leaf_co2_ppress = 30.0_r8
+      can_press = 101325.0_r8
+      gb = 2000000.0_r8
+      
+      ! Branch 1: a_gs <= nearzero (gs = gs0)
+      a_gs = 0.0_r8
+      a_net = 10.0_r8
+      call StomatalCondBallBerry(a_gs, a_net, veg_esat, can_vpress, gs0, gs1, leaf_co2_ppress, can_press, gb, gs)
+      @assertEqual(gs0, gs, tolerance=tol)
+      
+      ! Branch 2: gs1 < 0.01_r8 (gs = gs0)
+      a_gs = 10.0_r8
+      call StomatalCondBallBerry(a_gs, a_net, veg_esat, can_vpress, gs0, 0.0_r8, leaf_co2_ppress, can_press, gb, gs)
+      @assertEqual(gs0, gs, tolerance=tol)
+      
+      ! General case
+      call StomatalCondBallBerry(a_gs, a_net, veg_esat, can_vpress, gs0, gs1, leaf_co2_ppress, can_press, gb, gs)
+      @assertTrue(gs > gs0)
+    end subroutine test_StomatalCondBallBerry
+
+    @Test
+    subroutine test_LowstorageMainRespReduction(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: frac, factor
+      integer :: ft
+      
+      ! ft = 1 (linear case: curvature = 1.0, intercept = 0.8)
+      ft = 1
+      
+      ! frac >= 1.0 -> no reduction (factor = 1.0)
+      frac = 1.2_r8
+      call LowstorageMainRespReduction(frac, ft, factor)
+      @assertEqual(1.0_r8, factor, tolerance=tol)
+      
+      ! frac < 1.0 -> linear reduction: (1 - intercept) + intercept * frac = 0.2 + 0.8 * 0.5 = 0.6
+      frac = 0.5_r8
+      call LowstorageMainRespReduction(frac, ft, factor)
+      @assertEqual(0.6_r8, factor, tolerance=tol)
+      
+      ! ft = 2 (curved case: curvature = 0.5, intercept = 0.8)
+      ft = 2
+      frac = 0.5_r8
+      ! factor = (1 - 0.8) + 0.8 * (1 - 0.5**0.5) / (1 - 0.5)
+      !        = 0.2 + 0.8 * (1 - 0.70710678) / 0.5
+      !        = 0.2 + 1.6 * 0.29289322 = 0.2 + 0.46862915 = 0.66862915
+      call LowstorageMainRespReduction(frac, ft, factor)
+      @assertEqual(0.6686291501_r8, factor, tolerance=1.e-7_r8)
+    end subroutine test_LowstorageMainRespReduction
+
+    @Test
+    subroutine test_LeafLayerMaintenanceRespiration_Ryan_1991(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: lnc_top, nscaler, veg_tempk, lmr
+      integer :: ft
+      
+      lnc_top = 1.5_r8
+      nscaler = 0.8_r8
+      
+      ! PFT 1: C3 plant at 25C (298.15 K)
+      ft = 1
+      veg_tempk = tfrz + 25.0_r8
+      call LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, nscaler, ft, veg_tempk, lmr)
+      @assertTrue(lmr > 0.0_r8)
+      
+      ! PFT 2: C4 plant at 25C (298.15 K)
+      ft = 2
+      veg_tempk = tfrz + 25.0_r8
+      call LeafLayerMaintenanceRespiration_Ryan_1991(lnc_top, nscaler, ft, veg_tempk, lmr)
+      @assertTrue(lmr > 0.0_r8)
+    end subroutine test_LeafLayerMaintenanceRespiration_Ryan_1991
+
+    @Test
+    subroutine test_LeafLayerMaintenanceRespiration_Atkin_etal_2017(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: lnc_top, rdark_scaler, veg_tempk, tgrowth, lmr
+      integer :: ft
+      
+      lnc_top = 1.5_r8
+      rdark_scaler = 2.43_r8
+      ft = 1
+      tgrowth = tfrz + 20.0_r8
+      veg_tempk = tfrz + 25.0_r8
+      
+      ! Hand-calculated:
+      ! r_t_ref = 2.43 * (1.756 + 0.2061 * 1.5 - 0.0402 * 20.0) = 3.0645945
+      ! At veg_tempk = tfrz + 25.0, lmr should be exactly r_t_ref = 3.0645945
+      call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, rdark_scaler, ft, veg_tempk, tgrowth, lmr)
+      @assertEqual(3.0645945_r8, lmr, tolerance=1.e-6_r8)
+      
+      ! Test capped r_t_ref = 0 when tgrowth is extremely large
+      tgrowth = tfrz + 100.0_r8
+      call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, rdark_scaler, ft, veg_tempk, tgrowth, lmr)
+      @assertEqual(0.0_r8, lmr, tolerance=tol)
+    end subroutine test_LeafLayerMaintenanceRespiration_Atkin_etal_2017
+
+    @Test
+    subroutine test_GetCanopyGasParameters(this)
+      class(TestLeafBiophysics), intent(inout) :: this
+      real(r8) :: can_press, can_o2_partialpress, veg_tempk, mm_kco2, mm_ko2, co2_cpoint
+      
+      can_press = 100000.0_r8
+      can_o2_partialpress = 20900.0_r8
+      
+      ! Test at 25C (298.15 K)
+      veg_tempk = tfrz + 25.0_r8
+      call GetCanopyGasParameters(can_press, can_o2_partialpress, veg_tempk, mm_kco2, mm_ko2, co2_cpoint)
+      
+      ! kc25 = ( 404.9 / 1.e6 ) * 100000 = 40.49
+      ! ko25 = ( 278.4 / 1.e3 ) * 100000 = 27840
+      ! cp25 = 4.275
+      @assertEqual(40.49_r8, mm_kco2, tolerance=1.e-6_r8)
+      @assertEqual(27840.0_r8, mm_ko2, tolerance=1.e-6_r8)
+      @assertEqual(4.275_r8, co2_cpoint, tolerance=1.e-6_r8)
+      
+      ! Test at extreme/out of range temperature (veg_tempk = 100.0) -> returns 1.0
+      veg_tempk = 100.0_r8
+      call GetCanopyGasParameters(can_press, can_o2_partialpress, veg_tempk, mm_kco2, mm_ko2, co2_cpoint)
+      @assertEqual(1.0_r8, mm_kco2, tolerance=tol)
+      @assertEqual(1.0_r8, mm_ko2, tolerance=tol)
+      @assertEqual(1.0_r8, co2_cpoint, tolerance=tol)
+    end subroutine test_GetCanopyGasParameters
+
+end module test_LeafBiophysics
