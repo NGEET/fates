@@ -1,0 +1,557 @@
+module test_LeafBiophysicsSolvers
+  !
+  ! DESCRIPTION:
+  !   Unit tests for the intracellular CO2 (Ci) solver stack in LeafBiophysicsMod:
+  !     CiMinMax   - bracket finder for the bisection search
+  !     CiFunc     - evaluation function (fval = Ci_in - Ci_updated)
+  !     CiBisection - full bisection driver (integration-level convergence check)
+  !
+  !
+  ! INPUT STRATEGY (Option 2 - documented below):
+  !
+  !   The solvers require ~15 inputs split into two categories:
+  !   (A) DERIVED from already-tested subroutines (GetCanopyGasParameters,
+  !       QSat, LeafLayerMaintenanceRespiration_Ryan_1991) - see setUp.
+  !   (B) HARD-CODED scalars: vcmax=50, jmax=100 umol/m2/s (canonical PFT-1
+  !       values from leaf_biophys_controls.xml at 25 C, where Arrhenius
+  !       scalings evaluate to 1.0 by definition).  Full temperature scaling
+  !       via LeafLayerBiophysicalRates would require ~10 extra lb_params
+  !       fields, turning a unit test into an integration test.
+  !
+  ! TESTING DECISIONS:
+  !   Decisions regarding numerical testing gaps (Tolerance boundary, Max
+  !   iterations, Analytical solutions, and Environmental parameterization)
+  !   are documented directly alongside their respective test subroutines
+  !   below.
+  !
+  use FatesConstantsMod,  only : r8 => fates_r8, tfrz => t_water_freeze_k_1atm
+  use LeafBiophysicsMod,  only : CiMinMax, CiFunc, CiBisection, &
+                                 GetCanopyGasParameters, QSat, &
+                                 LowstorageMainRespReduction, &
+                                 LeafLayerMaintenanceRespiration_Ryan_1991, &
+                                 lb_params, c3_path_index, c4_path_index, &
+                                 FvCB1980
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestLeafBiophysicsSolvers
+    ! ---- inputs derived in setUp ----
+    real(r8) :: mm_kco2       ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8) :: mm_ko2        ! Michaelis-Menten constant for O2 (Pa)
+    real(r8) :: co2_cpoint    ! CO2 compensation point (Pa)
+    real(r8) :: veg_esat      ! saturation vapor pressure at leaf surface (Pa)
+    real(r8) :: lmr           ! leaf maintenance respiration rate (umol CO2/m2/s)
+    ! ---- hard-coded scalars set in setUp ----
+    real(r8) :: veg_tempk     ! vegetation temperature (K)
+    real(r8) :: vcmax         ! maximum carboxylation rate (umol CO2/m2/s)
+    real(r8) :: jmax          ! maximum electron transport rate (umol electrons/m2/s)
+    real(r8) :: kp            ! C4 CO2 slope (unused for C3; set to sentinel)
+    real(r8) :: can_press     ! atmospheric pressure (Pa)
+    real(r8) :: can_co2_ppress ! CO2 partial pressure at leaf surface (Pa)
+    real(r8) :: can_o2_ppress  ! O2 partial pressure at leaf surface (Pa)
+    real(r8) :: can_vpress    ! canopy air vapour pressure (Pa)
+    real(r8) :: gb            ! leaf boundary layer conductance (umol H2O/m2/s)
+    real(r8) :: gs0           ! stomatal intercept (umol H2O/m2/s)
+    real(r8) :: gs1           ! stomatal slope (Medlyn g1)
+    real(r8) :: gs2           ! Medlyn btran term (1 = no water stress)
+    real(r8) :: par_abs       ! absorbed PAR (umol photons/m2/s)
+    integer  :: ft            ! plant functional type index (1 = C3)
+    contains
+      procedure :: setUp
+      procedure :: tearDown
+  end type TestLeafBiophysicsSolvers
+
+  ! Loose tolerance for convergence / bracket checks; tighter than any
+  ! physically meaningful difference but not so tight as to be brittle.
+  real(r8), parameter :: tol_loose  = 1.e-4_r8
+  real(r8), parameter :: tol_strict = 1.e-10_r8
+
+  contains
+
+    subroutine setUp(this)
+      ! Populate lb_params and compute derived inputs from already-tested subroutines.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+
+      real(r8) :: qs_dummy   ! specific humidity (unused; required by QSat signature)
+
+      ! ----------------------------------------------------------------
+      ! lb_params: allocate fields needed by all routines called here.
+      ! CiMinMax and CiFunc call GetJe -> lb_params%fnps.
+      ! LeafLayerMaintenanceRespiration_Ryan_1991 needs c3psn and
+      ! maintresp_leaf_ryan1991_baserate.
+      ! ----------------------------------------------------------------
+      allocate(lb_params%c3psn(1))
+      allocate(lb_params%maintresp_leaf_ryan1991_baserate(1))
+      allocate(lb_params%fnps(1))
+      lb_params%c3psn(1) = c3_path_index
+      ! FATES default from fates_params_default.cdl: 2.525e-06 gC gN-1 s-1
+      lb_params%maintresp_leaf_ryan1991_baserate(1) = 2.525e-6_r8
+      ! FATES default (api39+ params_default.cdl): 0.15 for all PFTs
+      ! (fraction of absorbed PAR lost to non-photosynthetic pigments)
+      lb_params%fnps(1) = 0.15_r8
+      ! Scalar model switches - must be set or GetJe/CiFunc hit the default
+      ! error branch. Values match leaf_biophys_controls.xml:
+      !   electron_transport_model = FvCB1980 (1): standard Farquhar-von Caemmerer-Berry
+      !   stomatal_model = 2 (medlyn_model; private constant, value=2)
+      !   stomatal_assim_model = 1 (net assimilation; gross_assim_model=2 is the alternative)
+      lb_params%electron_transport_model = FvCB1980
+      lb_params%stomatal_model           = 2   ! medlyn_model (private in LeafBiophysicsMod)
+      lb_params%stomatal_assim_model     = 1   ! net assimilation (not gross_assim_model=2)
+
+      ! ----------------------------------------------------------------
+      ! Standard conditions: sunlit C3 leaf at 25 C, sea level.
+      ! ----------------------------------------------------------------
+      this%ft       = 1
+      this%veg_tempk = tfrz + 25.0_r8   ! 298.15 K
+
+      ! can_press: standard sea-level atmospheric pressure (Pa)
+      this%can_press = 101325.0_r8
+
+      ! can_co2_ppress: ~400 ppm CO2 at 1 atm = 400e-6 * 101325 ~ 40.53 Pa
+      this%can_co2_ppress = 40.53_r8
+
+      ! can_o2_ppress: ~209 hPa O2 at 1 atm = 0.209 * 101325 ~ 20977 Pa
+      this%can_o2_ppress  = 20900.0_r8
+
+      ! par_abs: full-sun absorbed PAR for a sunlit leaf; ~1000 umol/m2/s
+      ! is the canonical "saturating light" value used in CLM/FATES documentation.
+      this%par_abs = 1000.0_r8
+
+      ! gb: leaf boundary layer conductance; 200000 umol H2O/m2/s is a
+      ! high (well-ventilated) value that does not limit the solution.
+      this%gb = 200000.0_r8
+
+      ! gs0, gs1, gs2: Medlyn stomatal parameters for a typical C3 tree.
+      ! gs0 = 10000 umol/m2/s is the default intercept in leaf_biophys_controls.xml.
+      ! gs1 = 4.1 is the default Medlyn slope for PFT 1 (tropical broadleaf evergreen).
+      ! gs2 = 1.0 means no water stress (btran = 1).
+      this%gs0 = 10000.0_r8
+      this%gs1 = 4.1_r8
+      this%gs2 = 1.0_r8
+
+      ! kp: C4-only parameter; sentinel value for C3 (never accessed in C3 branches).
+      this%kp = -9999.0_r8
+
+      ! vcmax = 50 umol/m2/s: canonical PFT-1 vcmax25top from
+      ! functional_unit_testing/leaf_biophys/leaf_biophys_controls.xml.
+      ! At exactly 25 C the Arrhenius ft1_f / fth_f temperature scalings
+      ! evaluate to 1.0 by definition, so vcmax25top == vcmax at this temperature.
+      this%vcmax = 50.0_r8
+
+      ! jmax = 100 umol/m2/s: the standard 2:1 jmax/vcmax ratio used across
+      ! CLM/FATES PFTs; consistent with fates_params_default.cdl PFT 1 at 25 C.
+      this%jmax  = 100.0_r8
+
+      ! ----------------------------------------------------------------
+      ! (A) Derive mm_kco2, mm_ko2, co2_cpoint from GetCanopyGasParameters.
+      !     This subroutine is verified correct by test_GetCanopyGasParameters.
+      ! ----------------------------------------------------------------
+      call GetCanopyGasParameters(this%can_press, this%can_o2_ppress, this%veg_tempk, &
+                                  this%mm_kco2, this%mm_ko2, this%co2_cpoint)
+
+      ! ----------------------------------------------------------------
+      ! (B) Derive veg_esat from QSat (verified by test_QSat).
+      ! ----------------------------------------------------------------
+      call QSat(this%veg_tempk, this%can_press, qs_dummy, this%veg_esat)
+
+      ! can_vpress: canopy air vapour pressure; set to 60% of saturation,
+      ! a mild water-vapour deficit representative of a productive canopy.
+      this%can_vpress = 0.6_r8 * this%veg_esat
+
+      ! ----------------------------------------------------------------
+      ! (C) Derive lmr from LeafLayerMaintenanceRespiration_Ryan_1991
+      !     (verified by test_LeafLayerMaintenanceRespiration_Ryan_1991).
+      !     nscaler = 1 (top-of-canopy leaf; no nitrogen gradient scaling).
+      ! ----------------------------------------------------------------
+      call LeafLayerMaintenanceRespiration_Ryan_1991( &
+           lnc_top  = 1.5_r8,  &  ! leaf N content (gN/m2); typical C3 value
+           nscaler  = 1.0_r8,  &  ! canopy top -> nscaler = 1
+           ft       = this%ft, &
+           veg_tempk= this%veg_tempk, &
+           lmr      = this%lmr)
+
+    end subroutine setUp
+
+    subroutine tearDown(this)
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      deallocate(lb_params%c3psn)
+      deallocate(lb_params%maintresp_leaf_ryan1991_baserate)
+      deallocate(lb_params%fnps)
+    end subroutine tearDown
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiMinMax_valid_bracket(this)
+      ! CiMinMax must return a valid bracket: ci_min < ci_max, both
+      ! physically plausible (strictly positive, below ambient CO2).
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: ci_min, ci_max
+
+      call CiMinMax(this%ft, this%vcmax, this%jmax, this%kp, &
+                    this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                    this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                    this%lmr, this%par_abs, this%gb, this%gs0, &
+                    ci_min, ci_max)
+
+      ! bracket must be ordered
+      @assertTrue(ci_min < ci_max)
+      ! both endpoints physically plausible
+      @assertTrue(ci_min > 0.0_r8)
+      @assertTrue(ci_max <= this%can_co2_ppress)
+    end subroutine test_CiMinMax_valid_bracket
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiMinMax_bracket_sign_change(this)
+      ! fval at ci_min and ci_max must have opposite signs, confirming
+      ! that CiBisection has a valid root to converge to.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: ci_min, ci_max
+      real(r8) :: anet, agross, gs, fval_lo, fval_hi
+
+      call CiMinMax(this%ft, this%vcmax, this%jmax, this%kp, &
+                    this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                    this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                    this%lmr, this%par_abs, this%gb, this%gs0, &
+                    ci_min, ci_max)
+
+      call CiFunc(ci_min, &
+                  this%ft, this%vcmax, this%jmax, this%kp, &
+                  this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                  this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                  this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                  this%veg_tempk, this%veg_esat, &
+                  this%gs0, this%gs1, this%gs2, &
+                  anet, agross, gs, fval_lo)
+
+      call CiFunc(ci_max, &
+                  this%ft, this%vcmax, this%jmax, this%kp, &
+                  this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                  this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                  this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                  this%veg_tempk, this%veg_esat, &
+                  this%gs0, this%gs1, this%gs2, &
+                  anet, agross, gs, fval_hi)
+
+      ! Bisection requires fval_lo and fval_hi to straddle zero.
+      @assertTrue(fval_lo * fval_hi < 0.0_r8)
+    end subroutine test_CiMinMax_bracket_sign_change
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_converges_c3(this)
+      ! Full bisection solver must converge (solve_iter < max_iters=200),
+      ! yield positive net photosynthesis, stomatal conductance above the
+      ! intercept, and a Ci within the physical bracket.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci
+      integer  :: solve_iter
+      real(r8) :: ci_tol
+
+      ! ci_tol: bisection convergence criterion (Pa); same order of magnitude
+      ! as the default used internally in LeafLayerPhotosynthesis.
+      ci_tol = 0.1_r8
+      solve_iter = 0
+
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, ci_tol, &
+                       anet, agross, gs, ci, solve_iter)
+
+      ! Converged within the allowed iterations
+      @assertTrue(solve_iter < 200)
+      ! Positive net photosynthesis under full light
+      @assertTrue(anet > 0.0_r8)
+      ! Stomatal conductance above the minimum intercept
+      @assertTrue(gs > this%gs0)
+      ! Ci is physically bounded
+      @assertTrue(ci > 0.0_r8)
+      @assertTrue(ci < this%can_co2_ppress)
+    end subroutine test_CiBisection_converges_c3
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_dark(this)
+      ! In darkness (par_abs = 0), net photosynthesis must be negative
+      ! (dark respiration) and stomatal conductance must fall to gs0.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci
+      integer  :: solve_iter
+      real(r8) :: ci_tol
+
+      ci_tol     = 0.1_r8
+      solve_iter = 0
+
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, 0.0_r8, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, ci_tol, &
+                       anet, agross, gs, ci, solve_iter)
+
+      ! Dark: no assimilation, only respiration
+      @assertTrue(anet < 0.0_r8)
+      ! Stomatal conductance collapses to the intercept in the dark
+      @assertEqual(this%gs0, gs, tolerance=tol_loose)
+    end subroutine test_CiBisection_dark
+
+    ! ===========================================================
+    ! TESTING DECISION (Gap 3 - Analytical solution):
+    !   We do not compare the solution against a hand-calculated analytical
+    !   root. The Ci fixed-point couples three photosynthesis limitation
+    !   regimes, a surface-humidity quadratic, and the Medlyn conductance
+    !   quadratic, resulting in a degree-4 polynomial with no clean closed form.
+    !   Switching to Ball-Berry would simplify this, but Ball-Berry is a
+    !   non-production code path (all FATES PFTs use Medlyn).
+    !   To maintain test validity for the production path, we use the inversion
+    !   test below: verifying that fval evaluates to ~0 at the solver's root.
+    ! ===========================================================
+    @Test
+    subroutine test_CiFunc_zero_at_solution(this)
+      ! At the converged Ci returned by CiBisection, fval must be
+      ! near zero (within the bisection tolerance), confirming that
+      ! CiFunc and CiBisection are mutually consistent.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci, fval
+      integer  :: solve_iter
+      real(r8) :: ci_tol
+
+      ci_tol     = 0.1_r8
+      solve_iter = 0
+
+      ! First, get the converged solution from CiBisection.
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, ci_tol, &
+                       anet, agross, gs, ci, solve_iter)
+
+      ! Now evaluate CiFunc at that Ci; fval must be within ci_tol.
+      call CiFunc(ci, &
+                  this%ft, this%vcmax, this%jmax, this%kp, &
+                  this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                  this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                  this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                  this%veg_tempk, this%veg_esat, &
+                  this%gs0, this%gs1, this%gs2, &
+                  anet, agross, gs, fval)
+
+      @assertEqual(0.0_r8, fval, tolerance=ci_tol)
+    end subroutine test_CiFunc_zero_at_solution
+
+    ! ===========================================================
+    ! TESTING DECISION (Gap 1 - Tolerance boundary):
+    !   We test the tolerance boundaries by verifying two extreme conditions:
+    !   1. A very loose tolerance (ci_tol = 100 Pa) where the bisection loop
+    !      exits immediately in exactly 1 iteration because the error is already
+    !      smaller than the tolerance (since fval is bounded by can_co2_ppress).
+    !   2. A very tight tolerance (ci_tol = 0.001 Pa) to verify that the
+    !      solver achieves a highly precise root-finding result in ~15 steps.
+    ! ===========================================================
+
+    @Test
+    subroutine test_CiBisection_large_tol_exits_in_one_iter(this)
+      ! With ci_tol >> any plausible |fval| in Pa, the convergence criterion
+      ! is satisfied on the very first midpoint evaluation (solve_iter = 1),
+      ! exercising the early-exit branch.
+      !
+      ! Justification: fval = ci_in - ci_predicted, both in Pa and bounded
+      ! by [0, can_co2_ppress] ~ [0, 40 Pa]. So |fval| < 41 Pa always.
+      ! Setting ci_tol = 100 Pa guarantees exit on the first iteration.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci
+      integer  :: solve_iter
+
+      solve_iter = 0
+
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, 100.0_r8, &
+                       anet, agross, gs, ci, solve_iter)
+
+      @assertEqual(1, solve_iter)
+      ! Even a coarse solution should be physically plausible
+      @assertTrue(anet > 0.0_r8)
+      @assertTrue(ci > 0.0_r8)
+    end subroutine test_CiBisection_large_tol_exits_in_one_iter
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_tight_tol(this)
+      ! With ci_tol = 0.001 Pa, convergence requires ~log2(40/0.001) ~ 15
+      ! bisection steps. Verifies the solver achieves tighter convergence
+      ! than the default (0.1 Pa) while remaining physically valid, and
+      ! that fval at the solution is within the tighter tolerance.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci, fval
+      integer  :: solve_iter
+      real(r8), parameter :: ci_tol_tight = 0.001_r8
+
+      solve_iter = 0
+
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, ci_tol_tight, &
+                       anet, agross, gs, ci, solve_iter)
+
+      ! Tighter tolerance requires multiple iterations
+      @assertTrue(solve_iter > 5)
+      @assertTrue(solve_iter < 200)
+      @assertTrue(anet > 0.0_r8)
+
+      ! fval at the tighter solution must be within the tighter tolerance
+      call CiFunc(ci, &
+                  this%ft, this%vcmax, this%jmax, this%kp, &
+                  this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                  this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                  this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                  this%veg_tempk, this%veg_esat, &
+                  this%gs0, this%gs1, this%gs2, &
+                  anet, agross, gs, fval)
+
+      @assertEqual(0.0_r8, fval, tolerance=ci_tol_tight)
+    end subroutine test_CiBisection_tight_tol
+
+    ! ===========================================================
+
+    subroutine run_bisection_at_tempk(this, tempk, par, &
+                                      anet_out, gs_out, ci_out, iters_out)
+      ! Run CiBisection at temperature tempk and PAR=par, rederiving all
+      ! temperature-sensitive inputs. Returns net assimilation, stomatal
+      ! conductance, converged Ci, and iteration count.
+      class(TestLeafBiophysicsSolvers), intent(in) :: this
+      real(r8), intent(in)  :: tempk        ! vegetation temperature (K)
+      real(r8), intent(in)  :: par          ! absorbed PAR (umol/m2/s)
+      real(r8), intent(out) :: anet_out, gs_out, ci_out
+      integer,  intent(out) :: iters_out
+
+      real(r8) :: mm_kco2_t, mm_ko2_t, co2_cpoint_t
+      real(r8) :: veg_esat_t, can_vpress_t, qs_dummy, lmr_t
+      real(r8) :: agross
+
+      call GetCanopyGasParameters(this%can_press, this%can_o2_ppress, tempk, &
+                                  mm_kco2_t, mm_ko2_t, co2_cpoint_t)
+      call QSat(tempk, this%can_press, qs_dummy, veg_esat_t)
+      can_vpress_t = 0.6_r8 * veg_esat_t
+      call LeafLayerMaintenanceRespiration_Ryan_1991( &
+           lnc_top=1.5_r8, nscaler=1.0_r8, ft=this%ft, &
+           veg_tempk=tempk, lmr=lmr_t)
+
+      iters_out = 0
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       co2_cpoint_t, mm_kco2_t, mm_ko2_t, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       can_vpress_t, lmr_t, par, this%gb, &
+                       tempk, veg_esat_t, &
+                       this%gs0, this%gs1, this%gs2, 0.1_r8, &
+                       anet_out, agross, gs_out, ci_out, iters_out)
+    end subroutine run_bisection_at_tempk
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_converges_15C(this)
+      ! At 15 C (cool temperate conditions), the solver must still converge
+      ! and yield positive net photosynthesis under saturating light.
+      ! Lower temperature reduces lmr, veg_esat, and shifts Km values,
+      ! all of which are rederived from already-tested subroutines.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, gs, ci
+      integer  :: iters
+
+      call run_bisection_at_tempk(this, tfrz + 15.0_r8, this%par_abs, &
+                                  anet, gs, ci, iters)
+
+      @assertTrue(iters < 200)
+      @assertTrue(anet > 0.0_r8)
+      @assertTrue(gs > this%gs0)
+      @assertTrue(ci > 0.0_r8)
+      @assertTrue(ci < this%can_co2_ppress)
+    end subroutine test_CiBisection_converges_15C
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_converges_35C(this)
+      ! At 35 C (warm tropical conditions), the solver must still converge.
+      ! Higher temperature raises lmr and veg_esat and shifts Km values.
+      ! vcmax/jmax are held at 25 C values to isolate the solver.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, gs, ci
+      integer  :: iters
+
+      call run_bisection_at_tempk(this, tfrz + 35.0_r8, this%par_abs, &
+                                  anet, gs, ci, iters)
+
+      @assertTrue(iters < 200)
+      @assertTrue(anet > 0.0_r8)
+      @assertTrue(gs > this%gs0)
+      @assertTrue(ci > 0.0_r8)
+      @assertTrue(ci < this%can_co2_ppress)
+    end subroutine test_CiBisection_converges_35C
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_low_light(this)
+      ! At low but supra-compensation PAR (100 umol/m2/s, ~10% of full sun),
+      ! net photosynthesis must be positive but strictly less than the
+      ! full-sun case (1000 umol/m2/s). Tests that the light-limited branch
+      ! converges and produces physically ordered results.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet_low, anet_full, gs, ci
+      integer  :: iters
+
+      ! Full-sun reference
+      call run_bisection_at_tempk(this, this%veg_tempk, this%par_abs, &
+                                  anet_full, gs, ci, iters)
+
+      ! Low light (100 umol/m2/s)
+      call run_bisection_at_tempk(this, this%veg_tempk, 100.0_r8, &
+                                  anet_low, gs, ci, iters)
+
+      @assertTrue(iters < 200)
+      @assertTrue(anet_low > 0.0_r8)
+      @assertTrue(anet_low < anet_full)
+    end subroutine test_CiBisection_low_light
+
+    ! ===========================================================
+    @Test
+    subroutine test_CiBisection_max_iters_sets_ierr(this)
+      ! Passing ci_tol=0 makes the convergence check abs(fval_b) < 0
+      ! permanently false, so the loop runs all 200 iterations.  Without
+      ! the optional ierr argument CiBisection would call endrun(); with it,
+      ! the solver sets ierr=1 and returns, which pFUnit can assert on.
+      ! This test verifies that the failure path signals correctly and that
+      ! exactly max_iters=200 iterations were consumed before giving up.
+      class(TestLeafBiophysicsSolvers), intent(inout) :: this
+      real(r8) :: anet, agross, gs, ci
+      integer  :: solve_iter, ierr
+
+      solve_iter = 0
+      ierr       = 0
+
+      call CiBisection(this%ft, this%vcmax, this%jmax, this%kp, &
+                       this%co2_cpoint, this%mm_kco2, this%mm_ko2, &
+                       this%can_co2_ppress, this%can_o2_ppress, this%can_press, &
+                       this%can_vpress, this%lmr, this%par_abs, this%gb, &
+                       this%veg_tempk, this%veg_esat, &
+                       this%gs0, this%gs1, this%gs2, 0.0_r8, &
+                       anet, agross, gs, ci, solve_iter, ierr=ierr)
+
+      @assertEqual(1, ierr)
+      @assertEqual(200, solve_iter)
+    end subroutine test_CiBisection_max_iters_sets_ierr
+
+end module test_LeafBiophysicsSolvers
