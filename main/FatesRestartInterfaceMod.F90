@@ -1764,9 +1764,10 @@ contains
          long_name='24-hour patch veg temp', &
          units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
-    call this%DefineRMeanRestartVar(vname='fates_disturbance_rates',vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_disturbance_rates',vtype=cohort_r8, &
          long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
-         units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
+         units='1/day', flushval = flushzero, &
+         hlms='CLM:ALM',initialize=initialize_variables, ivar=ivar, index = ir_disturbance_rates_siluludi)
 
    if ( hlm_regeneration_model == TRS_regeneration ) then
       

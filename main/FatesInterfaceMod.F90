@@ -38,6 +38,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : TRS_regeneration
    use FatesConstantsMod         , only : g_per_kg
    use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : n_dist_types
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
@@ -946,12 +947,17 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
+              numWatermem*numpft, num_vegtemp_mem, num_elements*ncwd, num_elements*numpft, &
+              nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
          end if
-         
+
+         ! Need enough restart elements to accomodate sites(s)%disturbance_rates
+         fates_maxElementsPerSite = max(fates_maxElementsPerSite,n_landuse_cats*n_landuse_cats*n_dist_types)
+         fates_maxElementsPerSite = max(fates_maxElementsPerSite,n_landuse_cats*numpft)
+
          
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
