@@ -641,7 +641,7 @@ contains
             !!allocate(copyc%l2fr_ema)
             !  Note, no need to give a starter value here,
             !  that will be taken care of in copy()
-            !!call copyc%l2fr_ema%InitRMean(ema_60day)
+            !!call copyc%l2fr_ema%InitRSumm(ema_60day)
 
             ! Initialize the PARTEH object and point to the
             ! correct boundary condition fields

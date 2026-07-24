@@ -23,8 +23,8 @@ module FatesFactoryMod
   use EDParamsMod,                 only : nclmax
   use EDParamsMod,                 only : photo_temp_acclim_timescale
   use EDParamsMod,                 only : photo_temp_acclim_thome_time
-  use FatesRunningMeanMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  use FatesRunningMeanMod,         only : moving_ema_window, fixed_window
+  use FatesRunningSummMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,         only : moving_ema_window, fixed_window
   use EDCohortDynamicsMod,         only : InitPRTObject
   use PRTParametersMod,            only : prt_params
   use PRTGenericMod,               only : element_pos
