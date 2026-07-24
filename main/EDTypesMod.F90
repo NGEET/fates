@@ -23,7 +23,6 @@ module EDTypesMod
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : days_per_year
-  use FatesRunningSummMod,   only : rsumm_type,rsumm_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
