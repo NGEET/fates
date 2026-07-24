@@ -24,6 +24,9 @@
 *.zip
 *.nc
 
+# Allow netcdf files in the test data directory
+!testing/test_data/*.nc
+
 # Logs and databases #
 ######################
 *.log

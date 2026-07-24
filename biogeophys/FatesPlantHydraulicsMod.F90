@@ -294,7 +294,7 @@ contains
 
     case (1)
 
-       call FillDrainRhizShells(nsites, sites, bc_in, bc_out )
+       call FillDrainRhizShells(nsites, sites, bc_in)
        call hydraulics_BC(nsites, sites,bc_in,bc_out,dtime )
 
     case (2)
@@ -840,7 +840,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort,bc_in)
+  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort)
 
 
     ! DESCRIPTION: Updates absorbing root length (total and its vertical distribution)
@@ -853,7 +853,6 @@ contains
     ! ARGUMENTS:
     type(ed_site_type)     , intent(in)             :: currentSite ! Site stuff
     type(fates_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
-    type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
     integer                            :: nlevrhiz             ! Number of total soil layers
@@ -1203,14 +1202,13 @@ end function constrain_water_contents
 
 ! =====================================================================================
 
-subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
+subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, newn)
 
 
   type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
   type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
   type(ed_site_type), intent(inout), target :: currentSite    ! current site
 
-  type(bc_in_type), intent(in)                :: bc_in
   real(r8), intent(in)                        :: newn
 
   ! !LOCAL VARIABLES:
@@ -1766,7 +1764,8 @@ end subroutine HydrSiteColdStart
      ! turnover. need to be improved for future(CX)
      bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
           csite_hydr%h2oveg_growturn_err - &
-          csite_hydr%h2oveg_hydro_err
+          csite_hydr%h2oveg_hydro_err-&
+          csite_hydr%trans_err
 
 
     ! Perform a conservation check if desired
@@ -1789,7 +1788,7 @@ end subroutine HydrSiteColdStart
 end subroutine UpdateH2OVeg
 
 !=====================================================================================
-subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+subroutine RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   ! ----------------------------------------------------------------------------------
   ! This subroutine is called to calculate the water requirement for newly recruited cohorts
@@ -1804,7 +1803,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   ! Arguments
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
-  type(bc_in_type), intent(in)              :: bc_in(nsites)
   real(r8), intent(in)                      :: dtime !time (seconds)
   logical, intent(out)                      :: recruitflag      !flag to check if there is newly recruited cohorts
 
@@ -2186,7 +2184,7 @@ end subroutine BTranForHLMDiagnosticsFromCohortHydr
 
 ! ==========================================================================
 
-subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
+subroutine FillDrainRhizShells(nsites, sites, bc_in)
   !
   ! Created by Brad Christoffersen, Jan 2016
   !
@@ -2212,7 +2210,6 @@ subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
   type(bc_in_type), intent(in)              :: bc_in(nsites)
-  type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
   ! Locals
   type(ed_site_hydr_type), pointer :: csite_hydr       ! pointer to site hydraulics object
@@ -2431,9 +2428,12 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   
   integer, parameter :: soilz_disagg = 0   ! disaggregate rhizosphere layers based on depth
   integer, parameter :: soilk_disagg = 1   ! disaggregate rhizosphere layers based on conductance
+  real(r8) :: availWater          ! available water for transpriation [kg water/plant]
 
   integer, parameter :: rootflux_disagg = soilk_disagg
-
+  real(r8), parameter :: max_transp_availfrac = 0.8_r8 ! Maximum allowable transpiration
+                                                       ! as a fraction of total water available
+                                                       ! to the plant
   
   ! ----------------------------------------------------------------------------------
   ! Important note: We are interested in calculating the total fluxes in and out of the
@@ -2444,7 +2444,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   ! ----------------------------------------------------------------------------------
 
   !For newly recruited cohorts, add the water uptake demand to csite_hydr%recruit_w_uptake
-  call RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+  call RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   !update water storage in veg after incorporating newly recuited cohorts
     if(recruitflag)then
@@ -2547,6 +2547,25 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               else
                  qflx_tran_veg_indiv     = 0._r8
               end if
+	      
+	      !Hydro uses the transpiration flux from last time step
+              !For numerical stability, make sure that transpiration flux is less than 80% of total water
+              !availability. If it is larger than that, we will adjust the
+              !transpiration flux and record the excessive demand to the plant
+              !water storage pool, which will be dumped later in HLM
+              !This should not affect the science of hydrodynamics as this
+              !basically delays the water limition by a few steps with a benefit
+              !of numerical stability. 
+              if (qflx_tran_veg_indiv>0.0_r8)then
+                  call CalculateTotalAvailW(ccohort,csite_hydr,bc_in(s),dtime, availWater)
+                  if(qflx_tran_veg_indiv*dtime > max_transp_availfrac*availWater)then
+                     csite_hydr%trans_err = csite_hydr%trans_err &
+                          + ccohort%n*AREA_INV*(dtime*qflx_tran_veg_indiv - &
+                          max_transp_availfrac*availWater)
+                     qflx_tran_veg_indiv = max_transp_availfrac * availWater / dtime
+                  endif
+
+              endif
 
               ! Save the transpiration flux for diagnostics (currently its a constant boundary condition)
               ccohort_hydr%qtop = qflx_tran_veg_indiv*dtime
@@ -4314,7 +4333,98 @@ end subroutine AccumulateMortalityWaterStorage
 
 !-------------------------------------------------------------------------------!
 
-subroutine RecruitWaterStorage(nsites,sites,bc_out)
+subroutine CalculateTotalAvailW(ccohort,csite_hydr,bc_in,dtime,totalAvailW)
+
+  ! ---------------------------------------------------------------------------
+  ! This subroutine estimates the total available water for transpiration
+  ! for an individual plant
+  ! ---------------------------------------------------------------------------
+
+  ! Arguments
+  type(fates_cohort_type) , intent(inout),target  :: ccohort  
+  type(ed_site_hydr_type), intent(inout),target :: csite_hydr
+  type(bc_in_type),intent(in)                   :: bc_in
+  real(r8), intent(in)                          :: dtime       ! time step (seconds)
+  real(r8), intent(out)                         :: totalAvailW ! kg H2O/plant
+
+  ! Locals
+  type(ed_cohort_hydr_type), pointer :: ccohort_hydr
+  integer   :: i, ilayer,ishell
+  real (r8) :: aroot_frac_plant ! fraction of absorbing rooting in the layer
+  real(r8)  :: thr              ! residual water content (m3/m3)
+  real(r8)  :: th_node          ! residual water content for the node (m3/m3)
+  real(r8)  :: v_node           ! volume of the node (m3)
+  real(r8)  :: shell_sum_v      ! total volume of the shells(m3)
+  real(r8)  :: availW           ! kg H2O/plant
+  real(r8)  :: recruit_water_demand  ! kg H2O 
+  
+
+  ccohort_hydr => ccohort%co_hydr
+  
+  totalAvailW = 0._r8
+  do i = 1,n_hypool_tot
+     
+     if (i<=n_hypool_ag) then
+        ! leaf and stem, n_hypool_ag= 2
+        v_node  = ccohort_hydr%v_ag(i)
+        th_node = ccohort_hydr%th_ag(i) 
+        thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i) 
+        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
+     elseif (i==n_hypool_ag+n_hypool_troot) then
+        ! Transporting roots
+        v_node  = ccohort_hydr%v_troot
+        th_node = ccohort_hydr%th_troot
+        thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
+        totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
+     elseif (i>n_hypool_ag+n_hypool_troot .and. &
+             i<=n_hypool_ag+n_hypool_troot+n_hypool_aroot ) then
+        ! Fine Roots
+        do ilayer=1,csite_hydr%nlevrhiz
+           v_node  = ccohort_hydr%v_aroot_layer(ilayer)
+           th_node = ccohort_hydr%th_aroot(ilayer)
+           thr     = EDPftvarcon_inst%hydr_resid_node(ccohort%pft,i)
+           totalAvailW = totalAvailW +max(th_node-thr,0._r8)*v_node * denh2o 
+        enddo
+     else
+        ! Soil (Rhizosphere) Layers
+        ishell  = i-n_hypool_plant
+        do ilayer=1,csite_hydr%nlevrhiz
+           thr=csite_hydr%wrf_soil(ilayer)%p%th_from_psi(&
+                bc_in%smpmin_si*denh2o*grav_earth*m_per_mm*mpa_per_pa)
+           
+           if(ccohort_hydr%l_aroot_layer(ilayer)>nearzero)then
+              aroot_frac_plant = ccohort_hydr%l_aroot_layer(ilayer)/csite_hydr%l_aroot_layer(ilayer)
+           else
+              aroot_frac_plant = 0._r8
+           end if
+           ! The volume of the Rhizosphere for a single plant
+           v_node  = csite_hydr%v_shell(ilayer,ishell)*aroot_frac_plant
+           th_node = csite_hydr%h2osoi_liqvol_shell(ilayer,ishell)
+           ! We need to subtract out the water reserved for recruits
+           ! but that is tracked as a single value per layer, so
+           ! this needs to be divided up into the shells (v_node/shell_sum_v)
+           shell_sum_v = sum(csite_hydr%h2osoi_liqvol_shell(ilayer,:))
+           recruit_water_demand = 0._r8
+           if(shell_sum_v>0._r8.and. &
+                (.not.isnan(csite_hydr%recruit_w_uptake(ilayer))))then
+              ! Note: recruitment water uptake (kg H2o/m2/s)
+              ! [kg/plant] = [kg plants /m2/s]*[m3 plant / m3 plants]*[s]*[m2]
+              recruit_water_demand = csite_hydr%recruit_w_uptake(ilayer)* &
+                   v_node/shell_sum_v*dtime*AREA
+           endif
+           ! [m3/m3]*[m3]*[kg/m3] = [kg/plant]
+           availW = max(th_node-thr,0._r8)*v_node * denh2o 
+           totalAvailW = totalAvailW +max(availw-recruit_water_demand, 0._r8)
+        enddo
+     end if
+  end do
+     
+end subroutine CalculateTotalAvailW
+
+! =============================================================================
+
+subroutine RecruitWaterStorage(nsites,sites)
+
 
   ! ---------------------------------------------------------------------------
   ! This subroutine accounts for the water bound in plants that have
@@ -4329,7 +4439,6 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
   ! Arguments
    integer, intent(in)                       :: nsites
    type(ed_site_type), intent(inout), target :: sites(nsites)
-   type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
    ! Locals
    type(fates_cohort_type), pointer :: currentCohort

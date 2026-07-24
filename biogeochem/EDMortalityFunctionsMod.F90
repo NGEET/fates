@@ -16,18 +16,20 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
    use FatesConstantsMod     , only : nearzero
+   use FatesConstantsMod     , only : ihard_season_decid
    use FatesConstantsMod     , only : ihard_stress_decid
    use FatesConstantsMod     , only : isemi_stress_decid
    use FatesConstantsMod     , only : leaves_off
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
+   use FatesAllometryMod     , only : set_root_fraction
    use FatesInterfaceTypesMod     , only : bc_in_type
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
-   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use EDParamsMod           , only : mortality_disturbance_fraction
    use FatesConstantsMod     , only : n_landuse_cats
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
@@ -46,7 +48,6 @@ module EDMortalityFunctionsMod
    public :: Mortality_Derivative
    public :: ExemptTreefallDist
    
-   
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
    ! 02/20/18: Refactored Ryan Knox
@@ -55,8 +56,8 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
-      cmort,hmort,bmort, frmort,smort,asmort,dgmort )
+  subroutine mortality_rates( cohort_in,site_in, bc_in, btran_ft, &
+        mean_temp, cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -69,10 +70,12 @@ contains
     use EDParamsmod,            only : soil_tfrz_thresh
     use FatesInterfaceTypesMod, only : hlm_mort_cstarvation_model
     
-    type (fates_cohort_type), intent(in) :: cohort_in 
-    type (bc_in_type), intent(in) :: bc_in
-    real(r8), intent(in)          :: btran_ft(maxpft) 
-    real(r8), intent(in)          :: mean_temp
+    type (fates_cohort_type), intent(in) :: cohort_in
+    type (ed_site_type),intent(inout)    :: site_in   ! We modify scratch space, hence in/out
+    type (bc_in_type), intent(in)        :: bc_in
+    real(r8), intent(in)                 :: btran_ft(maxpft)
+    real(r8), intent(in)                 :: mean_temp
+    
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
@@ -99,8 +102,8 @@ contains
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
     logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
-
-
+    integer  :: max_soil_ind       ! Soil layer with given percent of root biomass
+                                   ! above which soil must be thawed for hmort 
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -112,11 +115,9 @@ contains
     ! the future we could accelerate senescence to avoid mortality. Note that both drought 
     ! deciduous and cold deciduous are considered here to be consistent with the idea that
     ! plants without leaves cannot die of hydraulic failure.
-    is_decid_dormant =                                                            & !
-       ( prt_params%stress_decid(cohort_in%pft) == ihard_stress_decid .or.        & ! Drought deciduous
-         prt_params%stress_decid(cohort_in%pft) == isemi_stress_decid .or.        & ! Semi-deciduous
-         prt_params%season_decid(cohort_in%pft) == itrue                  ) .and. & ! Cold deciduous
-       ( cohort_in%status_coh == leaves_off )                                     ! ! Fully abscised
+    is_decid_dormant =                                                                                                      & !
+       any ( prt_params%phen_leaf_habit(cohort_in%pft) == [ihard_season_decid,ihard_stress_decid,isemi_stress_decid]) .and. & ! Deciduous
+       ( cohort_in%status_coh == leaves_off )                                                                               ! ! Fully abscised
     
     ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
@@ -182,10 +183,16 @@ contains
        else
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
+          ! Btran is zero for frozen soil layers. To prevent plants at high latitude from
+          ! being killed in winter, do not calculate mortality if any of the soil layers
+          ! with a given percentage of root biomass are frozen.
+
+          call get_thaw_layer_index(site_in, cohort_in, bc_in, max_soil_ind)
+          
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
-             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+               ( ( minval(bc_in%t_soisno_sl(1:max_soil_ind)) - tfrz ) > soil_tfrz_thresh ) ) then
+             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*((hf_sm_threshold- btran_ft(cohort_in%pft))/hf_sm_threshold)
           else
              hmort = 0.0_r8
           end if
@@ -320,15 +327,17 @@ contains
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-   
+    
    !----------------------------------------------------------------------
 
     ipft = currentCohort%pft
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
-      cmort,hmort,bmort,frmort, smort, asmort, dgmort)
+    
+    call mortality_rates(currentCohort,currentSite,bc_in,btran_ft,mean_temp,              &
+         cmort,hmort,bmort,frmort, smort, asmort, dgmort)
+    
     call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -361,7 +370,7 @@ contains
 
        currentCohort%dndt= -(cmort+hmort+bmort+frmort+smort+asmort+dgmort) * currentCohort%n
        if ( .not. ExemptTreefallDist(currentCohort)) then
-          currentCohort%dndt = (1.0_r8-fates_mortality_disturbance_fraction) * currentCohort%dndt
+          currentCohort%dndt = (1.0_r8-mortality_disturbance_fraction) * currentCohort%dndt
        endif
 
     endif
@@ -398,4 +407,53 @@ contains
 
  end function ExemptTreefallDist
 
+ ! ============================================================================
+ 
+ subroutine get_thaw_layer_index(site_in, cohort_in, bc_in, max_soil_ind)
+
+   !
+   ! !DESCRIPTION:
+   ! Returns the soil layer above which soils must be thawed in order for
+   ! hydraulic failure mortality to be calculated. 
+   !
+   ! !USES:
+
+   !
+   ! !ARGUMENTS
+   type(ed_site_type), intent(inout)    :: site_in
+   type (fates_cohort_type), intent(in) :: cohort_in 
+   type (bc_in_type), intent(in)        :: bc_in
+
+   integer, intent(out) :: max_soil_ind ! soil layer with given percent of root biomass
+   ! above which soil must be thawed for hmort 
+
+   real(r8)  :: cumrootfrac
+   integer   :: i_soil
+   real(r8)  :: hmort_thaw_frac_threshold 
+   
+   max_soil_ind = 1
+   hmort_thaw_frac_threshold = 0.75_r8
+
+   call set_root_fraction(site_in%rootfrac_scr, cohort_in%pft, site_in%zi_soil, &
+        bc_in%max_rooting_depth_index_col)
+
+   cumrootfrac = 0._r8
+
+   do i_soil = 1, bc_in%nlevsoil, 1
+      cumrootfrac = cumrootfrac + site_in%rootfrac_scr(i_soil)
+      if (cumrootfrac .ge. hmort_thaw_frac_threshold) then
+         max_soil_ind = i_soil
+         exit
+      end if
+   end do
+      
+   return
+ end subroutine get_thaw_layer_index
+
+
+  ! =====================================================================================
+
+
 end module EDMortalityFunctionsMod
+
+

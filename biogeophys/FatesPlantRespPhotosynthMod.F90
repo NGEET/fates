@@ -44,8 +44,8 @@ module FATESPlantRespPhotosynthMod
   use FatesCohortMod,    only : fates_cohort_type
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
-  use PRTGenericMod,     only : prt_carbon_allom_hyp
-  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,     only : carbon_only
+  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
   use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
@@ -165,7 +165,7 @@ contains
     real(r8) :: psn_z(nlevleaf,maxpft,nclmax) 
 
     ! carbon 13 in newly assimilated carbon at leaf level
-    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax) 
+    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax)
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
@@ -412,7 +412,7 @@ contains
                   c13disc_z(:,:,:) = 0._r8
                   rs_z(:,:,:)      = 0._r8
                   lmr_z(:,:,:)     = 0._r8
-                                    
+                  
                   if_any_cohorts: if(currentPatch%num_cohorts > 0)then
 
                      currentCohort => currentPatch%tallest
@@ -497,7 +497,7 @@ contains
                                    (hlm_use_planthydro.eq.itrue) .or. &
                                    (hlm_radiation_model .eq. twostr_solver ) .or. &
                                    (nleafage > 1) .or. &
-                                   (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
+                                   (hlm_parteh_mode /= carbon_only)   ) then
 
                                  
                                  ! These values are incremented, therefore since
@@ -564,11 +564,11 @@ contains
                                  ! Then scale this value at the top of the canopy for canopy depth
                                  ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                                  select case(hlm_parteh_mode)
-                                 case (prt_carbon_allom_hyp)
+                                 case (carbon_only)
 
                                     lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
-                                 case (prt_cnp_flex_allom_hyp)
+                                 case (carbon_nitrogen_phosphorus)
 
                                     leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                     if( (leaf_c*slatop(ft)) > nearzero) then
@@ -787,6 +787,7 @@ contains
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
+
                                     
                                  end do do_sunsha
                                  
@@ -919,7 +920,7 @@ contains
 
 
                         select case(hlm_parteh_mode)
-                        case (prt_carbon_allom_hyp)
+                        case (carbon_only)
 
                            live_stem_n = sapw_c_agw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
@@ -927,7 +928,7 @@ contains
 
                            fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
-                        case(prt_cnp_flex_allom_hyp)
+                        case(carbon_nitrogen_phosphorus)
 
                            live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                                 currentCohort%prt%GetState(sapw_organ, nitrogen_element)

@@ -14,6 +14,10 @@
 <!--- the model is expected to generated different answers -->
 <!--- from the master version of the code -->
 
+### Description of generative AI usage (as necessary)
+<!--- Please briefly describe usage of generative AI, such as  -->
+<!--- platform, AI model, workflow, testing, etc. -->
+
 ### Checklist
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
@@ -24,10 +28,14 @@ All checklist items must be checked to enable merging this pull request:
 *Contributor*
 - [ ] The in-code documentation has been updated with descriptive comments
 - [ ] The documentation has been assessed to determine if updates are necessary
+- [ ] Describe use of generative AI (if necessary)
 
 *Integrator*
 - [ ] FATES PASS/FAIL regression tests were run
 - [ ] Evaluation of test results for answer changes was performed and results provided
+- [ ] FATES-CLM6 Code Freeze: satellite phenology regression tests are b4b
+
+*If satellite phenology regressions are **not** b4b, please hold merge and notify the FATES development team.*
 
 ### Documentation
 <!--- If this pull requests warrants an update to the tech doc or user's guide, and said changes have been made paste a link to the documentation pull request below.  -->
