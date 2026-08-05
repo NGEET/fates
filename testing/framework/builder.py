@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 # constants
 _CIMEROOT = path_to_cime()
-_MPI_LIBRARY = "mpi-serial"
+# macOS doesn't have mpi-serial but does have mpich and openmpi
+_MPI_LIBRARY = os.environ.get("MPILIB", "mpi-serial")
 
 
 @dataclass
