@@ -289,6 +289,9 @@ module FatesCohortMod
     procedure :: Init
     procedure :: NanValues
     procedure :: ZeroValues
+    procedure :: InitRaw
+    procedure :: UpdateDerivedState
+    procedure :: CreateBare
     procedure :: Create
     procedure :: Copy
     procedure :: FreeMemory
@@ -559,12 +562,14 @@ module FatesCohortMod
    
     !===========================================================================
 
-    subroutine Create(this, prt, pft, nn, height, coage, dbh, status,            &
-      ctrim, carea, clayer, crowndamage, spread, can_tlai, elongf_leaf,        &
-      elongf_fnrt, elongf_stem)
+    !===========================================================================
+
+    subroutine InitRaw(this, prt, pft, nn, height, coage, dbh, status,            &
+      ctrim, clayer, crowndamage, elongf_leaf, elongf_fnrt, elongf_stem)
       !
       ! DESCRIPTION:
-      ! set up values for a newly created cohort
+      ! Stage 1 cohort initialization: sets up memory allocation and identity properties
+      ! without running allometry routines or querying parameter infrastructure.
       
       ! ARGUMENTS
       class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
@@ -576,24 +581,16 @@ module FatesCohortMod
       real(r8),                 intent(in)             :: nn               ! number of individuals in cohort [/m2]
       real(r8),                 intent(in)             :: height           ! cohort height [m]
       real(r8),                 intent(in)             :: coage            ! cohort age [yr]
-      real(r8),                 intent(in)             :: dbh              ! cohort diameter at breat height [cm]
-      real(r8),                 intent(in)             :: ctrim            ! fraction of the maximum leaf biomass 
-      real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
-      real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
-      real(r8),                 intent(in)             :: can_tlai(:)      ! patch-level total LAI of each canopy layer
-      real(r8),                 intent(in)             :: elongf_leaf      ! leaf elongation factor [fraction]
-      real(r8),                 intent(in)             :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
-      real(r8),                 intent(in)             :: elongf_stem      ! stem "elongation factor" [fraction]
+      real(r8),                 intent(in)             :: dbh              ! cohort diameter at breast height [cm]
+      real(r8),                 intent(in)             :: ctrim            ! fraction of maximum leaf biomass
+      real(r8),                 intent(in), optional   :: elongf_leaf      ! leaf elongation factor [fraction]
+      real(r8),                 intent(in), optional   :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
+      real(r8),                 intent(in), optional   :: elongf_stem      ! stem "elongation factor" [fraction]
 
-      ! LOCAL VARIABLES:
-      integer  :: iage        ! loop counter for leaf age classes
-      real(r8) :: leaf_c      ! total leaf carbon [kgC]
-      real(r8) :: treesai     ! stem area index within crown [m2/m2]
-      
-      ! initialize cohort
+      ! initialize cohort memory
       call this%Init(prt)
-      
-      ! set values
+
+      ! set base values
       this%pft          = pft
       this%crowndamage  = crowndamage
       this%canopy_layer = clayer
@@ -604,26 +601,53 @@ module FatesCohortMod
       this%dbh          = dbh
       this%coage        = coage
       this%canopy_trim  = ctrim
-      this%efleaf_coh   = elongf_leaf
-      this%effnrt_coh   = elongf_fnrt
-      this%efstem_coh   = elongf_stem
 
-      ! This routine may be called during restarts, and at this point in the call sequence
-      ! the actual cohort data is unknown, as this is really only used for allocation
-      ! In these cases, testing if things like biomass are reasonable is premature
-      ! However, in this part of the code, we will pass in nominal values for size, number and type
+      ! Default elongation factors to 1.0 if optional arguments omitted
+      if (present(elongf_leaf)) then
+        this%efleaf_coh = elongf_leaf
+      else
+        this%efleaf_coh = 1.0_r8
+      endif
+
+      if (present(elongf_fnrt)) then
+        this%effnrt_coh = elongf_fnrt
+      else
+        this%effnrt_coh = 1.0_r8
+      endif
+
+      if (present(elongf_stem)) then
+        this%efstem_coh = elongf_stem
+      else
+        this%efstem_coh = 1.0_r8
+      endif
+
       if (this%dbh <= 0._r8 .or. this%n == 0._r8 .or. this%pft == 0) then
-        write(fates_log(),*) 'FATES: something is zero in cohort%Create',      &
+        write(fates_log(),*) 'FATES: something is zero in cohort%InitRaw',      &
           this%dbh, this%n, this%pft
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 
+    end subroutine InitRaw
+
+    !===========================================================================
+
+    subroutine UpdateDerivedState(this, spread, carea, can_tlai)
+      !
+      ! DESCRIPTION:
+      ! Stage 2 cohort initialization: calculates all physical and derived allometric states.
+      
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(inout) :: this
+      real(r8),                 intent(in)    :: spread           ! crown spread factor
+      real(r8),                 intent(in)    :: carea            ! cohort area for SP mode [m2]
+      real(r8),                 intent(in)    :: can_tlai(:)      ! patch-level canopy layer total LAI
+
+      ! LOCAL VARIABLES:
+      real(r8) :: leaf_c      ! total leaf carbon [kgC]
+      real(r8) :: treesai     ! stem area index within crown [m2/m2]
+
       ! Initialize the leaf to fineroot biomass ratio.
-      ! For C-only, this will stay constant, for nutrient-enabled this will be
-      ! dynamic.  In both cases, new cohorts are initialized with the minimum. 
-      ! This works in the nutrient enabled case because cohorts are also 
-      ! initialized with full stores, which match with minimum fineroot biomass
-      this%l2fr = prt_params%allom_l2fr(pft)
+      this%l2fr = prt_params%allom_l2fr(this%pft)
 
       if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
         this%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
@@ -632,45 +656,132 @@ module FatesCohortMod
         this%cnp_limiter = 0      ! Assume limitations are unknown
       end if
 
-      ! This sets things like vcmax25top, that depend on the leaf age fractions 
-      ! (which are defined by PARTEH)
+      ! Set biophysical rates depending on leaf age fractions
       call this%UpdateCohortBioPhysRates()
 
-      ! calculate size classes
+      ! Calculate size classes
       call sizetype_class_index(this%dbh, this%pft, this%size_class,           &
         this%size_by_pft_class)
 
-      ! If cohort age tracking is off we call this here once, just so everything
-      ! is in the first bin. This makes it easier to copy and terminate cohorts 
-      ! later.
-      ! We don't need to update this ever if cohort age tracking is off
+      ! Calculate age classes
       call coagetype_class_index(this%coage, this%pft, this%coage_class,       &
         this%coage_by_pft_class)
 
-      ! asssign or calculate canopy extent and depth
+      ! Assign or calculate canopy extent and depth
       if (hlm_use_sp .eq. ifalse) then
         call carea_allom(this%dbh, this%n, spread, this%pft, this%crowndamage, &
           this%c_area)
       else
-        ! set this from previously precision-controlled value in SP mode
         this%c_area = carea 
       endif
 
-      ! Query PARTEH for the leaf carbon [kg]
-      leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
+      ! Query PARTEH for leaf carbon [kg]
+      if (associated(this%prt)) then
+        leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
+      else
+        leaf_c = 0._r8
+      endif
 
-      call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
-           this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
+      call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,                 &
+           this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage, &
            this%canopy_trim, this%efstem_coh, 2, this%treelai, treesai)
 
       if (hlm_use_sp .eq. ifalse) then
          this%treesai = treesai
       end if
-     
 
       call this%InitPRTBoundaryConditions()
 
+    end subroutine UpdateDerivedState
+
+    !===========================================================================
+
+    subroutine Create(this, prt, pft, nn, height, coage, dbh, status,            &
+      ctrim, carea, clayer, crowndamage, spread, can_tlai, elongf_leaf,        &
+      elongf_fnrt, elongf_stem)
+      !
+      ! DESCRIPTION:
+      ! Production cohort constructor shim executing two-stage creation.
+      
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
+      class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
+      integer,                  intent(in)             :: pft              ! cohort Plant Functional Type
+      integer,                  intent(in)             :: crowndamage      ! cohort damage class 
+      integer,                  intent(in)             :: clayer           ! canopy status of cohort [canopy/understory]
+      integer,                  intent(in)             :: status           ! growth status of cohort [leaves on/off]
+      real(r8),                 intent(in)             :: nn               ! number of individuals in cohort [/m2]
+      real(r8),                 intent(in)             :: height           ! cohort height [m]
+      real(r8),                 intent(in)             :: coage            ! cohort age [yr]
+      real(r8),                 intent(in)             :: dbh              ! cohort diameter at breast height [cm]
+      real(r8),                 intent(in)             :: ctrim            ! fraction of maximum leaf biomass 
+      real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
+      real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
+      real(r8),                 intent(in)             :: can_tlai(:)      ! patch-level total LAI of each canopy layer
+      real(r8),                 intent(in)             :: elongf_leaf      ! leaf elongation factor [fraction]
+      real(r8),                 intent(in)             :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
+      real(r8),                 intent(in)             :: elongf_stem      ! stem "elongation factor" [fraction]
+
+      call this%InitRaw(prt, pft, nn, height, coage, dbh, status,              &
+        ctrim, clayer, crowndamage, elongf_leaf, elongf_fnrt, elongf_stem)
+
+      call this%UpdateDerivedState(spread, carea, can_tlai)
+
     end subroutine Create
+
+    !===========================================================================
+
+    subroutine CreateBare(this, prt, pft, nn, height, coage, dbh, status,        &
+      ctrim, carea, clayer, crowndamage, treelai, treesai, vcmax25top)
+      !
+      ! DESCRIPTION:
+      ! Lightweight constructor for unit tests and synthetic fixtures that sets up a valid
+      ! cohort without calling allometry routines or querying global parameter infrastructure.
+      
+      ! ARGUMENTS
+      class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
+      class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
+      integer,                  intent(in)             :: pft              ! cohort Plant Functional Type
+      real(r8),                 intent(in)             :: nn               ! number of individuals in cohort [/m2]
+      real(r8),                 intent(in)             :: height           ! cohort height [m]
+      real(r8),                 intent(in), optional   :: coage            ! cohort age [yr]
+      real(r8),                 intent(in), optional   :: dbh              ! cohort diameter at breast height [cm]
+      integer,                  intent(in), optional   :: status           ! growth status [leaves on/off]
+      real(r8),                 intent(in), optional   :: ctrim            ! fraction of maximum leaf biomass 
+      real(r8),                 intent(in), optional   :: carea            ! area of cohort [m2]
+      integer,                  intent(in), optional   :: clayer           ! canopy layer status
+      integer,                  intent(in), optional   :: crowndamage      ! crown damage class
+      real(r8),                 intent(in), optional   :: treelai          ! leaf area index [m2/m2]
+      real(r8),                 intent(in), optional   :: treesai          ! stem area index [m2/m2]
+      real(r8),                 intent(in), optional   :: vcmax25top       ! max carboxylation rate at top
+
+      real(r8) :: local_coage, local_dbh, local_ctrim, local_carea
+      integer  :: local_status, local_clayer, local_crowndamage
+
+      ! Default nominal fallback values for optional unit test arguments
+      local_coage       = 0.0_r8; if (present(coage))       local_coage       = coage
+      ! Default nominal dbh = 1.0 cm for synthetic testing
+      local_dbh         = 1.0_r8; if (present(dbh))         local_dbh         = dbh
+      ! Default status = 2 (leaves on) for synthetic testing
+      local_status      = 2;      if (present(status))      local_status      = status
+      ! Default canopy trim = 1.0 (untrimmed) for synthetic testing
+      local_ctrim       = 1.0_r8; if (present(ctrim))       local_ctrim       = ctrim
+      ! Default crown area = 1.0 m2 for synthetic testing
+      local_carea       = 1.0_r8; if (present(carea))       local_carea       = carea
+      ! Default canopy layer = 1 (upper canopy) for synthetic testing
+      local_clayer      = 1;      if (present(clayer))      local_clayer      = clayer
+      ! Default crown damage = 1 (undamaged) for synthetic testing
+      local_crowndamage = 1;      if (present(crowndamage)) local_crowndamage = crowndamage
+
+      call this%InitRaw(prt, pft, nn, height, local_coage, local_dbh, local_status, &
+        local_ctrim, local_clayer, local_crowndamage)
+
+      if (present(carea))      this%c_area     = carea
+      if (present(treelai))    this%treelai    = treelai
+      if (present(treesai))    this%treesai    = treesai
+      if (present(vcmax25top)) this%vcmax25top = vcmax25top
+
+    end subroutine CreateBare
 
     !===========================================================================
 
