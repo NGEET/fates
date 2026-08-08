@@ -390,10 +390,10 @@ module FatesFactoryMod
     ! initialize the PRT object
     call PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     
-    ! create the cohort
-    call cohort%Create(prt, pft, number_local, height, age_local, dbh_local,             &
-      status_local, canopy_trim_local, can_area, canopy_layer_local, crown_damage_local, &
-      init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
+    ! create the cohort using lightweight CreateBare constructor
+    call cohort%CreateBare(prt=prt, pft=pft, nn=number_local, height=height, age=age_local, &
+      dbh=dbh_local, status=status_local, ctrim=canopy_trim_local, carea=can_area,          &
+      clayer=canopy_layer_local, crowndamage=crown_damage_local)
   
   end subroutine CohortFactory
   
@@ -529,15 +529,22 @@ module FatesFactoryMod
     
     ! initialize first cohort
     allocate(cohort)
-    cohort%height = heights(1)
-    if (present(dbhs)) cohort%dbh = dbhs(1)
+    ! Default nominal PFT = 1 and density = 0.1 /m2 for synthetic test patch list
+    if (present(dbhs)) then
+      call cohort%CreateBare(prt=null(), pft=1, nn=0.1_r8, height=heights(1), dbh=dbhs(1))
+    else
+      call cohort%CreateBare(prt=null(), pft=1, nn=0.1_r8, height=heights(1))
+    endif
     patch%shortest => cohort
     
     ! initialize the rest of the cohorts
     do i = 2, num_cohorts
       allocate(next_cohort)
-      next_cohort%height = heights(i)
-      if (present(dbhs)) next_cohort%dbh = dbhs(i)
+      if (present(dbhs)) then
+        call next_cohort%CreateBare(prt=null(), pft=1, nn=0.1_r8, height=heights(i), dbh=dbhs(i))
+      else
+        call next_cohort%CreateBare(prt=null(), pft=1, nn=0.1_r8, height=heights(i))
+      endif
       cohort%taller => next_cohort
       next_cohort%shorter => cohort
       cohort => next_cohort
