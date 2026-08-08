@@ -79,19 +79,19 @@ contains
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
-                   ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                   ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
-
-                   ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
-                   
                    ! weighted mean of D13C by gpp
-                   if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                   if((ccohort%gpp_acc + ccohort%gpp_tstep) <= 0.0_r8) then
                       ccohort%c13disc_acc = 0.0_r8
                    else
                       ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
                            (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
                            (ccohort%gpp_acc + ccohort%gpp_tstep)
                    endif
+
+                   ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
+                   ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
+
+                   ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
 
                    do iv=1,ccohort%nv
                       if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 

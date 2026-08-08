@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 # constants
 _CIMEROOT = path_to_cime()
-# macOS doesn't have mpi-serial but does have mpich and openmpi
-_MPI_LIBRARY = os.environ.get("MPILIB", "mpi-serial")
+_MPI_LIBRARY = "mpi-serial"
 
 
 @dataclass
@@ -151,11 +150,11 @@ class TestBuilder:
 
     def _find_libraries(self):
         """Locates PFUNIT and NETCDF paths."""
-        self.config.pfunit_path = self._query_makefile_var("PFUNIT_PATH")
+        self.config.pfunit_path = self._query_makefile_var("PFUNIT_PATH") or os.environ.get("PFUNIT_PATH")
 
         if "NETCDF" not in os.environ:
-            self.config.netcdf_c_path = self._query_makefile_var("NETCDF_C_PATH")
-            self.config.netcdf_f_path = self._query_makefile_var("NETCDF_FORTRAN_PATH")
+            self.config.netcdf_c_path = self._query_makefile_var("NETCDF_C_PATH") or os.environ.get("NETCDF_C_PATH")
+            self.config.netcdf_f_path = self._query_makefile_var("NETCDF_FORTRAN_PATH") or os.environ.get("NETCDF_FORTRAN_PATH")
 
     def _query_makefile_var(self, var_name: str) -> Optional[str]:
         """Helper to query variables from CIME makefile generation
@@ -234,7 +233,7 @@ def build_tests(
     make_j: int,
     clean: bool = False,
     verbose: bool = False,
-    mpilib: Optional[str] = None,
+    mpilib: str = _MPI_LIBRARY,
 ):
     """Wrapper function for building tests
 
@@ -244,19 +243,15 @@ def build_tests(
         make_j (int): number of processes to build with
         clean (bool, optional): whether or not to clean the build. Defaults to False.
         verbose (bool, optional): build with verbose make. Defaults to False.
-        mpilib (str, optional): MPI library override (e.g. 'mpich', 'mpi-serial').
-            Overrides the MPILIB environment variable. Defaults to None (use env/default).
+        mpilib (str, optional): mpilib to use for building. Defaults to _MPI_LIBRARY.
     """
-    # Use caller-supplied mpilib if given; otherwise fall back to env var / module default.
-    config_kwargs = dict(
+    config = BuildConfig(
         build_dir=build_dir,
         cmake_dir=cmake_dir,
         make_j=make_j,
         clean=clean,
         verbose=verbose,
+        mpilib=mpilib or _MPI_LIBRARY,
     )
-    if mpilib is not None:
-        config_kwargs["mpilib"] = mpilib
-    config = BuildConfig(**config_kwargs)
     builder = TestBuilder(config)
     builder.build()
