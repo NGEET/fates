@@ -121,7 +121,7 @@ module EDParamsMod
    ! smooth2_campbell_type   = 32
    ! tfs_type                = 1
    ! van Genuchten 1980 model = 2 
-   integer, protected,allocatable,public :: hydr_htftype_node(:) 
+   integer, allocatable,public :: hydr_htftype_node(:) ! only non-protected for unit tests 
    
    real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
                                                          !  soil to root direction (kg water/m2 root area/Mpa/s)
