@@ -116,6 +116,8 @@ module FatesPlantHydraulicsMod
 
   implicit none
 
+  private
+
 
   ! 1=leaf, 2=stem, 3=troot, 4=aroot
   ! Several of these may be better transferred to the parameter file in due time (RGK)
@@ -260,10 +262,19 @@ module FatesPlantHydraulicsMod
   public :: UpdateSizeDepRhizHydProps
   public :: RestartHydrStates
   public :: SavePreviousCompartmentVolumes
-  public :: SavePreviousRhizVolumes
+
   public :: UpdatePlantHydrNodes
   public :: UpdatePlantHydrLenVol
+
+  interface UpdatePlantHydrLenVol
+     module procedure UpdatePlantHydrLenVol_cohort
+     module procedure UpdatePlantHydrLenVol_masses
+  end interface UpdatePlantHydrLenVol
   public :: UpdatePlantKmax
+  public :: UpdatePlantKmax_explicit
+  public :: UpdatePlantPsiFTCFromTheta_explicit
+  public :: BTranForHLMDiagnostics_explicit
+  public :: AccumulateMortalityWater_explicit
   public :: ConstrainRecruitNumber
   public :: InitHydroGlobals
 
@@ -690,43 +701,60 @@ contains
     type(fates_cohort_type),intent(inout), target :: ccohort
     type(ed_site_hydr_type),intent(in), target :: csite_hydr
 
-    ! Locals
-    integer :: ft  ! Plant functional type
-    integer :: k   ! loop index for compartments
-    integer :: j   ! Loop index for soil layers
     type(ed_cohort_hydr_type), pointer :: ccohort_hydr
 
-
-
     ccohort_hydr => ccohort%co_hydr
-    ft = ccohort%pft
 
-    ! Update Psi and FTC in above-ground compartments
-    ! -----------------------------------------------------------------------------------
-    do k = 1,n_hypool_leaf
-       ccohort_hydr%psi_ag(k) = wrf_plant(leaf_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k))
-       ccohort_hydr%ftc_ag(k) = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
-    end do
-
-    ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
-    
-    do k = n_hypool_leaf+1, n_hypool_ag
-       ccohort_hydr%psi_ag(k) = wrf_plant(stem_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k))
-       ccohort_hydr%ftc_ag(k) = wkf_plant(stem_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
-    end do
-
-    ! Update the Psi and FTC for the transporting root compartment
-    ccohort_hydr%psi_troot = wrf_plant(troot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_troot)
-    ccohort_hydr%ftc_troot = wkf_plant(troot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_troot)
-
-    ! Update the Psi and FTC for the absorbing roots
-    do j = 1, csite_hydr%nlevrhiz
-       ccohort_hydr%psi_aroot(j) = wrf_plant(aroot_p_media,ft)%p%psi_from_th(ccohort_hydr%th_aroot(j))
-       ccohort_hydr%ftc_aroot(j) = wkf_plant(aroot_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_aroot(j))
-    end do
+    call UpdatePlantPsiFTCFromTheta_explicit(ccohort%pft, csite_hydr%nlevrhiz, &
+         ccohort_hydr%th_ag, ccohort_hydr%th_troot, ccohort_hydr%th_aroot, &
+         ccohort_hydr%psi_ag, ccohort_hydr%ftc_ag, ccohort_hydr%btran, &
+         ccohort_hydr%psi_troot, ccohort_hydr%ftc_troot, &
+         ccohort_hydr%psi_aroot, ccohort_hydr%ftc_aroot)
 
     return
   end subroutine UpdatePlantPsiFTCFromTheta
+
+
+  subroutine UpdatePlantPsiFTCFromTheta_explicit(ft, nlevrhiz, th_ag, th_troot, th_aroot, &
+                                                 psi_ag, ftc_ag, btran, psi_troot, ftc_troot, &
+                                                 psi_aroot, ftc_aroot)
+
+    integer, intent(in) :: ft
+    integer, intent(in) :: nlevrhiz
+    real(r8), intent(in) :: th_ag(:)
+    real(r8), intent(in) :: th_troot
+    real(r8), intent(in) :: th_aroot(:)
+    real(r8), intent(out) :: psi_ag(:)
+    real(r8), intent(out) :: ftc_ag(:)
+    real(r8), intent(out) :: btran
+    real(r8), intent(out) :: psi_troot
+    real(r8), intent(out) :: ftc_troot
+    real(r8), intent(out) :: psi_aroot(:)
+    real(r8), intent(out) :: ftc_aroot(:)
+
+    integer :: k, j
+
+    do k = 1, n_hypool_leaf
+       psi_ag(k) = wrf_plant(leaf_p_media, ft)%p%psi_from_th(th_ag(k))
+       ftc_ag(k) = wkf_plant(leaf_p_media, ft)%p%ftc_from_psi(psi_ag(k))
+    end do
+
+    btran = wkf_plant(stomata_p_media, ft)%p%ftc_from_psi(psi_ag(1))
+
+    do k = n_hypool_leaf+1, n_hypool_ag
+       psi_ag(k) = wrf_plant(stem_p_media, ft)%p%psi_from_th(th_ag(k))
+       ftc_ag(k) = wkf_plant(stem_p_media, ft)%p%ftc_from_psi(psi_ag(k))
+    end do
+
+    psi_troot = wrf_plant(troot_p_media, ft)%p%psi_from_th(th_troot)
+    ftc_troot = wkf_plant(troot_p_media, ft)%p%ftc_from_psi(psi_troot)
+
+    do j = 1, nlevrhiz
+       psi_aroot(j) = wrf_plant(aroot_p_media, ft)%p%psi_from_th(th_aroot(j))
+       ftc_aroot(j) = wkf_plant(aroot_p_media, ft)%p%ftc_from_psi(psi_aroot(j))
+    end do
+
+  end subroutine UpdatePlantPsiFTCFromTheta_explicit
 
 
   ! =====================================================================================
@@ -885,7 +913,25 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdatePlantHydrLenVol(ccohort,csite_hydr)
+  subroutine UpdatePlantHydrLenVol_cohort(ccohort, csite_hydr)
+    type(fates_cohort_type),intent(inout)  :: ccohort
+    type(ed_site_hydr_type),intent(in)  :: csite_hydr
+
+    call UpdatePlantHydrLenVol_masses(ccohort%co_hydr, csite_hydr, &
+         ccohort%pft, ccohort%dbh, ccohort%height, &
+         ccohort%crowndamage, ccohort%canopy_trim, ccohort%efstem_coh, &
+         ccohort%size_class, &
+         ccohort%prt%GetState(leaf_organ, carbon12_element), &
+         ccohort%prt%GetState(fnrt_organ, carbon12_element), &
+         ccohort%prt%GetState(sapw_organ, carbon12_element), &
+         ccohort%prt%GetState(struct_organ, carbon12_element))
+
+  end subroutine UpdatePlantHydrLenVol_cohort
+
+
+  subroutine UpdatePlantHydrLenVol_masses(ccohort_hydr,csite_hydr,pft,dbh,height, &
+                                          crowndamage,canopy_trim,efstem_coh,size_class, &
+                                          leaf_c,fnrt_c,sapw_c,struct_c)
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates two attributes of a plant:
@@ -900,19 +946,25 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type(fates_cohort_type),intent(inout)  :: ccohort
+    type(ed_cohort_hydr_type),intent(inout) :: ccohort_hydr
     type(ed_site_hydr_type),intent(in)  :: csite_hydr
+    integer, intent(in) :: pft
+    real(r8), intent(in) :: dbh
+    real(r8), intent(in) :: height
+    integer, intent(in) :: crowndamage
+    real(r8), intent(in) :: canopy_trim
+    real(r8), intent(in) :: efstem_coh
+    integer, intent(in) :: size_class
+    real(r8), intent(in) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
+    real(r8), intent(in) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
+    real(r8), intent(in) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
+    real(r8), intent(in) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
 
-    type(ed_cohort_hydr_type),pointer :: ccohort_hydr     ! Plant hydraulics structure
     integer  :: j,k
     integer  :: ft                           ! Plant functional type index
     real(r8) :: roota                        ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb                        ! root profile parameter b zeng2001_crootfr
-    real(r8) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
     real(r8) :: leaf_c_target                ! Target leaf carbon (with some conditions) [kgC]
-    real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
-    real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
-    real(r8) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
     real(r8) :: woody_bg_c                   ! belowground woody biomass in carbon units                             [kgC/indiv]
     real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
@@ -928,7 +980,6 @@ contains
     real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
     real(r8) :: norm                         ! total root fraction used <1
     integer  :: nlevrhiz                     ! number of rhizosphere levels
-    real(r8) :: dbh                          ! the dbh of current cohort                                             [cm]   
     real(r8) :: z_fr                         ! rooting depth of a cohort                                             [cm]
     real(r8) :: v_leaf_donate(1:n_hypool_leaf)   ! the volume that leaf will donate to xylem     
 
@@ -945,13 +996,8 @@ contains
     ! to estimate maximum leaf carbon
 
 
-    ccohort_hydr => ccohort%co_hydr
-    ft           = ccohort%pft
+    ft           = pft
     nlevrhiz     = csite_hydr%nlevrhiz
-    leaf_c       = ccohort%prt%GetState(leaf_organ, carbon12_element)
-    sapw_c       = ccohort%prt%GetState(sapw_organ, carbon12_element)
-    fnrt_c       = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-    struct_c     = ccohort%prt%GetState(struct_organ, carbon12_element)
     roota        = prt_params%fnrt_prof_a(ft)
     rootb        = prt_params%fnrt_prof_b(ft)
 
@@ -989,8 +1035,8 @@ contains
     ! Lets also avoid super-low targets that have very low trimming functions
 
     ! efleaf_coh hard-coded to 1 in the call below to avoid zero leaf volume
-    call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         max(ccohort%canopy_trim,min_trim),1.0_r8, leaf_c_target)
+    call bleaf(dbh,ft,crowndamage, &
+         max(canopy_trim,min_trim),1.0_r8, leaf_c_target)
 
     ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
          prt_params%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
@@ -1004,19 +1050,19 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood_target,sapw_c_target)
+    call bsap_allom(dbh,ft,crowndamage, &
+         canopy_trim, efstem_coh, a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
     a_sapwood = a_sapwood_target  ! * sapw_c / sapw_c_target
 
     ! alternative cross section calculation
-    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
+    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * height ) * 1.e-4_r8
 
-    !call CrownDepth(ccohort%height,ft,crown_depth)
-    crown_depth  = min(ccohort%height,0.1_r8)
-    z_stem       = ccohort%height - crown_depth
+    !call CrownDepth(height,ft,crown_depth)
+    crown_depth  = min(height,0.1_r8)
+    z_stem       = height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
 
     ! Junyan changed the following code to calculate the above ground node volume
@@ -1065,7 +1111,7 @@ contains
     ! calculations.
 
 
-    call MaximumRootingDepth(ccohort%dbh,ft,csite_hydr%zi_rhiz(nlevrhiz),z_fr)
+    call MaximumRootingDepth(dbh,ft,csite_hydr%zi_rhiz(nlevrhiz),z_fr)
     
     do j=1,nlevrhiz
        
@@ -1074,7 +1120,7 @@ contains
 
        if(debug)then
           write(fates_log(),*) 'check rooting depth of cohort '
-          write(fates_log(),*) 'dbh: ',ccohort%dbh,' sice class: ',ccohort%size_class
+          write(fates_log(),*) 'dbh: ',dbh,' sice class: ',size_class
           write(fates_log(),*) 'csite_hydr%dz_rhiz(j) is: ', csite_hydr%dz_rhiz(j)
           write(fates_log(),*) 'z_max cohort: ',z_fr
           write(fates_log(),*) 'layer:  ',j,' bottom depth (m): ',csite_hydr%zi_rhiz(j),' rooting fraction:',rootfr
@@ -1090,7 +1136,7 @@ contains
     end do
 
     return
-  end subroutine UpdatePlantHydrLenVol
+  end subroutine UpdatePlantHydrLenVol_masses
 
   ! =====================================================================================
 
@@ -2182,6 +2228,31 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
   return
 end subroutine BTranForHLMDiagnosticsFromCohortHydr
 
+
+subroutine BTranForHLMDiagnostics_explicit(ncohort, btran_cohort, balive_cohort, n_indiv, result_btran)
+
+  ! -----------------------------------------------------------------------------------
+  ! Explicit parameter signature interface for patch-level btran diagnostic calculation.
+  ! Computes biomass-weighted average btran across cohort vectors without requiring
+  ! site/patch pointer traversal.
+  ! -----------------------------------------------------------------------------------
+
+  integer, intent(in) :: ncohort
+  real(r8), intent(in) :: btran_cohort(ncohort)
+  real(r8), intent(in) :: balive_cohort(ncohort)
+  real(r8), intent(in) :: n_indiv(ncohort)
+  real(r8), intent(out) :: result_btran
+
+  real(r8) :: total_biomass
+
+  total_biomass = sum(balive_cohort * n_indiv)
+  if (total_biomass > 0.0_r8) then
+     result_btran = sum(btran_cohort * balive_cohort * n_indiv) / total_biomass
+  else
+     result_btran = 0.0_r8
+  end if
+end subroutine BTranForHLMDiagnostics_explicit
+
 ! ==========================================================================
 
 subroutine FillDrainRhizShells(nsites, sites, bc_in)
@@ -2931,24 +3002,61 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   ! ---------------------------------------------------------------------------------
 
   ! Arguments
-
   type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr
   type(fates_cohort_type),intent(in),target         :: ccohort
   type(ed_site_hydr_type),intent(in),target      :: csite_hydr
 
   ! Locals
+  integer  :: pft                  ! Plant Functional Type index
+  real(r8) :: c_sap_dummy          ! Dummy variable (unused) with sapwood carbon [kg]
+  real(r8) :: a_sapwood            ! Mean cross section area of sapwood   [m2]
+
+  pft   = ccohort%pft
+
+  ! Get the cross-section of the plant's sapwood area [m2]
+  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
+       ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood,c_sap_dummy)
+
+  call UpdatePlantKmax_explicit(ccohort_hydr, csite_hydr%nlevrhiz, &
+       EDPftvarcon_inst%hydr_kmax_node(pft,2), &
+       EDPftvarcon_inst%hydr_p_taper(pft), &
+       EDPftvarcon_inst%hydr_rfrac_stem(pft), &
+       EDPftvarcon_inst%hydr_rs2(pft), &
+       a_sapwood)
+
+  return
+end subroutine UpdatePlantKmax
+
+
+subroutine UpdatePlantKmax_explicit(ccohort_hydr, nlevrhiz, hydr_kmax_node, &
+                             hydr_p_taper, hydr_rfrac_stem, hydr_rs2, &
+                             a_sapwood)
+
+  ! ---------------------------------------------------------------------------------
+  ! Explicit parameter signature interface for UpdatePlantKmax.
+  ! Sets maximum conductance of all compartments in the plant without requiring
+  ! global PFT/PRT singletons.
+  ! ---------------------------------------------------------------------------------
+
+  ! Arguments
+  type(ed_cohort_hydr_type),intent(inout),target :: ccohort_hydr
+  integer, intent(in) :: nlevrhiz
+  real(r8), intent(in) :: hydr_kmax_node
+  real(r8), intent(in) :: hydr_p_taper
+  real(r8), intent(in) :: hydr_rfrac_stem
+  real(r8), intent(in) :: hydr_rs2
+  real(r8), intent(in) :: a_sapwood
+
+  ! Locals
   integer :: k                     ! Compartment (node) index
   integer :: j                     ! Soil layer index
   integer :: k_ag                  ! Compartment index for above-ground indexed array
-  integer  :: pft                  ! Plant Functional Type index
-  real(r8) :: c_sap_dummy          ! Dummy variable (unused) with sapwood carbon [kg]
   real(r8) :: z_lower              ! distance between lower edge and mean petiole height [m]
   real(r8) :: z_upper              ! distance between upper edge and mean petiole height [m]
   real(r8) :: z_node               ! distance between compartment center and mph [m]
   real(r8) :: kmax_lower           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
   real(r8) :: kmax_node            ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
   real(r8) :: kmax_upper           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
-  real(r8) :: a_sapwood            ! Mean cross section area of sapwood   [m2]
   real(r8) :: rmin_ag              ! Minimum total resistance of all above ground pathways
   ! [kg-1 s MPa]
   real(r8) :: kmax_bg              ! Total maximum conductance of all below-ground pathways
@@ -2965,13 +3073,6 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
   ! in the top of stem and petiole
 
-
-  pft   = ccohort%pft
-
-  ! Get the cross-section of the plant's sapwood area [m2]
-  call bsap_allom(ccohort%dbh,pft,ccohort%crowndamage, &
-       ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood,c_sap_dummy)
-
   ! Leaf Maximum Hydraulic Conductance
   ! The starting hypothesis is that there is no resistance inside the
   ! leaf, between the petiole and the center of storage.  To override
@@ -2982,9 +3083,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
 
   ccohort_hydr%kmax_petiole_to_leaf = 1.e8_r8
 
-
   ! Stem Maximum Hydraulic Conductance
-
   do k=1, n_hypool_stem
 
      ! index for "above-ground" arrays, that contain stem and leaf
@@ -2992,12 +3091,10 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
      k_ag = k+n_hypool_leaf
 
      ! Depth from the petiole to the lower, node and upper compartment edges
-
      z_lower = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)
      z_node  = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag)
      z_upper = max( min_pet_stem_dz,ccohort_hydr%z_node_ag(n_hypool_leaf) - &
           ccohort_hydr%z_upper_ag(k_ag))
-
 
      ! Then we calculate the maximum conductance from each the lower, node and upper
      ! edges of the compartment to the petiole. The xylem taper factor requires
@@ -3009,24 +3106,24 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
      ! max conductance from upper edge to mean petiole height
      ! If there is no height difference between the upper compartment edge and
      ! the petiole, at least give it some nominal amount to void FPE's
-     kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
+     kmax_upper = hydr_kmax_node * &
+          xylemtaper(hydr_p_taper, z_upper) * &
           a_sapwood / z_upper
 
      ! max conductance from node to mean petiole height
-     kmax_node  = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
+     kmax_node  = hydr_kmax_node * &
+          xylemtaper(hydr_p_taper, z_node) * &
           a_sapwood / z_node
 
      ! max conductance from lower edge to mean petiole height
-     kmax_lower = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_lower) * &
+     kmax_lower = hydr_kmax_node * &
+          xylemtaper(hydr_p_taper, z_lower) * &
           a_sapwood / z_lower
 
      ! Max conductance over the path of the upper side of the compartment
      ccohort_hydr%kmax_stem_upper(k) = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
 
-     ! Max conductance over the path on the loewr side of the compartment
+     ! Max conductance over the path on the lower side of the compartment
      ccohort_hydr%kmax_stem_lower(k) = (1._r8/kmax_lower - 1._r8/kmax_node)**(-1._r8)
 
      if(debug) then
@@ -3048,12 +3145,12 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   z_upper = ccohort_hydr%z_lower_ag(n_hypool_leaf)
   z_node  = ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot
 
-  kmax_node = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-       xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
+  kmax_node = hydr_kmax_node * &
+       xylemtaper(hydr_p_taper, z_node) * &
        a_sapwood / z_node
 
-  kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-       xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
+  kmax_upper = hydr_kmax_node * &
+       xylemtaper(hydr_p_taper, z_upper) * &
        a_sapwood / z_upper
 
   ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
@@ -3067,7 +3164,6 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   ! After that total is calculated, we then convert to a conductance, and split the
   ! conductance in parallel between root layers, based on the root fraction.
   ! Note* The inverse of max conductance (KMax) is minimum resistance:
-
 
   rmin_ag = 1._r8/ccohort_hydr%kmax_petiole_to_leaf + &
        sum(1._r8/ccohort_hydr%kmax_stem_upper(1:n_hypool_stem)) + &
@@ -3085,13 +3181,12 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   !
   ! kmax_bg = 1/((1/fr-1) * rmin_ag)
 
-  kmax_bg = 1._r8/(rmin_ag*(1._r8/EDPftvarcon_inst%hydr_rfrac_stem(pft) - 1._r8))
-
+  kmax_bg = 1._r8/(rmin_ag*(1._r8/hydr_rfrac_stem - 1._r8))
 
   ! The max conductance of each layer is in parallel, therefore
   ! the kmax terms of each layer, should sum to kmax_bg
   sum_l_aroot = sum(ccohort_hydr%l_aroot_layer(:))
-  do j=1,csite_hydr%nlevrhiz
+  do j=1,nlevrhiz
 
      kmax_layer = kmax_bg*ccohort_hydr%l_aroot_layer(j)/sum_l_aroot
 
@@ -3121,11 +3216,11 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   ! or in-to the root).  So we calculate the kmax's for both cases,
   ! and save them for the final conductance calculation.
 
-  do j=1,csite_hydr%nlevrhiz
+  do j=1,nlevrhiz
 
      ! Surface area of the absorbing roots for a single plant in this layer [m2]
      surfarea_aroot_layer = 2._r8 * pi_const * &
-          EDPftvarcon_inst%hydr_rs2(ccohort%pft) * ccohort_hydr%l_aroot_layer(j)
+          hydr_rs2 * ccohort_hydr%l_aroot_layer(j)
 
      ! Convert from surface conductivity [kg H2O m-2 s-1 MPa-1] to [kg H2O s-1 MPa-1]
      ccohort_hydr%kmax_aroot_radial_in(j) = hydr_kmax_rsurf1 * surfarea_aroot_layer
@@ -3135,7 +3230,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   end do
 
   return
-end subroutine UpdatePlantKmax
+end subroutine UpdatePlantKmax_explicit
 
 ! ===================================================================================
 
@@ -4330,6 +4425,29 @@ subroutine AccumulateMortalityWaterStorage(csite,ccohort,delta_n)
 
    return
 end subroutine AccumulateMortalityWaterStorage
+
+
+subroutine AccumulateMortalityWater_explicit(delta_n, th_ag, v_ag, th_troot, v_troot, &
+                                              th_aroot, v_aroot_layer, delta_w)
+
+   ! -----------------------------------------------------------------------------------
+   ! Explicit parameter signature interface for plant mortality water accumulation.
+   ! Calculates water bound in dead plant tissue [kg/m2] from relative water contents
+   ! and compartment volumes without requiring cohort pointer traversal.
+   ! -----------------------------------------------------------------------------------
+
+   real(r8), intent(in) :: delta_n
+   real(r8), intent(in) :: th_ag(:)
+   real(r8), intent(in) :: v_ag(:)
+   real(r8), intent(in) :: th_troot
+   real(r8), intent(in) :: v_troot
+   real(r8), intent(in) :: th_aroot(:)
+   real(r8), intent(in) :: v_aroot_layer(:)
+   real(r8), intent(out) :: delta_w
+
+   delta_w = (sum(th_ag(:)*v_ag(:)) + th_troot*v_troot + sum(th_aroot(:)*v_aroot_layer(:))) * &
+             denh2o * delta_n * AREA_INV
+end subroutine AccumulateMortalityWater_explicit
 
 !-------------------------------------------------------------------------------!
 

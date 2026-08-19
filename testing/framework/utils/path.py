@@ -43,6 +43,9 @@ def path_to_cime() -> Path:
     cime_path = (path_to_fates_root() / "../../cime").resolve()
     if cime_path.is_dir():
         return cime_path
+    cime_path = (path_to_fates_root() / "../CTSM/cime").resolve()
+    if cime_path.is_dir():
+        return cime_path
     raise RuntimeError("Cannot find cime.")
 
 
