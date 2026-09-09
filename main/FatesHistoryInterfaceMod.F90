@@ -5457,8 +5457,8 @@ contains
 
     ! Locals
     integer  :: s        ! The local site index
-    integer  :: io_si     ! The site index of the IO array
-
+    integer  :: io_si    ! The site index of the IO array
+    integer  :: ico      ! cohort index
     real(r8) :: landuse_statevector(n_landuse_cats)
     real(r8) :: canopy_area_bylanduse(n_landuse_cats)
     integer  :: i_lu

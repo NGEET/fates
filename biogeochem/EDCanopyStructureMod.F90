@@ -59,9 +59,12 @@ module EDCanopyStructureMod
   use FatesRadiationMemMod  , only : num_rad_stream_types
   use LeafBiophysicsMod     , only : UpdateSlowBiophysicalRates
   use LeafBiophysicsMod, only : DecayCoeffVcmax
-  use PRTGenericMod,     only : prt_carbon_allom_hyp
-  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,     only : carbon_only
+  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesParameterDerivedMod,only: param_derived
+  use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
+  use DamageMainMod,           only : GetCrownReduction
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -1812,6 +1815,7 @@ contains
     
     type(fates_patch_type),intent(inout) :: patch
     type(fates_cohort_type),pointer :: cohort
+
     integer :: ico  ! cohort index
     integer :: ft
     real(r8) :: leaf_c,leaf_n
@@ -1865,9 +1869,9 @@ contains
        ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
        ft = cohort%pft
        select case(hlm_parteh_mode)
-       case (prt_carbon_allom_hyp)
+       case (carbon_only)
           lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
-       case (prt_cnp_flex_allom_hyp)
+       case (carbon_nitrogen_phosphorus)
           leaf_c  = sum(cohort%prt%leaf_c(:))
           if( (leaf_c*prt_params%slatop(ft)) > nearzero) then
              leaf_n  = sum(cohort%prt%leaf_n(:))
@@ -1920,7 +1924,7 @@ contains
        sapw_c_agw = cohort%prt%sapw_c - sapw_c_bgw                         
        
        select case(hlm_parteh_mode)
-       case (prt_carbon_allom_hyp)
+       case (carbon_only)
           
           coarr%live_stem_n(ico) = sapw_c_agw * &
                prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
@@ -1931,7 +1935,7 @@ contains
           coarr%fnrt_n(ico) = cohort%prt%fnrt_c * &
                prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
           
-       case(prt_cnp_flex_allom_hyp)
+       case(carbon_nitrogen_phosphorus)
           
           coarr%fnrt_n(ico) = cohort%prt%fnrt_n
           

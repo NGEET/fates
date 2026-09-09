@@ -303,7 +303,8 @@ contains
 
     ! We use this block to enable the use of automatic
     ! arrays (stack) as opposed to dynamic allocations
-    ! (heap), which enables faster computation
+    ! (heap), which is faster
+      
     block
 
       ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
@@ -952,7 +953,7 @@ contains
     end do
 
 
-    do_cohort: do ico = 1,co_arr%ncohorts
+    do_cohort: do ico = 1,coarr%ncohorts
 
        ft = coarr%pft(ico)
        
@@ -1027,8 +1028,8 @@ contains
        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
        coarr%resp_m_unreduced(ico) = coarr%resp_m_tstep(ico) / coarr%mr_reduction_factor(ico)
        
-    enddo do_cohort_drive
-
+    enddo do_cohort
+  end associate
   end subroutine FatesPlantRespPatch
 
   ! ===========================================================================================

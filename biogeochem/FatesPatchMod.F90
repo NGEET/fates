@@ -90,9 +90,9 @@ module FatesPatchMod
      real(r8),allocatable :: btran(:)               ! plant water stress response function [0-1]
 
      ! Inputs to organ respiration (fnrt,coarse root and above-ground stem) (i.e. nitrogen mass in kg)
-     real(r8),allocatable :: live_stem_n(ico)
-     real(r8),allocatable :: live_croot_n(ico)
-     real(r8),allocatable :: fnrt_n(ico)
+     real(r8),allocatable :: live_stem_n(:)
+     real(r8),allocatable :: live_croot_n(:)
+     real(r8),allocatable :: fnrt_n(:)
      
      !Hydro only
      real(r8),allocatable :: leaf_psi(:)    !leaf suction [Mpa]
