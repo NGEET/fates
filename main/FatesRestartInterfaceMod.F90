@@ -273,6 +273,7 @@ module FatesRestartInterfaceMod
   integer :: ir_promrate_sisc
   integer :: ir_termcarea_cano_si
   integer :: ir_termcarea_usto_si
+  integer :: ir_z0mg_si
 
   integer :: ir_imortcarea_si
   integer :: ir_fmortcarea_cano_si
@@ -793,6 +794,11 @@ contains
          long_name='accumulated autotrophic respiration over previous day cycle', &
          units='kgC/m2/s', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_aresp_acc_si )
+    
+    call this%set_restart_var(vname='fates_z0mg', vtype=site_r8, &
+         long_name='HLM surface roughness over ground', &
+         units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_z0mg_si )
     
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
@@ -2564,6 +2570,7 @@ contains
 
           rio_area_bareground_si(io_idx_si)           = sites(s)%area_bareground
 
+
           do i_scls = 1, nlevsclass
              do i_pft = 1, numpft
                 rio_fmortrate_cano_siscpf(io_idx_si_scpf)  = sites(s)%fmort_rate_canopy(i_scls, i_pft)
@@ -3036,7 +3043,8 @@ contains
              
           end if
 
-          
+          this%rvars(ir_z0mg_si)%r81d(io_idx_si) = bc_in(s)%z0mg
+
           rio_democflux_si(io_idx_si)       = sites(s)%demotion_carbonflux
           rio_promcflux_si(io_idx_si)       = sites(s)%promotion_carbonflux
 
@@ -4157,6 +4165,8 @@ contains
           sites(s)%rx_fmort_crownarea_ustory  = rio_rx_fmortcarea_usto_si(io_idx_si)
           sites(s)%demotion_carbonflux      = rio_democflux_si(io_idx_si)
           sites(s)%promotion_carbonflux     = rio_promcflux_si(io_idx_si)
+
+          bc_in(s)%z0mg = this%rvars(ir_z0mg_si)%r81d(io_idx_si) 
 
           ! Site level phenology status flags
 
