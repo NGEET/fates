@@ -58,6 +58,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
+  use FatesSoilBGCFluxMod      , only : ZeroSoilLitterFluxes
   use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -174,6 +175,8 @@ contains
     end do
     call currentSite%flux_diags%ZeroFluxDiags()
 
+    call ZeroSoilLitterFluxes(bc_out)
+    
     ! Call a routine that will compute cumulative variables and "memory" averages for 
     ! a suite of variables. These variables are mostly used for leaf phenology, but they
     ! may be useful for other components (disturbances, mortality, management).
@@ -431,8 +434,6 @@ contains
 
     current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
 
-    
-
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
 
@@ -654,8 +655,8 @@ contains
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
-          
-          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
+
+          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in, bc_out )
 
           if(element_pos(nitrogen_element)>0) then
              ! Mass balance for N uptake
