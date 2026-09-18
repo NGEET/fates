@@ -112,6 +112,7 @@ module FatesInterfaceTypesMod
                                          ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
    integer, public :: hlm_use_managed_fire    ! Flag to enable managed fire mode.  Requires spitfire to be on.
+   integer, public :: hlm_use_crown_fire      ! Flag to enable crown fire mode.  Requires spitfire to be on.
 
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest data from the hlm
