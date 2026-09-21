@@ -4112,7 +4112,7 @@ contains
                            hio_lai_understory_si_scls(io_si,scls) = hio_lai_understory_si_scls(io_si,scls) + &
                                 ccohort%treelai*ccohort%c_area  * AREA_INV
                            hio_sai_understory_si_scls(io_si,scls) = hio_sai_understory_si_scls(io_si,scls) + &
-                                ccohort%treelai*ccohort%c_area  * AREA_INV
+                                ccohort%treesai*ccohort%c_area  * AREA_INV
                            hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                                 ccohort%n * ccohort%canopy_trim / m2_per_ha
                            hio_crown_fracarea_understory_si_scls(io_si,scls) = hio_crown_fracarea_understory_si_scls(io_si,scls) + &
