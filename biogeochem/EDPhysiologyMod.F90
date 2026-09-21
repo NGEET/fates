@@ -2066,6 +2066,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     use FatesConstantsMod     , only : rsnbl_math_prec
+    use EDTypesMod           , only : dump_site
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -2094,9 +2095,8 @@ contains
     real(r8) :: seed_bio_removed       ! AUDIT: C removed from plant pools into the seed pathway [kg/site/day]
     real(r8) :: seed_local_deliv       ! AUDIT: C delivered to local seed pools this element [kg/site/day]
     real(r8) :: seed_exported          ! AUDIT: C exported off-site as seed_out [kg/site/day]
-    real(r8) :: total_patch_area       ! AUDIT: sum of patch areas, should equal module AREA [m2]
     real(r8) :: seed_litter_deliv      ! AUDIT: orphaned seed routed to fine litter [kg/site/day]
-    logical  :: is_orphan              ! PFT has no valid destination seed pool this timestep
+    logical  :: is_orphan(0:numpft)              ! PFT has no valid destination seed pool this timestep
     real(r8) :: orphan_seed_local      ! non-dispersed seed of an orphaned PFT [kg/site/day]
     integer  :: dcmpy                  ! decomposability pool index
     real(r8) :: dcmpy_frac             ! fraction of mass sent to each decomposability pool
@@ -2168,17 +2168,7 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
 
-       ! AUDIT: total C removed from plant pools into the seed pathway, and the
-       ! summed patch area used to expose the AREA-normalization assumption below.
-       seed_bio_removed = sum(site_seed_rain(1:numpft))
-       seed_local_deliv = 0._r8
-       seed_litter_deliv = 0._r8
-       total_patch_area = 0._r8
-       currentPatch => currentSite%oldest_patch
-       do while (associated(currentPatch))
-          total_patch_area = total_patch_area + currentPatch%area
-          currentPatch => currentPatch%younger
-       end do
+        seed_local_deliv = 0.0_r8
 
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
@@ -2210,7 +2200,10 @@ contains
                 ! internal seed rain is sent out to neighboring gridcells.
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
                      (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
-
+                if (debug .and. element_id == carbon12_element) then
+                   seed_local_deliv = seed_local_deliv + currentPatch%area * nocomp_seed_scaling * &
+                                     (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/AREA)
+                endif
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
@@ -2255,13 +2248,13 @@ contains
        ! Orphaned seed: a PFT can shed reproductive mass (via PRTReproRelease) even
        ! after it was fused/removed last timestep, leaving no valid destination seed
        ! pool. Route its non-dispersed portion to fine litter so mass is conserved.
+       seed_litter_deliv = 0.0_r8
        do pft = 1,numpft
           is_orphan = .false.
           if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue) then
-             is_orphan = (nocomp_patch_areas(pft) < rsnbl_math_prec)
+             is_orphan(pft) = (nocomp_patch_areas(pft) < rsnbl_math_prec)
           end if
-
-          if (is_orphan .and. site_seed_rain(pft) > rsnbl_math_prec) then
+          if (is_orphan(pft) .and. site_seed_rain(pft) > rsnbl_math_prec) then
              orphan_seed_local = site_seed_rain(pft) * (1.0_r8 - site_disp_frac(pft)) ! [kg/site/day]
 
              currentPatch => currentSite%oldest_patch
@@ -2271,12 +2264,13 @@ contains
                    dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
                    ! [kg/site/day] -> [kg/m2/day]; area-weighted so summed input equals orphan_seed_local
                    litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-                        orphan_seed_local * dcmpy_frac / area
+                        orphan_seed_local * dcmpy_frac / AREA
                 end do
                 currentPatch => currentPatch%younger
              end do
-
-             seed_litter_deliv = seed_litter_deliv + orphan_seed_local
+             if (debug .and. element_id == carbon12_element) then
+                seed_litter_deliv = seed_litter_deliv + orphan_seed_local
+             endif
           end if
        end do
 
@@ -2287,32 +2281,34 @@ contains
           currentSite%seed_out(pft) = currentSite%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
        end do
 
-       ! AUDIT: seed-pathway closure. C removed from plant pools into seed should
+       ! Seed-pathway closure. C removed from plant pools into seed should
        ! equal C delivered to local seed pools plus C exported (seed_out). A nonzero
        ! residual indicates the AREA vs sum(patch_area) normalization leak.
-       if(element_id==carbon12_element) then
+       if(debug .and. element_id==carbon12_element) then
+          ! Total C removed from plant pools into the seed pathway, and the
+          ! summed patch area used to expose the AREA-normalization assumption below.
+          seed_bio_removed = sum(site_seed_rain(1:numpft))
           seed_exported = 0._r8
           do pft = 1,numpft
              seed_exported = seed_exported + site_seed_rain(pft)*site_disp_frac(pft)
           end do
           ! Print on masterproc, or on any rank when the closure actually drifts
-          ! (so the offending site, which may be off-master, gets reported).
-          if(debug .and. &
-               abs(seed_bio_removed - (seed_local_deliv + seed_litter_deliv + seed_exported)) > rsnbl_math_prec) then
+          ! (so the offending site, which may be off-master, gets reported). + seed_litter_deliv 
+          if(abs(seed_bio_removed - (seed_local_deliv  + seed_litter_deliv + seed_exported)) > rsnbl_math_prec) then
              write(fates_log(),*) 'WARNING: error in the seed balance'
              write(fates_log(),*) '-------------------------'
              write(fates_log(),*) 'seed bio removed   [kgC/day]: ', seed_bio_removed
              write(fates_log(),*) 'seed local deliv   [kgC/day]: ', seed_local_deliv
-             write(fates_log(),*) 'seed litter deliv  [kgC/day]: ', seed_litter_deliv
+             write(fates_log(),*) 'seed to litter     [kgC/day]: ', seed_litter_deliv
              write(fates_log(),*) 'seed exported      [kgC/day]: ', seed_exported
              write(fates_log(),*) 'seed closure resid [kgC/day]: ', &
                   seed_bio_removed - (seed_local_deliv + seed_litter_deliv + seed_exported)
 
-             ! AUDIT: in nocomp, seed produced by a pft with no home patch
+             ! In nocomp, seed produced by a pft with no home patch
              ! (nocomp_patch_areas==0) or a disabled pft is stripped from biomass;
              ! its non-dispersed portion is now routed to fine litter above. Flag the
              ! offending pft so the source (e.g. a fused/removed pft) can be tracked.
-             if(hlm_use_nocomp .eq. itrue) then
+             if (hlm_use_nocomp .eq. itrue .and.  any(is_orphan(0:numpft)) ) then
                 do pft = 1,numpft
                    if(site_seed_rain(pft) > rsnbl_math_prec .and. &
                         nocomp_patch_areas(pft) < rsnbl_math_prec) then
@@ -2322,6 +2318,8 @@ contains
                    end if
                 end do
              end if
+            call dump_site(currentSite)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end if
 
