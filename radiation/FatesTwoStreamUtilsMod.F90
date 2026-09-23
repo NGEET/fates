@@ -77,8 +77,6 @@ contains
                            ! and elements as well (to preserve mass and volume).
 
     integer :: max_elements     ! Maximum number of scattering elements on the site
-    integer :: n_scr            ! The size of the scratch arrays
-    logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
 
     integer  :: icolmax         ! Column index for each layer with largest area footprint
     real(r8) :: areamax         ! The area footprint of the largest column
@@ -162,7 +160,7 @@ contains
          end if
 
          ! Add the air element if the canopy area is not filled
-         do ican = 1,patch%ncl_p
+         do ican = 1,patch%ncl
             if( (1._r8-canopy_frac(ican))>area_err_thresh ) then
                n_col(ican) = n_col(ican) + 1
             end if
@@ -176,25 +174,25 @@ contains
          ! -------------------------------------------------------------------------------------------
 
          maxcol = 0
-         do ican = 1,patch%ncl_p
+         do ican = 1,patch%ncl
             if (n_col(ican)>maxcol) maxcol=n_col(ican)
          end do
 
          if(.not.associated(twostr%scelg)) then
 
-            call twostr%AllocInitTwoStream((/ivis,inir/),patch%ncl_p,maxcol+2)
+            call twostr%AllocInitTwoStream((/ivis,inir/),patch%ncl,maxcol+2)
 
          else
 
             if(ubound(twostr%scelg,2) <  maxcol .or. &
                ubound(twostr%scelg,2) > (maxcol+4) .or. &
-               ubound(twostr%scelg,1) < patch%ncl_p ) then
+               ubound(twostr%scelg,1) < patch%ncl ) then
 
                call twostr%DeallocTwoStream()
 
                ! Add a little more space than necessary so
                ! we don't have to keep allocating/deallocating
-               call twostr%AllocInitTwoStream((/ivis,inir/),patch%ncl_p,maxcol+2)
+               call twostr%AllocInitTwoStream((/ivis,inir/),patch%ncl,maxcol+2)
 
             end if
             
@@ -266,7 +264,7 @@ contains
          enddo
 
 
-         do ican = 1,patch%ncl_p
+         do ican = 1,patch%ncl
 
             ! If the canopy is not full, add an air element
             if( (1._r8-canopy_frac(ican))>area_err_thresh ) then
@@ -332,12 +330,12 @@ contains
 
          end do
 
-         twostr%n_col(1:patch%ncl_p) = n_col(1:patch%ncl_p)
+         twostr%n_col(1:patch%ncl) = n_col(1:patch%ncl)
 
          ! Set up some non-element parameters
          ! -------------------------------------------------------------------------------------------
 
-         twostr%n_lyr = patch%ncl_p   ! Number of layers
+         twostr%n_lyr = patch%ncl   ! Number of layers
 
          call twostr%GetNSCel()       ! Total number of elements
 
@@ -352,33 +350,6 @@ contains
        patch => patch%younger
     end do
 
-    ! Re-evaluate the scratch space used for solving two-stream radiation
-    ! The scratch space needs to be 2x the number of computational elements
-    ! for the patch with the most elements.
-    
-    if(allocated(site%taulambda_2str)) then
-       n_scr = ubound(site%taulambda_2str,dim=1)
-       allocate_scratch = .false.
-       if(2*max_elements > n_scr) then
-          allocate_scratch = .true.
-          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
-       elseif(2*max_elements < (n_scr-24)) then
-          allocate_scratch = .true.
-          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
-       end if
-    else
-       allocate_scratch = .true.
-    end if
-
-    if(allocate_scratch)then
-       ! Twice as many spaces as there are elements, plus some
-       ! extra to prevent allocating/deallocating on the next step
-       n_scr = 2*max_elements+8
-       allocate(site%taulambda_2str(n_scr))
-       allocate(site%omega_2str(n_scr,n_scr))
-       allocate(site%ipiv_2str(n_scr))
-    end if
-    
     return
   end subroutine FatesConstructRadElements
 

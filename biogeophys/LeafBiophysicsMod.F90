@@ -64,11 +64,16 @@ module LeafBiophysicsMod
   public :: CiMinMax
   public :: CiFunc
   public :: CiBisection
+  public :: UpdateSlowBiophysicalRates
+  public :: UpdateFastBiophysicalRates
+  public :: FastQ10
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
 
+  logical, parameter :: do_b4b = .false.
+  
   character(len=1024) :: warn_msg   ! for defining a warning message
 
   !-------------------------------------------------------------------------------------
@@ -116,14 +121,16 @@ module LeafBiophysicsMod
   integer, public, parameter :: JohnsonBerry2021 = 2
 
   ! Constants defining the photosynthesis temperature acclimation model
-  integer, parameter :: photosynth_acclim_model_none = 0
-  integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
+  integer, public, parameter :: photosynth_acclim_model_none = 0
+  integer, public, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
 
   ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
   real(r8), parameter :: lmr_b = 0.1012_r8       ! (degrees C**-1)
   real(r8), parameter :: lmr_c = -0.0005_r8      ! (degrees C**-2)
   real(r8), parameter :: lmr_TrefC = 25._r8      ! (degrees C)
+
+  real(r8), parameter :: t_ref_298K =  tfrz + 25._r8       ! (25C in K)
   
   ! These two are public for error checking during parameter read-in
   real(r8), parameter, public :: lmr_r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
@@ -135,7 +142,6 @@ module LeafBiophysicsMod
   
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
-
 
   ! curvature parameter for quadratic smoothing of C4 gross assimilation
   real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
@@ -156,8 +162,41 @@ module LeafBiophysicsMod
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
+  
+  type, public :: bprate_type
+
+     ! This holds various biophysical rates used in photosynthesis
+     ! These values change at slow timescales when using Kumarathunge et al.
+     ! The temperature response and inhibition functions require non-trivial
+     ! mathematical operations at high frequencies, so we pre-calculate
+     ! as much as we can before operating on leaf and organ temperatures.
+     ! For leaves, many of these pre-calculated rates are either constant
+     ! or slowly acclimating following Kumarathunge et al.
+     
+     real(r8),allocatable :: vr_a(:)          ! term a of optimized temp response ft1_f
+     real(r8),allocatable :: vr_b(:)          ! term b of optimized temp response ft1_f
+     real(r8),allocatable :: jr_a(:)          ! term a of optimized temp response ft1_f
+     real(r8),allocatable :: jr_b(:)          ! term b of optimized temp response ft1_f
+     real(r8),allocatable :: vi_a(:)          ! term a of optimized temp inhibition fth1_f
+     real(r8),allocatable :: vi_b(:)          ! term b of optimized temp inhibition fth1_f
+     real(r8),allocatable :: vi_c(:)          ! term c of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_a(:)          ! term a of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_b(:)          ! term b of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_c(:)          ! term c of optimized temp inhibition fth1_f
+     real(r8),allocatable :: jvr(:)           ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
+     real(r8),allocatable :: vcmax_tscaler(:) ! Temperature scaling functions on vcmax
+     real(r8),allocatable :: jmax_tscaler(:)  ! Temperature scaling functions on jmax
+     real(r8),allocatable :: lmr_tscaler(:)   ! Temperature response scaler on LMR
+
+   contains
+     procedure :: BPRateInitAlloc
+     procedure :: BPRateDealloc
+  end type bprate_type
 
 
+
+  
+  
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
   ! suggest we should try other hypotheses
@@ -223,6 +262,14 @@ module LeafBiophysicsMod
                                                                   ! 1: btran scales only vcmax
                                                                   ! 2: btran scales both vcmax and jmax
      real(r8),allocatable :: fnps(:)                              ! fraction of light absorbed by non-photosynthetic pigments
+
+
+     
+     ! Pre-calculations for improved performance
+     
+     real(r8),allocatable :: vcmaxc_25(:)
+     real(r8),allocatable :: jmaxc_25(:)
+     
      ! -------------------------------------------------------------------------------------
      ! Note the omission of several parameter constants:
      !
@@ -240,8 +287,6 @@ module LeafBiophysicsMod
 
   type(leafbiophys_params_type),public :: lb_params
 
-
-
   ! A possible sequence of calls for leaf biophysics is as follows:
   ! 1) determine any gas quantities or parameters that are derived and
   !    are applicable to a super-set of leaf-layers (like MM, and compensation points)
@@ -253,6 +298,57 @@ module LeafBiophysicsMod
   ! 7) solve for maintenance respiration of other tissues (other library?)
 
 contains
+  
+  subroutine BPRateInitAlloc(this,numpft)
+
+    ! Class helper routine that allocates the type holding
+    ! biophyical rates
+    
+    class(bprate_type) :: this
+    integer,intent(in) :: numpft
+
+    allocate(this%vr_a(numpft));this%vr_a(:)=fates_unset_r8
+    allocate(this%vr_b(numpft));this%vr_b(:)=fates_unset_r8
+    allocate(this%jr_a(numpft));this%jr_a(:)=fates_unset_r8
+    allocate(this%jr_b(numpft));this%jr_b(:)=fates_unset_r8
+    allocate(this%vi_a(numpft));this%vi_a(:)=fates_unset_r8
+    allocate(this%vi_b(numpft));this%vi_b(:)=fates_unset_r8
+    allocate(this%vi_c(numpft));this%vi_c(:)=fates_unset_r8
+    allocate(this%ji_a(numpft));this%ji_a(:)=fates_unset_r8
+    allocate(this%ji_b(numpft));this%ji_b(:)=fates_unset_r8
+    allocate(this%ji_c(numpft));this%ji_c(:)=fates_unset_r8
+    allocate(this%jvr(numpft));this%jvr(:)=fates_unset_r8
+    allocate(this%vcmax_tscaler(numpft));this%vcmax_tscaler(:)=fates_unset_r8
+    allocate(this%jmax_tscaler(numpft));this%jmax_tscaler(:)=fates_unset_r8
+    allocate(this%lmr_tscaler(numpft));this%lmr_tscaler(:)=fates_unset_r8
+    return
+  end subroutine BPRateInitAlloc
+
+  ! =====================================================================================
+  
+  subroutine BPRateDealloc(this)
+
+    ! Class helper routine that deallocates biophysical rates
+    
+    class(bprate_type) :: this
+    deallocate(this%vr_a, &
+         this%vr_b, &
+         this%jr_a, &
+         this%jr_b, &
+         this%vi_a, &
+         this%vi_b, &
+         this%vi_c, &
+         this%ji_a, &
+         this%ji_b, &
+         this%ji_c, &
+         this%jvr,  &
+         this%vcmax_tscaler, &
+         this%jmax_tscaler, &
+         this%lmr_tscaler)
+    return
+  end subroutine BPRateDealloc
+
+  ! =====================================================================================
   
   subroutine StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press,gb,gs)
 
@@ -320,13 +416,15 @@ contains
     
     vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
     term = gs2 * h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
-    aquad = 1.0_r8
+    aquad = 1._r8
     bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
     cquad = gs0*gs0 +  (2.0*gs0 + term * &
          (1.0 - gs1*gs1 / vpd)) * term
-    
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-    gs = max(r1,r2)
+
+    gs = QuadraticSolveSmooth_a1_max(bquad, cquad)
+
+    !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    !gs = max(r1,r2)
 
     if(debug)then
        if(err)then
@@ -362,22 +460,22 @@ contains
 
 
     ! Input
-    real(r8), intent(in) :: veg_esat                 ! saturation vapor pressure at veg_tempk (Pa)
-    real(r8), intent(in) :: can_press                ! Air pressure near the surface of the leaf (Pa)
-    real(r8), intent(in) :: gb                       ! leaf boundary layer conductance (umol /m**2/s)
-    real(r8), intent(in) :: can_vpress               ! vapor pressure of the canopy air (Pa)
-    real(r8), intent(in) :: gs0,gs1                  ! Stomatal intercept and slope (umol H2O/m**2/s)
-    real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at leaf surface (Pa)
-    real(r8), intent(in) :: a_gs                     ! The assimilation (a) for calculating conductance (gs)
-                                                     ! is either = to anet or agross
-    real(r8), intent(in) :: a_net                    ! Net assimilation rate of co2 (umol/m2/s)
-                                                     ! Output
-    real(r8), intent(out) :: gs                      ! leaf stomatal conductance (umol H2O/m**2/s)
+    real(r8), intent(in) :: veg_esat        ! saturation vapor pressure at veg_tempk (Pa)
+    real(r8), intent(in) :: can_press       ! Air pressure near the surface of the leaf (Pa)
+    real(r8), intent(in) :: gb              ! leaf boundary layer conductance (umol /m**2/s)
+    real(r8), intent(in) :: can_vpress      ! vapor pressure of the canopy air (Pa)
+    real(r8), intent(in) :: gs0,gs1         ! Stomatal intercept and slope (umol H2O/m**2/s)
+    real(r8), intent(in) :: leaf_co2_ppress ! CO2 partial pressure at leaf surface (Pa)
+    real(r8), intent(in) :: a_gs            ! The assimilation (a) for calculating conductance (gs)
+                                            ! is either = to anet or agross
+    real(r8), intent(in) :: a_net           ! Net assimilation rate of co2 (umol/m2/s)
+                                            ! Output
+    real(r8), intent(out) :: gs             ! leaf stomatal conductance (umol H2O/m**2/s)
 
-                                                     ! locals
-    real(r8) :: ceair                                ! constrained vapor pressure (Pa)
-    real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
-    real(r8) :: r1,r2                                ! quadradic solve roots
+                                            ! locals
+    real(r8) :: ceair                       ! constrained vapor pressure (Pa)
+    real(r8) :: aquad,bquad,cquad           ! quadradic solve terms
+    real(r8) :: r1,r2                       ! quadradic solve roots
     logical :: err
 
 
@@ -403,16 +501,8 @@ contains
     else
        cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs* can_press * ceair/ veg_esat )
     end if
-    
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
 
-    if(debug)then
-       if(err)then
-          write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    
+    call QuadraticSolveSmooth(aquad,bquad,cquad,r1,r2)
     gs = max(r1,r2)
     
     return
@@ -420,15 +510,15 @@ contains
 
   ! =====================================================================================
   
-  function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
+  elemental function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
 
     ! Input
-    real(r8) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
-    real(r8) :: co2_cpoint        ! CO2 compensation point (Pa)
-    real(r8) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
-    real(r8) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
-    real(r8) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
+    real(r8),intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
+    real(r8),intent(in) :: ci                ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
+    real(r8),intent(in) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
+    real(r8),intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8),intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     
     ! Output
     real(r8) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
@@ -440,13 +530,13 @@ contains
   
   ! =====================================================================================
 
-  function GetJe(par_abs,jmax,fnps) result (je)
+  elemental function GetJe(par_abs,jmax,fnps) result (je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax    ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps    ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8) :: je                 ! electron transport rate (umol electrons/m**2/s)
 
     select case(lb_params%electron_transport_model)
     case (FvCB1980)   
@@ -456,23 +546,21 @@ contains
     case (JohnsonBerry2021)
        je = GetJe_JB(par_abs,jmax,fnps)
 
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified:',lb_params%electron_transport_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
+     end select
 
   end function GetJe
   
     
   !======================================================================================
 
-  function GetJe_FvCB(par_abs,jmax,fnps) result(je)
+  elemental function GetJe_FvCB(par_abs,jmax,fnps) result(je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8),intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     real(r8) :: jpar              ! absorbed photons in photocenters as an electron
@@ -490,38 +578,41 @@ contains
     aquad = theta_psii
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
 
-    if(debug)then
-       if(err)then
-          write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
+    if(do_b4b) then
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
+       !if(debug)then
+       !   if(err)then
+       !      write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
+       !      call endrun(msg=errMsg(sourcefile, __LINE__))
+       !   end if
+       !end if
+       je = min(r1,r2)
+    else
+       je = QuadraticSolveSmooth_theta_psii(bquad,cquad)
     end if
-    
-    je = min(r1,r2)
-    
+       
   end function GetJe_FvCB
 
   ! =====================================================================================
 
-  function GetJe_JB(par_abs,jmax,fnps) result(je)
+  elemental function GetJe_JB(par_abs,jmax,fnps) result(je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
-    real(r8) :: phi               ! maximum quantum yield (mol electrons/mol photons)
-    real(r8) :: cb6fmax           ! maximum activity of the cytochrome b6f complex
-                                  ! (umol electrons/m**2/s)
-                                  ! referred to as vqmax in Lamour et al.
-    real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (umol/m**2/s)
-                                  ! Here we asssume abosorbed irradiance
-    real(r8) :: jsat              ! Electron transport rate estimated by the FvCB model for a
-                                  ! given Jmax at Qsat
+    real(r8),intent(in) :: par_abs          ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax             ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps             ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8) :: je                          ! electron transport rate (umol electrons/m**2/s)
 
-    Qsat = 1530.0_r8
+    real(r8) :: phi                         ! maximum quantum yield (mol electrons/mol photons)
+    real(r8) :: cb6fmax                     ! maximum activity of the cytochrome b6f complex
+                                            ! (umol electrons/m**2/s)
+                                            ! referred to as vqmax in Lamour et al.
+                                            ! Here we asssume abosorbed irradiance
+    real(r8) :: jsat                        ! Electron transport rate estimated by the FvCB model for a
+                                            ! given Jmax at Qsat
+    real(r8),parameter :: Qsat  = 1530.0_r8 ! Saturating irradiance - assumed to be
+                                            ! a constant (umol/m**2/s)
     
     phi = (1.0_r8 - fnps) * photon_to_e
 
@@ -540,14 +631,14 @@ contains
 
   ! =====================================================================================
   
-  function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
+  elemental function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
 
     ! Input
-    real(r8) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
-    real(r8) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: ci         ! intracellular leaf CO2 (Pa)
-    real(r8) :: co2_cpoint ! CO2 compensation point (Pa)
+    real(r8),intent(in) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
+    real(r8),intent(in) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8),intent(in) :: ci         ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: co2_cpoint ! CO2 compensation point (Pa)
 
     ! Output
     real(r8) :: aj         ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
@@ -566,13 +657,13 @@ contains
   
   ! =======================================================================================
 
-  function AgrossRuBPC4(par_abs) result(aj)
+  elemental function AgrossRuBPC4(par_abs) result(aj)
 
-    real(r8) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
+    real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: aj      ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
-    real(r8),parameter :: c4_quant_eff = 0.05_r8
+    real(r8), parameter :: c4_quant_eff = 0.05_r8
     
     aj = c4_quant_eff*par_abs
     
@@ -580,11 +671,11 @@ contains
 
   ! =======================================================================================
 
-  function AgrossPEPC4(ci,kp,can_press) result(ap)
+  elemental function AgrossPEPC4(ci,kp,can_press) result(ap)
 
-    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
-    real(r8) :: kp                ! initial co2 response slope 
-    real(r8) :: can_press         ! Air pressure near the surface of the leaf (Pa)
+    real(r8),intent(in) :: ci                ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: kp                ! initial co2 response slope 
+    real(r8),intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8) :: ap                ! PEP limited gross assimilation rate (umol co2/m2/s)     
     
     ap = kp * max(ci, 0._r8) / can_press
@@ -668,6 +759,8 @@ contains
        
        ai = min(r1,r2)
 
+       
+       
        a = rmin*can_press
        
        aquad = theta_ip_c4/a**2.0_r8 + kp/(can_press*a)
@@ -880,7 +973,7 @@ contains
     ! This function is called to find endpoints, where conductance is maximized
     ! and minimized, to perform a binary search
     
-    real(r8) :: a,b,c,d,e,f,g     ! compound terms to solve the coupled Anet
+    real(r8),intent(in) :: a,b,c,d,e,f,g     ! compound terms to solve the coupled Anet
                                   ! and diffusive flux gradient equations
     real(r8) :: ci                ! intracellular co2 [Pa]
     real(r8) :: r1,r2             ! roots for quadratic
@@ -990,30 +1083,30 @@ contains
        aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !if(debug)then
+       !   if(err)then
+       !      write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
+       !      call endrun(msg=errMsg(sourcefile, __LINE__))
+       !   end if
+       !end if
+       !ai = min(r1,r2)
 
-       if(debug)then
-          if(err)then
-             write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
-
-       ai = min(r1,r2)
-
+       ai = QuadraticSolveSmooth_theta_cj(bquad, cquad)
+       
        aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-
-       if(debug)then
-          if(err)then
-             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
+       !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !if(debug)then
+       !   if(err)then
+       !      write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+       !      call endrun(msg=errMsg(sourcefile, __LINE__))
+       !   end if
+       !end if
+       !agross = min(r1,r2)
        
-       agross = min(r1,r2)
+       agross = QuadraticSolveSmooth_theta_ip(bquad, cquad)
        
     end if
 
@@ -1446,17 +1539,17 @@ contains
     ! -------------------------------------------------------------------------------------
 
     ! Arguments
-    real(r8) :: leaf_psi   ! Leaf water potential [MPa]
-    real(r8) :: k_lwp      ! Scaling coefficient for the ratio of leaf xylem (user parameter)
-    real(r8) :: veg_tempk  ! Leaf temperature     [K]
-    real(r8) :: can_vpress ! vapor pressure of air (unconstrained) [Pa]
-    real(r8) :: can_press  ! Atmospheric pressure of canopy [Pa]
-    
-    real(r8) :: rb         ! Leaf Boundary layer resistance [s/m]
-    real(r8) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
-    integer  :: ft         ! Plant Functional Type
+    real(r8),intent(in) :: leaf_psi   ! Leaf water potential [MPa]
+    real(r8),intent(in) :: k_lwp      ! Scaling coefficient for the ratio of leaf xylem (user parameter)
+    real(r8),intent(in) :: veg_tempk  ! Leaf temperature     [K]
+    real(r8),intent(in) :: can_vpress ! vapor pressure of air (unconstrained) [Pa]
+    real(r8),intent(in) :: can_press  ! Atmospheric pressure of canopy [Pa]
+    real(r8),intent(in) :: rb         ! Leaf Boundary layer resistance [s/m]
+    real(r8),intent(in) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
+    integer,intent(in)  :: ft         ! Plant Functional Type
+    real(r8),intent(in) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
+
     real(r8) :: rstoma_out ! Total Stomatal resistance (stoma and BL) [s/m]
-    real(r8) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
     
     ! Locals
     real(r8) :: ceair      ! vapor pressure of air, constrained [Pa]
@@ -1545,7 +1638,6 @@ contains
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
     !!USES
-    
 
     !
     ! !ARGUMENTS:
@@ -1562,7 +1654,41 @@ contains
   end function ft1_f
 
   ! =====================================================================================
+  
+  elemental function ft1_fo(tl, ft1_a, ft1_b) result(ans)
+    !
+    !!DESCRIPTION:
+    ! optimized photosynthesis temperature response
+    !
+    ! This function, along with the fth1_f() function, scales the Vcmax25 and Jmax25
+    ! constants so they are adjusted for leaf temperature.
+    ! This equation does not have a name, but is equation 9.10 in the CLM5.0 technical
+    ! manual.
+    !
+    ! !REVISION HISTORY
+    ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
+    ! 7/23/16: Copied over from CLM by Ryan Knox
+    ! 3/26: Refactored for speed
+    !
+    !!USES
 
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temperature function (K)
+    real(r8), intent(in) :: ft1_a
+    real(r8), intent(in) :: ft1_b
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+    !-------------------------------------------------------------------------------
+
+    ans = exp( ft1_a - ft1_b/tl)
+
+    return
+  end function ft1_fo
+
+  ! =====================================================================================
+  
   function fth_f(tl,hd,se,scaleFactor) result(ans)
     !
     !!DESCRIPTION:
@@ -1597,6 +1723,38 @@ contains
 
   ! =====================================================================================
 
+  elemental function fth_fo(tl,fth_a,fth_b,scale_factor) result(ans)
+    !
+    !!DESCRIPTION:
+    ! optimized photosynthesis temperature inhibition
+    !
+    ! This function, along with the ft1_f() function, scales the Vcmax25 and Jmax25
+    ! constants so they are adjusted for leaf temperature.
+    ! This equation does not have a name, but is equation 9.10 in the CLM5.0 technical
+    ! manual.
+    ! !REVISION HISTORY
+    ! Jinyun Tang separated it out from Photosynthesis, Feb. 07/2013
+    ! 7/23/16: Copied over from CLM by Ryan Knox
+    !
+
+    !
+    ! !ARGUMENTS:
+    real(r8), intent(in) :: tl  ! leaf temperature in photosynthesis temp function (K)
+    real(r8), intent(in) :: fth_a
+    real(r8), intent(in) :: fth_b
+    real(r8), intent(in) :: scale_factor ! scaling factor for high temp inhibition (25 C = 1.0)
+    !
+    ! !LOCAL VARIABLES:
+    real(r8) :: ans
+    !-------------------------------------------------------------------------------
+
+    ans = scale_factor / ( 1._r8 + exp( fth_a + fth_b/tl ) ) 
+    
+    return
+  end function fth_fo
+
+  ! =====================================================================================
+  
   function fth25_f(hd,se)result(ans)
     !
     !!DESCRIPTION:
@@ -1708,10 +1866,8 @@ contains
        nscaler,       &
        ft,            &
        veg_tempk,     &
+       bprate,        &
        lmr)
-
-    
-    
 
     ! -----------------------------------------------------------------------
     ! Base maintenance respiration rate for plant tissues maintresp_leaf_ryan1991_baserate
@@ -1726,39 +1882,24 @@ contains
     real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
     integer,  intent(in)  :: ft           ! (plant) Functional Type Index
     real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+    type(bprate_type),intent(in) :: bprate! Temperature response function
     real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
     ! Locals
     real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
     real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
-
-    ! Parameter
-    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
-    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
-    real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
-    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
-
-    ! temperature inhibition (25 C = 1.0)
-
-    lmr25top = lb_params%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
-
+    
+    ! Baserate is in umolC/gN/s @25C
+    ! umolC/gN/s*gN/m2 = umolC/m2/s
+    lmr25top = lb_params%maintresp_leaf_ryan1991_baserate(ft) * lnc_top
 
     ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
     ! ----------------------------------------------------------------------------------
     lmr25 = lmr25top * nscaler
 
-
-    if (lb_params%c3psn(ft) == c3_path_index) then
-       ! temperature sensitivity of C3 plants
-       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
-            fth_f(veg_tempk, lmrhd, lmrse, lmrc)
-    else
-       ! temperature sensitivity of C4 plants
-       lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
-       lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
-    endif
-
+    ! temperature response
+    lmr = lmr25* bprate%lmr_tscaler(ft)
+    
     ! Any hydrodynamic limitations could go here, currently none
     ! lmr = lmr * (nothing)
 
@@ -1771,9 +1912,8 @@ contains
        ft,             &
        veg_tempk,      &
        tgrowth,        &
+       bprate,         &       
        lmr)
-
-   
 
     ! Arguments
     real(r8), intent(in)  :: lnc_top          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
@@ -1781,6 +1921,7 @@ contains
     integer,  intent(in)  :: ft               ! (plant) Functional Type Index
     real(r8), intent(in)  :: veg_tempk        ! vegetation temperature  (degrees K)
     real(r8), intent(in)  :: tgrowth          ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
+    type(bprate_type),intent(in) :: bprate    ! Temperature response function
     real(r8), intent(out) :: lmr              ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
     
     
@@ -1816,8 +1957,10 @@ contains
        call FatesWarn(warn_msg,index=4)            
     end if
 
-    lmr = r_t_ref * exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
-         ((veg_tempk-tfrz)**2 - lmr_TrefC**2))
+    lmr = r_t_ref * bprate%lmr_tscaler(ft)
+
+    !exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+    !     ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
 
   end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
@@ -1830,8 +1973,7 @@ contains
        nscaler,    &
        veg_tempk,      &
        dayl_factor, &
-       t_growth,   &
-       t_home,     &
+       bprate, &
        btran, &
        vcmax, &
        jmax, &
@@ -1857,28 +1999,27 @@ contains
     ! Arguments
     ! ------------------------------------------------------------------------------
 
-    integer,  intent(in) :: ft                        ! (plant) Functional Type Index
-    real(r8), intent(in) :: nscaler                   ! Scale for leaf nitrogen profile
-    real(r8), intent(in) :: vcmax25top_ft             ! canopy top maximum rate of carboxylation at 25C
-                                                      ! for this pft (umol CO2/m**2/s)
-    real(r8), intent(in) :: jmax25top_ft              ! canopy top maximum electron transport rate at 25C
-                                                      ! for this pft (umol electrons/m**2/s)
-    real(r8), intent(in) :: kp25_ft                   ! initial slope of CO2 response curve
-                                                      ! (C4 plants) at 25C, canopy top, this pft
-    real(r8), intent(in) :: veg_tempk                 ! vegetation temperature
-    real(r8), intent(in) :: dayl_factor               ! daylength scaling factor (0-1)
-    real(r8), intent(in) :: t_growth                  ! T_growth (short-term running mean temperature) (K)
-    real(r8), intent(in) :: t_home                    ! T_home (long-term running mean temperature) (K)
-    real(r8), intent(in) :: btran                     ! transpiration wetness factor (0 to 1)
-    real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8), intent(out) :: jmax                     ! maximum electron transport rate
-                                                      ! (umol electrons/m**2/s)
-    real(r8), intent(out) :: kp                       ! initial slope of CO2 response curve (C4 plants)
-    real(r8), intent(out) :: gs0                      ! effective stomatal intercept
-    real(r8), intent(out) :: gs1                      ! effective stomatal slope
-    real(r8), intent(out) :: gs2                      ! alternative btran term applied to Medlyn
-                                                      ! conductance on whole non-intercept side of equation
-    
+    integer,  intent(in) :: ft            ! (plant) Functional Type Index
+    real(r8), intent(in) :: nscaler       ! Scale for leaf nitrogen profile
+    real(r8), intent(in) :: vcmax25top_ft ! canopy top maximum rate of carboxylation at 25C
+                                          ! for this pft (umol CO2/m**2/s)
+    real(r8), intent(in) :: jmax25top_ft  ! canopy top maximum electron transport rate at 25C
+                                          ! for this pft (umol electrons/m**2/s)
+    real(r8), intent(in) :: kp25_ft       ! initial slope of CO2 response curve
+                                          ! (C4 plants) at 25C, canopy top, this pft
+    real(r8), intent(in) :: veg_tempk     ! vegetation temperature
+    real(r8), intent(in) :: dayl_factor   ! daylength scaling factor (0-1)
+    type(bprate_type),intent(in) :: bprate
+    real(r8), intent(in) :: btran         ! transpiration wetness factor (0 to 1)
+    real(r8), intent(out) :: vcmax        ! maximum rate of carboxylation (umol co2/m**2/s)
+    real(r8), intent(out) :: jmax         ! maximum electron transport rate
+                                          ! (umol electrons/m**2/s)
+    real(r8), intent(out) :: kp           ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(out) :: gs0          ! effective stomatal intercept
+    real(r8), intent(out) :: gs1          ! effective stomatal slope
+    real(r8), intent(out) :: gs2          ! alternative btran term applied to Medlyn
+                                          ! conductance on whole non-intercept side of equation
+
     ! Locals
     ! -------------------------------------------------------------------------------
     real(r8) :: vcmax25           ! leaf layer: maximum rate of carboxylation at 25C
@@ -1889,18 +2030,6 @@ contains
 
     ! Parameters
     ! ---------------------------------------------------------------------------------
-    real(r8) :: vcmaxha          ! activation energy for vcmax (J/mol)
-    real(r8) :: jmaxha           ! activation energy for jmax (J/mol)
-    real(r8) :: vcmaxhd          ! deactivation energy for vcmax (J/mol)
-    real(r8) :: jmaxhd           ! deactivation energy for jmax (J/mol)
-    real(r8) :: vcmaxse          ! entropy term for vcmax (J/mol/K)
-    real(r8) :: jmaxse           ! entropy term for jmax (J/mol/K)
-    real(r8) :: t_growth_celsius ! average growing temperature
-    real(r8) :: t_home_celsius   ! average home temperature
-    real(r8) :: jvr              ! ratio of Jmax25 / Vcmax25
-    real(r8) :: vcmaxc           ! scaling factor for high temperature inhibition (25 C = 1.0)
-    real(r8) :: jmaxc            ! scaling factor for high temperature inhibition (25 C = 1.0)
-
 
     ! update the daylength factor local variable if the switch is on
     if ( lb_params%dayl_switch == itrue ) then
@@ -1909,36 +2038,6 @@ contains
        dayl_factor_local = 1.0_r8
     endif
     
-    select case(lb_params%photo_tempsens_model)
-    case (photosynth_acclim_model_none) !No temperature acclimation
-       vcmaxha = lb_params%vcmaxha(FT)
-       jmaxha  = lb_params%jmaxha(FT)
-       vcmaxhd = lb_params%vcmaxhd(FT)
-       jmaxhd  = lb_params%jmaxhd(FT)
-       vcmaxse = lb_params%vcmaxse(FT)
-       jmaxse  = lb_params%jmaxse(FT)
-       
-    case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
-       t_growth_celsius = t_growth-tfrz
-       t_home_celsius = t_home-tfrz
-       vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
-       jmaxha = 40.71_r8*1e3_r8 !J/mol
-       vcmaxhd = 200._r8*1e3_r8 !J/mol
-       jmaxhd = 200._r8*1e3_r8 !J/mol
-       vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
-       jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
-       jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
-
-       
-    case default
-       write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
-       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-
-    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
-    jmaxc  = fth25_f(jmaxhd, jmaxse)
-    
     ! Vcmax25top was already calculated to derive the nscaler function
     vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
     
@@ -1946,7 +2045,7 @@ contains
     case (photosynth_acclim_model_none)
        jmax25  = jmax25top_ft * nscaler * dayl_factor_local
     case (photosynth_acclim_model_kumarathunge_etal_2019) 
-       jmax25 = vcmax25*jvr
+       jmax25 = vcmax25*bprate%jvr(ft)
     case default
        write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
        write (fates_log(),*)'lb_params%photo_tempsens_model:',lb_params%photo_tempsens_model
@@ -1957,7 +2056,7 @@ contains
     ! photosynthetic pathway: 0. = c4, 1. = c3
     
     if (lb_params%c3psn(ft) == c3_path_index) then
-       vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
+       vcmax = vcmax25 * bprate%vcmax_tscaler(ft)
        kp = -9999._r8
     else
        vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
@@ -1966,8 +2065,8 @@ contains
        kp = kp25_ft * nscaler * 2._r8**((min(veg_tempk,310._r8)-(tfrz+25._r8))/10._r8)
     end if
 
-    jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
- 
+    jmax   = jmax25 * bprate%jmax_tscaler(ft)
+
     ! Adjust various rates for water limitations
     ! -----------------------------------------------------------------------------------
 
@@ -2028,9 +2127,6 @@ contains
           gs1 = lb_params%bb_slope(ft)
        end if
     end if
-
-    
-
     
     return
   end subroutine LeafLayerBiophysicalRates
@@ -2121,7 +2217,7 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function GetConstrainedVPress(air_vpress,veg_esat) result(ceair)
+  function GetConstrainedVPress(air_vpress,veg_esat) result(ceair)
 
     ! -----------------------------------------------------------------------------------
     ! Return a constrained vapor pressure [Pa]
@@ -2133,18 +2229,20 @@ contains
     ! behaved.
     ! -----------------------------------------------------------------------------------
     
-    real(r8) :: air_vpress              ! vapor pressure of the air (unconstrained) [Pa]
-    real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
-    real(r8) :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
-                                        ! below this fraction amount of saturation vapor pressure
+    real(r8),intent(in) :: air_vpress             ! vapor pressure of the air (unconstrained) [Pa]
+    real(r8),intent(in) :: veg_esat                ! saturated vapor pressure [Pa]
+    real(r8)            :: ceair
 
-    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
+    real(r8),parameter :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
+                                                  ! below this fraction amount of saturation vapor pressure
+
+    ceair = min( max(air_vpress, min_frac_esat*veg_esat),veg_esat )
     
   end function GetConstrainedVPress
 
   ! =====================================================================================
 
-  subroutine QSat (T, p, qs, es, qsdT, esdT)
+  elemental subroutine QSat (T, p, qs, es, qsdT, esdT)
     !
     ! !DESCRIPTION:
     !
@@ -2257,7 +2355,7 @@ contains
 
   ! =====================================================================================
   
-  real(r8) function VeloToMolarCF(press,tempk) result(cf)
+  function VeloToMolarCF(press,tempk) result(cf)
 
     ! ---------------------------------------------------------------------------------
     !
@@ -2287,13 +2385,281 @@ contains
     ! --------------------------------------------------------------------------------
 
     ! Arguments
-    real(r8) :: press    ! air pressure at point of interest [Pa]
-    real(r8) :: tempk    ! temperature at point of interest  [K]
+    real(r8),intent(in) :: press    ! air pressure at point of interest [Pa]
+    real(r8),intent(in) :: tempk    ! temperature at point of interest  [K]
+    real(r8)            :: cf
     
     cf = press/(rgas_J_K_kmol * tempk )*umol_per_kmol
     
   end function VeloToMolarCF
 
   ! =====================================================================================
+  
+  elemental function QuadraticSolveSmooth_a1_max(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = 1.0 - returns LARGER root (max)
+    ! Used for: Medlyn stomatal conductance
+    ! Returns: (-b + sqrt(b^2 - 4*1*c)) / 2*1
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: inv_2 = 0.5_r8
+    
+    discriminant = b * b - 4.0_r8 * c
+    
+    root = (-b + sqrt(max(discriminant, 0.0_r8))) * inv_2
+    
+  end function QuadraticSolveSmooth_a1_max
+
+  ! =====================================================================================
+ 
+  elemental function QuadraticSolveSmooth_theta_psii(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_psii = 0.7 (electron transport)
+    ! Returns the SMALLER root (min): (-b - sqrt(b^2 - 4*theta*c)) / (2*theta)
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: r1,r2
+    real(r8) :: discriminant,dsq
+    real(r8), parameter :: four_theta_psii = 4.0_r8 * theta_psii
+    real(r8), parameter :: inv_2_theta_psii = 1.0_r8 / (2.0_r8 * theta_psii)
+  
+    discriminant = b * b - four_theta_psii * c
+    dsq =  sqrt(max(discriminant, 0.0_r8))
+    !dsq =  sqrt(abs(discriminant))
+    r1 = (-b - dsq) * inv_2_theta_psii
+    r2 = (-b + dsq) * inv_2_theta_psii
+    root = min(r1,r2)
+    
+  end function QuadraticSolveSmooth_theta_psii
+
+  ! =====================================================================================
+
+  elemental function QuadraticSolveSmooth_theta_cj(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_cj_c4 = 0.98 (C4 RuBP limitation)
+    ! Returns the SMALLER root (min):
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: four_theta_cj = 4.0_r8 * theta_cj_c4
+    real(r8), parameter :: inv_2_theta_cj = 1.0_r8 / (2.0_r8 * theta_cj_c4)
+     
+    discriminant = b * b - four_theta_cj * c
+    
+    root = (-b - sqrt(max(discriminant, 0.0_r8))) * inv_2_theta_cj
+    
+  end function QuadraticSolveSmooth_theta_cj
+  
+  ! =====================================================================================
+  
+  elemental function QuadraticSolveSmooth_theta_ip(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_ip_c4 = 0.95 (C4 PEP limitation)
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: four_theta_ip = 4.0_r8 * theta_ip_c4
+    real(r8), parameter :: inv_2_theta_ip = 1.0_r8 / (2.0_r8 * theta_ip_c4)
+    
+    discriminant = b * b - four_theta_ip * c
+    
+    root = (-b - sqrt(max(discriminant, 0.0_r8))) * inv_2_theta_ip
+    
+  end function QuadraticSolveSmooth_theta_ip
+
+  
+  elemental subroutine QuadraticSolveSmooth(a, b, c, r1, r2)
+
+    ! -----------------------------------------------------------------------------------
+    ! Generic fast solver
+    ! Used for BB, where a is positive.
+    ! BB will use the larger root.
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: a, b, c
+    real(r8), intent(out) :: r1,r2
+    real(r8) :: discriminant
+    real(r8) :: dsq            ! sqrt(disc)
+
+    if (abs(a) < nearzero ) then
+       r2 = 0.0_r8
+       if ( abs(b)>nearzero ) r2 = -c/b
+       r1 = 0.0_r8
+       return
+    end if
+    
+    discriminant = b * b - 4._r8*a*c
+    dsq = sqrt(max(discriminant, 0.0_r8))
+    
+    r1 = 0.5_r8*(-b + dsq)/a
+    r2 = 0.5_r8*(-b - dsq)/a
+    
+  end subroutine QuadraticSolveSmooth
+
+  ! =====================================================================================
+  
+  subroutine UpdateFastBiophysicalRates(bprate,ft,veg_tempk,c3_psn,maintresp_leaf_model)
+
+    type(bprate_type),intent(inout) :: bprate
+    integer          ,intent(in)    :: ft
+    real(r8)         ,intent(in)    :: veg_tempk
+    integer          ,intent(in)    :: c3_psn                     ! 1=C3, 0=C4
+    integer          ,intent(in)    :: maintresp_leaf_model   ! Ryan91 or Atkin2017
+
+    ! Parameter
+    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
+    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
+    real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
+    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
+    
+    ! Update the temperature scalers that apply to vcmax25 and jmax25
+    
+    bprate%vcmax_tscaler(ft) = ft1_fo(veg_tempk, bprate%vr_a(ft), bprate%vr_b(ft)) * &
+         fth_fo(veg_tempk, bprate%vi_a(ft), bprate%vi_b(ft), bprate%vi_c(ft))
+    
+    bprate%jmax_tscaler(ft)  = ft1_fo(veg_tempk, bprate%jr_a(ft), bprate%jr_b(ft)) * &
+         fth_fo(veg_tempk, bprate%ji_a(ft), bprate%ji_b(ft), bprate%ji_c(ft))
+
+    if(maintresp_leaf_model == lmrmodel_ryan_1991)then
+       
+       if (c3_psn == c3_path_index) then
+          ! LMR temperature sensitivity of C3 plants
+          bprate%lmr_tscaler(ft) =  ft1_f(veg_tempk, lmrha) * &
+               fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+       else
+          ! temperature sensitivity of C4 plants
+          bprate%lmr_tscaler(ft) = 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8) / &
+               (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
+       endif
+    else
+       bprate%lmr_tscaler(ft) = exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+            ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
+    end if
+       
+    
+    return
+  end subroutine UpdateFastBiophysicalRates
+
+  
+  ! =====================================================================================
+  
+  subroutine UpdateSlowBiophysicalRates(bprate,ft,t_growth_k,t_home_k)
+
+    use FatesConstantsMod, only: tfrz => t_water_freeze_k_1atm
+    
+    type(bprate_type),intent(inout) :: bprate
+    integer          ,intent(in)    :: ft
+    real(r8)         ,intent(in)    :: t_growth_k
+    real(r8)         ,intent(in)    :: t_home_k
+    real(r8) :: vcmaxha  ! activation energy for vcmax (J/mol)
+    real(r8) :: jmaxha   ! activation energy for jmax (J/mol)
+    real(r8) :: vcmaxhd  ! deactivation energy for vcmax (J/mol)
+    real(r8) :: jmaxhd   ! deactivation energy for jmax (J/mol)
+    real(r8) :: vcmaxse  ! entropy term for vcmax (J/mol/K)
+    real(r8) :: jmaxse   ! entropy term for jmax (J/mol/K)
+    real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
+    real(r8) :: vcmaxc   ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8) :: jmaxc    ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8) :: t_growth_celsius
+    real(r8) :: t_home_celsius
+    
+    select case(lb_params%photo_tempsens_model)
+    case (photosynth_acclim_model_none) !No temperature acclimation
+       vcmaxha = lb_params%vcmaxha(ft)
+       jmaxha  = lb_params%jmaxha(ft)
+       vcmaxhd = lb_params%vcmaxhd(ft)
+       jmaxhd  = lb_params%jmaxhd(ft)
+       vcmaxse = lb_params%vcmaxse(ft)
+       jmaxse  = lb_params%jmaxse(ft)
+    case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
+       t_growth_celsius = t_growth_k-tfrz
+       t_home_celsius = t_home_k-tfrz
+       vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+       jmaxha = 40.71_r8*1e3_r8 !J/mol
+       vcmaxhd = 200._r8*1e3_r8 !J/mol
+       jmaxhd = 200._r8*1e3_r8 !J/mol
+       vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+       jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+       bprate%jvr(ft) = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+    case default
+       write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+    
+    ! Response function terms
+    bprate%vr_a(ft)  = vcmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%vr_b(ft)  = vcmaxha / rgas_J_K_mol
+    bprate%jr_a(ft)  = jmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%jr_b(ft)  = jmaxha / rgas_J_K_mol
+    
+    ! Inhibition function terms
+    bprate%vi_a(ft) = vcmaxse / rgas_J_K_mol
+    bprate%vi_b(ft) = -vcmaxhd / rgas_J_K_mol
+    bprate%vi_c(ft)  = fth25_f(vcmaxhd, vcmaxse)
+    
+    bprate%ji_a(ft) = jmaxse / rgas_J_K_mol
+    bprate%ji_b(ft) = -jmaxhd / rgas_J_K_mol
+    bprate%ji_c(ft)  = fth25_f(jmaxhd, jmaxse)
+
+    
+    return
+  end subroutine UpdateSlowBiophysicalRates
+
+
+  
+  
+  function FastQ10(temperature,offset,q10_base,log_q10_div10) result(t_factor)
+
+     ! ----------------------------------------------------------------------------------
+     ! The exp() intrinsic is faster than a pow()
+     ! or ** math operation. So we re-write  the
+     ! q10 function leverage this. Differences
+     ! are on the order of e-15 on gnu compiler
+     !
+     ! identity:
+     ! since: a^b = e^{b ln(a)}
+     !
+     ! a^(x-c)/b = e^{(x-c)/b ln(a)}
+     !           = e^{(x-c) ln(a)/b}
+     !
+     ! original:
+     ! t_factor_orig = q10_mr**((temp - tfrz - 20.0_r8)/10.0_r8)
+     !
+     ! log_q10_mr_div10 = log(q10_mr)/10.
+     ! ----------------------------------------------------------------------------------
+     
+     real(r8),intent(in) :: temperature  ! The temperature dictating the response [K]
+     real(r8),intent(in) :: offset       ! Offset of the temperature response [C] (e.g. 20C,25C,etc)
+     real(r8),intent(in) :: q10_base
+     real(r8),intent(in) :: log_q10_div10 ! = ln(a)/10
+     real(r8)            :: t_factor
+
+     if(do_b4b)then
+        t_factor = q10_base**((temperature - tfrz - offset)/10.0_r8)
+        
+     else
+        t_factor = exp(log_q10_div10 * (temperature - tfrz - offset))
+     end if
+     
+     return
+   end function FastQ10
+
+
+
+  
   
 end module LeafBiophysicsMod

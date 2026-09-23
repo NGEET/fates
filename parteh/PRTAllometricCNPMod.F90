@@ -258,6 +258,7 @@ module PRTAllometricCNPMod
      procedure :: DailyPRT     => DailyPRTAllometricCNP
      procedure :: FastPRT      => FastPRTAllometricCNP
      procedure :: GetNutrientTarget => GetNutrientTargetCNP
+     procedure :: CacheIndices => CacheIndicesAllometricCNP
 
      ! Extended functions specific to Allometric CNP
      procedure :: CNPPrioritizedReplacement
@@ -367,9 +368,63 @@ contains
      return
   end subroutine InitPRTGlobalAllometricCNP
 
-
   ! =====================================================================================
+  
+  subroutine CacheIndicesAllometricCNP(this)
 
+    ! Cache variable indices for fast repeated access
+    ! Call this once after InitAllocate
+
+
+    class(cnp_allom_prt_vartypes) :: this
+
+    ! Carbon indices
+    this%i_leaf_c   = prt_global%sp_organ_map(leaf_organ, carbon12_element)
+    this%i_fnrt_c   = prt_global%sp_organ_map(fnrt_organ, carbon12_element)
+    this%i_sapw_c   = prt_global%sp_organ_map(sapw_organ, carbon12_element)
+    this%i_store_c  = prt_global%sp_organ_map(store_organ, carbon12_element)
+    this%i_struct_c = prt_global%sp_organ_map(struct_organ, carbon12_element)
+    this%i_repro_c  = prt_global%sp_organ_map(repro_organ, carbon12_element)
+
+    ! Carbon pointers
+    this%fnrt_c   => this%variables(this%i_fnrt_c)%val(1)
+    this%sapw_c   => this%variables(this%i_sapw_c)%val(1)
+    this%store_c  => this%variables(this%i_store_c)%val(1)
+    this%struct_c => this%variables(this%i_struct_c)%val(1)
+    this%repro_c  => this%variables(this%i_repro_c)%val(1)
+    this%leaf_c   => this%variables(this%i_leaf_c)%val(:)
+
+    ! Nitrogen indices
+    this%i_leaf_n   = prt_global%sp_organ_map(leaf_organ, nitrogen_element)
+    this%i_fnrt_n   = prt_global%sp_organ_map(fnrt_organ, nitrogen_element)
+    this%i_sapw_n   = prt_global%sp_organ_map(sapw_organ, nitrogen_element)
+    this%i_store_n  = prt_global%sp_organ_map(store_organ, nitrogen_element)
+    this%i_struct_n = prt_global%sp_organ_map(struct_organ, nitrogen_element)
+
+    ! Nitrogen pointers
+    this%fnrt_n   => this%variables(this%i_fnrt_n)%val(1)
+    this%sapw_n   => this%variables(this%i_sapw_n)%val(1)
+    this%store_n  => this%variables(this%i_store_n)%val(1)
+    this%struct_n => this%variables(this%i_struct_n)%val(1)
+    this%leaf_n => this%variables(this%i_leaf_n)%val(:)
+
+    ! Phosphorus indices
+    this%i_leaf_p   = prt_global%sp_organ_map(leaf_organ, phosphorus_element)
+    this%i_fnrt_p   = prt_global%sp_organ_map(fnrt_organ, phosphorus_element)
+    this%i_sapw_p   = prt_global%sp_organ_map(sapw_organ, phosphorus_element)
+    this%i_store_p  = prt_global%sp_organ_map(store_organ, phosphorus_element)
+    this%i_struct_p = prt_global%sp_organ_map(struct_organ, phosphorus_element)
+
+    ! Phosphorus pointers
+    this%fnrt_p   => this%variables(this%i_fnrt_p)%val(1)
+    this%sapw_p   => this%variables(this%i_sapw_p)%val(1)
+    this%store_p  => this%variables(this%i_store_p)%val(1)
+    this%struct_p => this%variables(this%i_struct_p)%val(1)
+    this%leaf_p   => this%variables(this%i_leaf_p)%val(:)
+
+
+  end subroutine CacheIndicesAllometricCNP
+    
 
   subroutine DailyPRTAllometricCNP(this,phase)
 

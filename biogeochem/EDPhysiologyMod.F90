@@ -2467,7 +2467,7 @@ contains
             height             = EDPftvarcon_inst%hgt_min(ft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
-            l2fr               = currentSite%rec_l2fr(ft, currentPatch%NCL_p)
+            l2fr               = currentSite%rec_l2fr(ft, currentPatch%ncl)
             crowndamage        = 1 ! new recruits are undamaged
 
             ! calculate DBH from initial height
@@ -2700,7 +2700,7 @@ contains
                call create_cohort(currentSite, currentPatch, ft, cohort_n,     &
                   height, 0.0_r8, dbh, prt, efleaf_coh, effnrt_coh, efstem_coh,  &
                   leaf_status, recruitstatus, init_recruit_trim, 0.0_r8,       &
-                  currentPatch%NCL_p, crowndamage, currentSite%spread, bc_in)
+                  currentPatch%ncl, crowndamage, currentSite%spread, bc_in)
 
                ! Note that if hydraulics is on, the number of cohorts may have
                ! changed due to hydraulic constraints.
@@ -3314,7 +3314,7 @@ contains
 
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
-       cl = cpatch%ncl_p
+       cl = cpatch%ncl
 
        do ft = 1,numpft
           rec_l2fr_pft = csite%rec_l2fr(ft,cl)

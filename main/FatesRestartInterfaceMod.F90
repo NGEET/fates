@@ -199,7 +199,6 @@ module FatesRestartInterfaceMod
 
 
   integer :: ir_ddbhdt_co
-  integer :: ir_resp_m_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
   integer :: ir_efleaf_co
@@ -1031,11 +1030,6 @@ contains
          long_name='ed cohort - differential: ddbh/dt', &
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
-
-    call this%set_restart_var(vname='fates_resp_m_tstep', vtype=cohort_r8, &
-         long_name='ed cohort - maintenance respiration over timestep', &
-         units='kgC/indiv/timestep', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_tstep_co )
 
     call this%set_restart_var(vname='fates_pft', vtype=cohort_int, &
          long_name='ed cohort - plant functional type', units='index', flushval = flushzero, &
@@ -2404,7 +2398,6 @@ contains
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-           rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -2820,7 +2813,6 @@ contains
                 rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
 
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
-                rio_resp_m_tstep_co(io_idx_co) = ccohort%resp_m_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
                 rio_efleaf_co(io_idx_co)       = ccohort%efleaf_coh
@@ -2894,7 +2886,7 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
-             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl
              this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
@@ -3481,7 +3473,6 @@ contains
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-          rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -3862,7 +3853,6 @@ contains
                 ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
 
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
-                ccohort%resp_m_tstep = rio_resp_m_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%efleaf_coh   = rio_efleaf_co(io_idx_co)
@@ -3923,7 +3913,7 @@ contains
 
              ! Set zenith angle info
 
-             cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
+             cpatch%ncl = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRSummRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
@@ -4321,9 +4311,6 @@ contains
                       call twostr%Solve(ib,             &  ! in
                            normalized_upper_boundary,   &  ! in
                            1.0_r8,1.0_r8,               &  ! in
-                           sites(s)%taulambda_2str,     &  ! inout (scratch)
-                           sites(s)%omega_2str,         &  ! inout (scratch)
-                           sites(s)%ipiv_2str,          &  ! inout (scratch)
                            albd_parb(ifp,ib), &
                            albi_parb(ifp,ib), &
                            currentPatch%rad_error(ib),  &
