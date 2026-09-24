@@ -2091,12 +2091,12 @@ contains
     logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
     real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
     real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
-    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
-    real(r8) :: seed_bio_removed       ! AUDIT: C removed from plant pools into the seed pathway [kg/site/day]
-    real(r8) :: seed_local_deliv       ! AUDIT: C delivered to local seed pools this element [kg/site/day]
-    real(r8) :: seed_exported          ! AUDIT: C exported off-site as seed_out [kg/site/day]
-    real(r8) :: seed_litter_deliv      ! AUDIT: orphaned seed routed to fine litter [kg/site/day]
-    logical  :: is_orphan(0:numpft)              ! PFT has no valid destination seed pool this timestep
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT (0 to numpft to have bareground patch too)
+    real(r8) :: seed_bio_removed       ! debug: C removed from plant pools into the seed pathway [kg/site/day]
+    real(r8) :: seed_local_deliv       ! debug: C delivered to local seed pools this element [kg/site/day]
+    real(r8) :: seed_exported          ! debug: C exported off-site as seed_out [kg/site/day]
+    real(r8) :: seed_litter_deliv      ! debug: orphaned seed routed to fine litter [kg/site/day]
+    logical  :: is_orphan(1:numpft)     ! PFT has no valid destination seed pool this timestep
     real(r8) :: orphan_seed_local      ! non-dispersed seed of an orphaned PFT [kg/site/day]
     integer  :: dcmpy                  ! decomposability pool index
     real(r8) :: dcmpy_frac             ! fraction of mass sent to each decomposability pool
@@ -2122,7 +2122,7 @@ contains
           currentPatch => currentSite%oldest_patch
           nocomp_patch_loop: do while (associated(currentPatch))
              nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
-                  + currentPatch%area
+                                                                 + currentPatch%area
              currentPatch => currentPatch%younger
           end do nocomp_patch_loop
        endif
@@ -2249,8 +2249,8 @@ contains
        ! after it was fused/removed last timestep, leaving no valid destination seed
        ! pool. Route its non-dispersed portion to fine litter so mass is conserved.
        seed_litter_deliv = 0.0_r8
+       is_orphan(1:numpft) = .false.
        do pft = 1,numpft
-          is_orphan = .false.
           if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue) then
              is_orphan(pft) = (nocomp_patch_areas(pft) < rsnbl_math_prec)
           end if
@@ -2308,7 +2308,7 @@ contains
              ! (nocomp_patch_areas==0) or a disabled pft is stripped from biomass;
              ! its non-dispersed portion is now routed to fine litter above. Flag the
              ! offending pft so the source (e.g. a fused/removed pft) can be tracked.
-             if (hlm_use_nocomp .eq. itrue .and.  any(is_orphan(0:numpft)) ) then
+             if (hlm_use_nocomp .eq. itrue .and.  any(is_orphan(1:numpft)) ) then
                 do pft = 1,numpft
                    if(site_seed_rain(pft) > rsnbl_math_prec .and. &
                         nocomp_patch_areas(pft) < rsnbl_math_prec) then
