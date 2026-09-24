@@ -29,7 +29,7 @@ contains
 
   !------------------------------------------------------------------------------
 
-  subroutine AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+  subroutine AccumulateFluxes_ED(nsites, sites, bc_in, dt_time)
 
     !
     ! !DESCRIPTION:
@@ -40,14 +40,13 @@ contains
     use EDTypesMod        , only : ed_site_type, AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod,     only : fates_cohort_type
-    use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
+    use FatesInterfaceTypesMod , only : bc_in_type
 
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: nsites
     type(ed_site_type), intent(inout), target :: sites(nsites)
     type(bc_in_type),   intent(in)            :: bc_in(nsites)
-    type(bc_out_type),  intent(inout)         :: bc_out(nsites)
     real(r8),           intent(in)            :: dt_time  ! timestep interval
     !
     ! !LOCAL VARIABLES:
