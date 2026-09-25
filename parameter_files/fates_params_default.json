@@ -721,7 +721,7 @@
       "dims": ["fates_pft"],
       "long_name": "xylem taper exponent",
       "units": "unitless",
-      "data": [0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333]
+      "data": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
     },
     "fates_hydro_pinot_node": {
       "dtype": "float",
