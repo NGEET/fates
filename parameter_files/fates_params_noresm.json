@@ -688,7 +688,7 @@
       "dims": ["fates_pft"],
       "long_name": "Fraction of PFT killed during land use clearing to rangeland",
       "units": "fraction",
-      "data":  [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      "data":  [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     },
     "fates_landuse_harvest_pprod10":{
       "dtype": "float",
@@ -1981,9 +1981,9 @@
     "fates_landuse_logging_event_code":{
       "dtype": "integer",
       "dims": ["scalar"],
-      "long_name": "Integer code that options how logging events are structured",
+      "long_name": "Integer code that options how logging events are structured. Negative: day of the year. 1 - no logging. 2 - only first timestep. 3 - daily. 4 - monthly.",
       "units": "unitless",
-      "data": [-30]
+      "data": [3]
     },
     "fates_landuse_logging_export_frac":{
       "dtype": "float",

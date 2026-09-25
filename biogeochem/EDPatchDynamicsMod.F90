@@ -3466,7 +3466,8 @@ contains
                            'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
                            'lu label: '//trim(I2S(currentPatch%land_use_label))// &
                            'area: '//trim(N2S(currentPatch%area))
-                call FatesWarn(warn_msg,index=5)
+                
+                call FatesWarn(warn_msg,index=5,active=.false.)
              endif
 
           else nocomp_if

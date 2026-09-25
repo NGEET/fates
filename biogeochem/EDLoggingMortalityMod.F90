@@ -276,6 +276,7 @@ contains
          if (site_secondaryland_first_exceeding_min) then
             if ( patch_land_use_label .eq. primaryland) then
                harvest_rate = state_vector(secondaryland) / state_vector(primaryland)
+               harvest_rate = min(0.9_r8, harvest_rate)
                ! This log statement caused an enormous number of log-statements, muting for now
                !write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
             else
