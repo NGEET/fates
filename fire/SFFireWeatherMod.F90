@@ -78,7 +78,7 @@ module SFFireWeatherMod
     real(r8),            intent(in)    :: temp_C         ! daily averaged temperature [degrees C]
     integer,             intent(in)    :: rxfire_switch  ! whether prescribed fire is turned on  
     real(r8),            intent(in)    :: rh             ! daily relative humidity [%]
-    real(r8),            intent(in)    :: wind           ! wind speed [m/min]
+    real(r8),            intent(in)    :: wind           ! wind speed [m/s]
     real(r8),            intent(in)    :: temp_up        ! user defined upper bound for temp when define a burn window
     real(r8),            intent(in)    :: temp_low       ! user defined lower bound for temp when define a burn window
     real(r8),            intent(in)    :: rh_up          ! user defined upper bound for relative humidity

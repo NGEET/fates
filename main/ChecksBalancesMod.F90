@@ -302,7 +302,7 @@ contains
 
             select case(element_list(el))
             case(carbon12_element)
-               net_uptake = diag%npp + site_mass%net_root_uptake*area_inv
+               net_uptake = (site_mass%gpp_acc - site_mass%aresp_acc +  site_mass%net_root_uptake)*area_inv
             case(nitrogen_element)
                net_uptake = site_mass%net_root_uptake*area_inv
             case(phosphorus_element)
@@ -331,7 +331,7 @@ contains
             ibal%iflux_litter = ibal%iflux_litter + &
                  tot_litter_input - &
                  (site_mass%frag_out*area_inv - ediag%tot_seed_turnover) - &
-                 (site_mass%burn_flux_to_atm*area_inv - ediag%burned_liveveg)
+                 (sum(site_mass%burn_flux_to_atm(:))*area_inv - ediag%burned_liveveg)
 
 
             ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg

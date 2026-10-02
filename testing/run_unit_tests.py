@@ -17,22 +17,17 @@ configurations for CIME.
 This script builds and runs FATES units tests.
 
 """
-import os
+from pathlib import Path
 import argparse
 
-from build_fortran_tests import build_tests
-from path_utils import add_cime_lib_to_path
-from utils import config_to_dict, parse_test_list
-
-add_cime_lib_to_path()
-
-from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+import framework.utils.env_check
+from framework.unit_test import UnitTest
+from framework.builder import build_tests
+from framework.utils.general import config_to_dict, parse_test_list
 
 # constants for this script
-_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-_CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
-_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "unit_tests.cfg")
-_TEST_SUB_DIR = "testing"
+_CMAKE_BASE_DIR = Path(__file__).resolve().parents[1]
+_DEFAULT_CONFIG_FILE = Path(__file__).resolve().parents[0] / "config" / "unit.cfg"
 
 
 def commandline_args():
@@ -54,7 +49,7 @@ def commandline_args():
         "-b",
         "--build-dir",
         type=str,
-        default=os.path.join(_CMAKE_BASE_DIR, "_build"),
+        default=_CMAKE_BASE_DIR / "_build",
         help="Directory where tests are built.\n"
         "Will be created if it does not exist.\n",
     )
@@ -82,7 +77,7 @@ def commandline_args():
     )
 
     parser.add_argument(
-        "--verbose-make", action="store_true", help="Run make with verbose output."
+        "--verbose", action="store_true", help="Run make with verbose output."
     )
 
     parser.add_argument(
@@ -101,49 +96,28 @@ def commandline_args():
     return args
 
 
-def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict):
-    """Builds and runs the fates unit tests
-
-    Args:
-        clean (bool): whether or not to clean the build directory
-        verbose_make (bool): whether or not to run make with verbose output
-        build_dir (str): build directory
-        make_j (int): number of processors for the build
-        test_dict (dict): dictionary of test classes to run
-    """
-
-    # absolute path to desired build directory
-    build_dir_path = os.path.abspath(build_dir)
-
-    # compile code
-    build_tests(
-        build_dir_path, _CMAKE_BASE_DIR, make_j, clean=clean, verbose=verbose_make
-    )
-
-    # run unit tests
-    print("Running unit tests...")
-    for _, attributes in test_dict.items():
-
-        test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes["test_dir"])
-        ctest_command = ["ctest", "--output-on-failure"]
-        output = run_cmd_no_fail(
-            " ".join(ctest_command), from_dir=test_dir, combine_output=True
-        )
-        print(output)
-
-
 def main():
     """Main script
     Reads in command-line arguments and then runs the tests.
     """
 
     args = commandline_args()
+    build_dir = Path(args.build_dir)
+
     full_test_dict = config_to_dict(args.config_file)
     test_dict = parse_test_list(full_test_dict, args.test_list)
 
-    run_unit_tests(
-        args.clean, args.verbose_make, args.build_dir, args.make_j, test_dict
+    # build tests
+    build_tests(
+        build_dir, _CMAKE_BASE_DIR, args.make_j, clean=args.clean, verbose=args.verbose
     )
+
+    # run unit tests
+    for name, attributes in test_dict.items():
+        test = UnitTest(name, attributes)
+        out = test.run(build_dir)
+        
+        print(out)
 
 
 if __name__ == "__main__":

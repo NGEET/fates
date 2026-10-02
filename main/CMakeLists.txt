@@ -22,11 +22,12 @@ list(APPEND fates_sources
   EDParamsMod.F90
   EDTypesMod.F90
   FatesHydraulicsMemMod.F90
-  FatesRunningMeanMod.F90
+  FatesRunningSummMod.F90
   FatesParameterDerivedMod.F90
   FatesSizeAgeTypeIndicesMod.F90
   FatesIntegratorsMod.F90
   FatesUtilsMod.F90
-  FatesSynchronizedParamsMod.F90)
+  JSONParameterUtilsMod.F90)
+
 
 sourcelist_to_parent(fates_sources)

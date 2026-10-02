@@ -15,8 +15,8 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : num_elements
   use PRTGenericMod     , only : element_list
   use PRTGenericMod     , only : element_pos
-  use PRTGenericMod     , only : prt_carbon_allom_hyp
-  use PRTGenericMod     , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod     , only : carbon_only
+  use PRTGenericMod     , only : carbon_nitrogen_phosphorus
   use PRTGenericMod     , only : prt_vartypes
   use PRTGenericMod     , only : leaf_organ
   use PRTGenericMod     , only : sapw_organ, struct_organ
@@ -54,6 +54,8 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_ch4
   use FatesInterfaceTypesMod, only    : hlm_decomp
+  use FatesInterfaceTypesMod, only    : hlm_phosphorus_suppl
+  use FatesInterfaceTypesMod, only    : hlm_nitrogen_suppl
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -68,7 +70,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : days_per_year
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : years_per_day
-  use FatesConstantsMod, only    : itrue
+  use FatesConstantsMod, only    : itrue,ifalse
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
@@ -100,7 +102,7 @@ contains
   ! =====================================================================================
   
   
-  subroutine UnPackNutrientAquisitionBCs(sites, bc_in)
+  subroutine UnPackNutrientAquisitionBCs(sites, bc_in, nitr_suppl, phos_suppl)
 
     ! -----------------------------------------------------------------------------------
     ! The purpose of this routine is to recieve the nutrient uptake flux
@@ -118,8 +120,10 @@ contains
 
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout) :: sites(:)
-    type(bc_in_type), intent(in)     :: bc_in(:)
-
+    type(bc_in_type), intent(in)      :: bc_in(:)
+    logical, intent(in)               :: nitr_suppl ! Is the HLM supplementing nitrogen?
+    logical, intent(in)               :: phos_suppl ! Is the HLM supplementing phosphorus?
+    
     ! Locals
     integer                       :: nsites        ! number of sites
     integer                       :: s             ! site loop index
@@ -129,11 +133,27 @@ contains
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
 
+    ! FATES needs to know the supplementation status of N and P in the soils
+    ! If both are supplemented, then FATES doesn't activate dynamic roots
+    ! even if we are in CNP mode.
+    
+    if(nitr_suppl) then
+       hlm_nitrogen_suppl = itrue
+    else
+       hlm_nitrogen_suppl = ifalse
+    end if
+
+    if(phos_suppl) then
+       hlm_phosphorus_suppl = itrue
+    else
+       hlm_phosphorus_suppl = ifalse
+    end if
+    
     nsites = size(sites,dim=1)
 
     ! We can exit if this is a c-only simulation
     select case (hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (carbon_only)
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -198,7 +218,7 @@ contains
                 pft = ccohort%pft
                 fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
-                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_nuptake(pft)
+                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_puptake(pft)
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -269,7 +289,7 @@ contains
     
 
     ! Exit if we need not communicate with the hlm's ch4 module
-   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
+   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==carbon_nitrogen_phosphorus) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -282,7 +302,7 @@ contains
     bc_out%ema_npp = 0._r8
 
     ! Process CH4 variables first
-    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
+    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==carbon_nitrogen_phosphorus) )
 
     cpatch => csite%oldest_patch
     do while (associated(cpatch))

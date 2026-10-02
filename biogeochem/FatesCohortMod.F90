@@ -12,8 +12,8 @@ module FatesCohortMod
   use FatesGlobals,               only : fates_log
   use PRTGenericMod,              only : max_nleafage
   use PRTGenericMod,              only : prt_vartypes
-  use PRTGenericMod,              only : prt_carbon_allom_hyp
-  use PRTGenericMod,              only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,              only : carbon_only
+  use PRTGenericMod,              only : carbon_nitrogen_phosphorus
   use PRTGenericMod,              only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,              only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,              only : carbon12_element
@@ -262,7 +262,6 @@ module FatesCohortMod
     real(r8) :: dndt      ! time derivative of cohort size [n/year]
     real(r8) :: dhdt      ! time derivative of height [m/year]
     real(r8) :: ddbhdt    ! time derivative of dbh [cm/year]
-    real(r8) :: dbdeaddt  ! time derivative of dead biomass [kgC/year]
 
     !---------------------------------------------------------------------------
 
@@ -451,7 +450,6 @@ module FatesCohortMod
       this%dndt                    = nan 
       this%dhdt                    = nan 
       this%ddbhdt                  = nan
-      this%dbdeaddt                = nan 
    
       ! FIRE
       this%fraction_crown_burned   = nan 
@@ -627,7 +625,7 @@ module FatesCohortMod
       ! initialized with full stores, which match with minimum fineroot biomass
       this%l2fr = prt_params%allom_l2fr(pft)
 
-      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
         this%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
         this%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
         this%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
@@ -745,7 +743,7 @@ module FatesCohortMod
       copyCohort%year_net_uptake         = this%year_net_uptake
       copyCohort%cnp_limiter             = this%cnp_limiter
 
-      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then 
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
         copyCohort%cx_int                  = this%cx_int
         copyCohort%ema_dcxdt               = this%ema_dcxdt
         copyCohort%cx0                     = this%cx0
@@ -794,7 +792,6 @@ module FatesCohortMod
       copyCohort%dndt                    = this%dndt
       copyCohort%dhdt                    = this%dhdt
       copyCohort%ddbhdt                  = this%ddbhdt
-      copyCohort%dbdeaddt                = this%dbdeaddt
 
       ! FIRE
       copyCohort%fraction_crown_burned   = this%fraction_crown_burned
@@ -876,7 +873,7 @@ module FatesCohortMod
       class(fates_cohort_type), intent(inout), target :: this
       
       select case(hlm_parteh_mode)
-      case (prt_carbon_allom_hyp)
+      case (carbon_only)
    
         ! Register boundary conditions for the Carbon Only Allometric Hypothesis
   
@@ -890,7 +887,7 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(ac_bc_in_id_effnrt, bc_rval = this%effnrt_coh)
         call this%prt%RegisterBCIn(ac_bc_in_id_efstem, bc_rval = this%efstem_coh)
         
-      case (prt_cnp_flex_allom_hyp)
+      case (carbon_nitrogen_phosphorus)
    
         ! Register boundary conditions for the CNP Allometric Hypothesis
    
@@ -982,20 +979,21 @@ module FatesCohortMod
 
         this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
           frac_leaf_aclass(1:nleafage))
-
-      else if (hlm_use_sp .eq. itrue) then
+      
+      ! This else branch used to only be the behaviour in sp-mode
+      ! if the if-statement was skipped because of no leaves in any
+      ! of the age classes, all variables were instead set to zero
+      ! which caused a restart bug and non b4b in certain spun-up cases
+      ! Therefore we choose the behaviour which sets these variables to
+      ! the values for the first leaf age_class
+      ! If leaf_ageclasses come into active use, this issue might need 
+      ! to be revisited
+      else
           
         this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
         this%jmax25top = param_derived%jmax25top(ipft, 1)
         this%tpu25top = param_derived%tpu25top(ipft, 1)
         this%kp25top = param_derived%kp25top(ipft, 1)
-
-      else
-      
-        this%vcmax25top = 0._r8
-        this%jmax25top  = 0._r8
-        this%tpu25top   = 0._r8
-        this%kp25top    = 0._r8
 
       end if
 
@@ -1140,7 +1138,6 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%dndt                   = ', this%dndt
       write(fates_log(),*) 'cohort%dhdt                   = ', this%dhdt
       write(fates_log(),*) 'cohort%ddbhdt                 = ', this%ddbhdt
-      write(fates_log(),*) 'cohort%dbdeaddt               = ', this%dbdeaddt
       write(fates_log(),*) 'cohort%fraction_crown_burned  = ', this%fraction_crown_burned
       write(fates_log(),*) 'cohort%fire_mort              = ', this%fire_mort
       write(fates_log(),*) 'cohort%crownfire_mort         = ', this%crownfire_mort

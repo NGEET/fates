@@ -15,8 +15,6 @@ module EDTypesMod
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,         only : prt_carbon_allom_hyp
-  use PRTGenericMod,         only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,         only : num_organ_types
   use PRTGenericMod,         only : num_elements
   use PRTGenericMod,         only : element_list
@@ -25,7 +23,6 @@ module EDTypesMod
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : days_per_year
-  use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
@@ -217,18 +214,15 @@ module EDTypesMod
   type, public :: site_fluxdiags_type
 
 
-     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     ! These are site level flux diagnostics that are not used
+     ! in mass balance checks. We use these structures
+     ! to inform the history output.  These values are not
+     ! zero'd when dynamics are completed.  These values
+     ! are zero'd on cold-starts, and on restarts prior to the read
      
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
      type(elem_diag_type), pointer :: elem(:)
 
-     ! This variable is slated as to-do, but the fluxdiags type needs
-     ! to be refactored first. Currently this type is allocated
-     ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
-     ! Previous day GPP [kgC/m2/year], partitioned by size x pft
-     !real(r8),allocatable :: gpp_prev_scpf(:)
-
-     real(r8) :: npp          ! kg m-2 day-1
-     
      ! Nutrient Flux Diagnostics
      
      real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
@@ -301,7 +295,7 @@ module EDTypesMod
 
      real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
 
-     real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
+     real(r8) :: burn_flux_to_atm(n_dist_types)      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
      real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
                                        ! and initialization [kg/site/day]
@@ -311,7 +305,7 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
-     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores [kg/site/day]
      
    contains
 
@@ -678,7 +672,6 @@ contains
 
       end do
 
-     this%npp = 0._r8
      this%resp_excess = 0._r8
      this%nh4_uptake  = 0._r8
      this%no3_uptake  = 0._r8
@@ -694,11 +687,6 @@ contains
      this%p_uptake_scpf(:) = 0._r8
      this%p_efflux_scpf(:) = 0._r8
       
-     ! We don't zero gpp_prev_scpf because this is not
-     ! incremented like others, it is assigned at the end
-     ! of the daily history write process
-     
-     
      return
    end subroutine ZeroFluxDiags
 
@@ -726,7 +714,7 @@ contains
       this%frag_out          = 0._r8
       this%wood_product_harvest(:)        = 0._r8
       this%wood_product_landusechange(:)  = 0._r8
-      this%burn_flux_to_atm  = 0._r8
+      this%burn_flux_to_atm(:)            = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
@@ -848,7 +836,7 @@ contains
      currentPatch => this%oldest_patch
      do while (associated(currentPatch))
         if (currentPatch%land_use_label .eq. secondaryland) then
-           if ( currentPatch%age .ge. secondary_age_threshold ) then
+           if ( currentPatch%age_since_anthro_disturbance .ge. secondary_age_threshold ) then
               secondary_old_area = secondary_old_area + currentPatch%area
            else
               secondary_young_area = secondary_young_area + currentPatch%area
