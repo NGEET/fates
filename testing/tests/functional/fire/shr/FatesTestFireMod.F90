@@ -9,7 +9,7 @@ module FatesTestFireMod
   use FatesPatchMod,       only : fates_patch_type
   use SFNesterovMod,       only : nesterov_index
   use FatesUnitTestIOMod,  only : OpenNCFile, GetVar, CloseNCFile, RegisterNCDims
-  use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
+  use FatesUnitTestIOMod,  only : RegisterVarAtts, RegisterTimeVar, EndNCDef, WriteVar
   use FatesUnitTestIOMod,  only : type_double, type_int, type_char
   use FatesFuelClassesMod, only : num_fuel_classes
   use SyntheticFuelModels, only : fuel_models_array_class
@@ -165,96 +165,70 @@ module FatesTestFireMod
       ! first register dimension variables
       
       ! register time
-      call RegisterVar(ncid, 'time', dimIDs(1:1), type_int,                             &
-        [character(len=20)  :: 'time_origin', 'units', 'calendar', 'long_name'],        &
-        [character(len=150) :: '2018-01-01 00:00:00', 'days since 2018-01-01 00:00:00', &
-          'gregorian', 'time'],                                                         &
-        4, timeID)
+      call RegisterTimeVar(ncid, 'time', dimIDs(1:1), type_int,                        &
+        'days since 2018-01-01 00:00:00', 'time', 'gregorian',                          &
+        '2018-01-01 00:00:00', timeID)
 
       ! register litter class
-      call RegisterVar(ncid, 'litter_class', dimIDs(2:2), type_int,       &
-        [character(len=20)  :: 'units', 'long_name'],                     &
-        [character(len=150) :: '', 'fuel class'], 2, litterID)
+      call RegisterVarAtts(ncid, 'litter_class', dimIDs(2:2), type_int, '',             &
+        'fuel class', litterID)
         
       ! register fuel models
-      call RegisterVar(ncid, 'fuel_model', dimIDs(3:3), type_int,     &
-        [character(len=20)  :: 'units', 'long_name'],                 &
-        [character(len=150) :: '', 'fuel model index'], 2, modID)
+      call RegisterVarAtts(ncid, 'fuel_model', dimIDs(3:3), type_int, '',               &
+        'fuel model index', modID)
 
       ! then register actual variables
     
       ! register fuel carriers
-      call RegisterVar(ncid, 'carrier', dimIDs(3:3), type_char,            &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-        [character(len=150) :: 'fuel_model_index', '', 'carrier of fuel'],  &
-        3, cID)
+      call RegisterVarAtts(ncid, 'carrier', dimIDs(3:3), type_char, '',                 &
+        'carrier of fuel', cID, coordinates='fuel_model_index')
         
       ! register temperature
-      call RegisterVar(ncid, 'temp_degC', dimIDs(1:1), type_double,      &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],     &
-        [character(len=150) :: 'time', 'degrees C', 'air temperature'],  &                                                  
-        3, tempID)
+      call RegisterVarAtts(ncid, 'temp_degC', dimIDs(1:1), type_double, 'degrees C',    &
+        'air temperature', tempID, coordinates='time')
 
       ! register precipitation
-      call RegisterVar(ncid, 'precip', dimIDs(1:1), type_double,      &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],  &
-        [character(len=150) :: 'time', 'mm', 'precipitation'],        &                                                  
-        3, precipID)
+      call RegisterVarAtts(ncid, 'precip', dimIDs(1:1), type_double, 'mm',              &
+        'precipitation', precipID, coordinates='time')
 
       ! register relative humidity
-      call RegisterVar(ncid, 'RH', dimIDs(1:1), type_double,         &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
-        [character(len=150) :: 'time', '%', 'relative humidity'],    &                                                  
-        3, rhID)
+      call RegisterVarAtts(ncid, 'RH', dimIDs(1:1), type_double, '%',                   &
+        'relative humidity', rhID, coordinates='time')
 
       ! register Nesterov Index
-      call RegisterVar(ncid, 'NI', dimIDs(1:1), type_double,         &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
-        [character(len=150) :: 'time', '', 'Nesterov Index'],        &                                                  
-        3, NIID)
+      call RegisterVarAtts(ncid, 'NI', dimIDs(1:1), type_double, '', 'Nesterov Index',  &
+        NIID, coordinates='time')
         
       ! register fuel moisture
-      call RegisterVar(ncid, 'fuel_moisture', (/dimIDs(1), dimIDs(3)/), type_double,   &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
-        [character(len=150) :: 'time fuel_model', 'm3 m-3', 'average fuel moisture'],  &                                                  
-        3, moistID)
+      call RegisterVarAtts(ncid, 'fuel_moisture', (/dimIDs(1), dimIDs(3)/),             &
+        type_double, 'm3 m-3', 'average fuel moisture', moistID,                        &
+        coordinates='time fuel_model')
         
       ! register fuel MEF
-      call RegisterVar(ncid, 'fuel_MEF', (/dimIDs(1), dimIDs(3)/), type_double,   &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
-        [character(len=150) :: 'time fuel_model', 'm3 m-3', 'average fuel moisture of extinction'],  &                                                  
-        3, mefID)
+      call RegisterVarAtts(ncid, 'fuel_MEF', (/dimIDs(1), dimIDs(3)/), type_double,     &
+        'm3 m-3', 'average fuel moisture of extinction', mefID,                         &
+        coordinates='time fuel_model')
         
         
       ! register fuel loading
-      call RegisterVar(ncid, 'fuel_loading', dimIDs(2:3), type_double,                 &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
-        [character(len=150) :: 'litter_class fuel_model', 'kgC m-2', 'fuel loading'],  &                                                  
-        3, loadingID)
+      call RegisterVarAtts(ncid, 'fuel_loading', dimIDs(2:3), type_double, 'kgC m-2',   &
+        'fuel loading', loadingID, coordinates='litter_class fuel_model')
         
       ! register fractional fuel loading
-      call RegisterVar(ncid, 'frac_loading', dimIDs(2:3), type_double,                 &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
-        [character(len=150) :: 'litter_class fuel_model', '', 'fractional loading'],   &                                                    
-        3, frac_loadingID)
+      call RegisterVarAtts(ncid, 'frac_loading', dimIDs(2:3), type_double, '',          &
+        'fractional loading', frac_loadingID, coordinates='litter_class fuel_model')
         
       ! register non-trunk fuel loading
-      call RegisterVar(ncid, 'non_trunk_loading', dimIDs(3:3), type_double,    &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-        [character(len=150) :: 'fuel_model', 'kgC m-2', 'total loading'],  &                                                  
-        3, tot_loadingID)
+      call RegisterVarAtts(ncid, 'non_trunk_loading', dimIDs(3:3), type_double,         &
+        'kgC m-2', 'total loading', tot_loadingID, coordinates='fuel_model')
         
       ! register fuel bulk density
-        call RegisterVar(ncid, 'bulk_density', dimIDs(3:3), type_double,      &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],          &
-        [character(len=150) :: 'fuel_model', 'kg m-3', 'fuel bulk density'],  &                                                  
-        3, BDID)
+        call RegisterVarAtts(ncid, 'bulk_density', dimIDs(3:3), type_double, 'kg m-3',  &
+          'fuel bulk density', BDID, coordinates='fuel_model')
         
       ! register fuel SAV
-        call RegisterVar(ncid, 'SAV', dimIDs(3:3), type_double,                             &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                        &
-        [character(len=150) :: 'fuel_model', 'cm-1', 'fuel surface area to volume ratio'],  &                                                  
-        3, SAVID)
+        call RegisterVarAtts(ncid, 'SAV', dimIDs(3:3), type_double, 'cm-1',             &
+          'fuel surface area to volume ratio', SAVID, coordinates='fuel_model')
         
       ! finish defining variables
       call EndNCDef(ncid)
