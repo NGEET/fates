@@ -19,6 +19,9 @@ class LeafLevelPhoto(FunctionalTest):
     # matches FatesTestEnvironmentMod's sea_level_press [Pa]
     _CAN_PRESS_PA = 101325.0
 
+    # matches FatesTestEnvironmentMod's default_co2_molfrac [ppm]
+    _DEFAULT_CO2_PPM = 380.0
+
     # (swept dimension, x-axis label, plot-title fragment) for each of the
     # sweeps
     _SWEEPS = [
@@ -93,6 +96,8 @@ class LeafLevelPhoto(FunctionalTest):
             values = data[varname].values  # (n_sweep,)
             if varname.startswith("ci_by"):
                 values = values / cls._CAN_PRESS_PA * 1.0e6  # Pa -> ppm
+                if dim == "soilfrac":
+                    axis.set_ylim(0.0, 1.5 * cls._DEFAULT_CO2_PPM)
             axis.plot(x, values, lw=1.2, color="tab:blue")
             cls._style_axis(axis)
             axis.set_xlabel(xlabel, fontsize=10)
