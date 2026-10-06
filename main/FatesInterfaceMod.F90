@@ -2374,8 +2374,12 @@ contains
                  endif
 
                  ! Update the seedling layer smp and mdd running means
-                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRSumm(new_seedling_layer_smp)
-                 call cpatch%sdlng_mdd(pft)%p%UpdateRSumm(new_seedling_mdd)
+                 ! Only update after first model day to avoid adding
+                 ! initialization spike in smp to running means
+                 if (hlm_model_day > 2.0_r8) then
+                   call cpatch%sdlng_mdd(pft)%p%UpdateRSumm(new_seedling_mdd)
+                   call cpatch%sdlng_emerg_smp(pft)%p%UpdateRSumm(new_seedling_layer_smp)
+                 endif
 
               enddo !end pft loop
               
@@ -2449,8 +2453,8 @@ subroutine SeedlingParPatch(cpatch, &
 
   ! Start with the assumption that there is a single canopy layer
   seedling_par_high = atm_par_dir+atm_par_dif
-  par_high_frac     = 1._r8-cpatch%total_canopy_area
-  par_low_frac      = cpatch%total_canopy_area
+  par_high_frac     = 1._r8 - (cpatch%total_canopy_area / cpatch%area)
+  par_low_frac      = cpatch%total_canopy_area / cpatch%area
 
   ! Work up through the canopy layers from the bottom layer
   do cl = cpatch%NCL_p,max(1,cpatch%NCL_p-1),-1

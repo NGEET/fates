@@ -149,6 +149,7 @@ module FatesRestartInterfaceMod
   integer :: ir_height_co
   integer :: ir_nplant_co
   integer :: ir_gpp_acc_co
+  integer :: ir_c13disc_acc_co
   integer :: ir_npp_acc_co
   integer :: ir_resp_m_acc_co
   integer :: ir_gpp_acc_hold_co
@@ -933,6 +934,11 @@ contains
          long_name='ed cohort - accumulated gpp over dynamics step', &
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_acc_co )
+
+    call this%set_restart_var(vname='fates_c13disc_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated c13 discrimination over dynamics step', &
+         units='per mil', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c13disc_acc_co )
 
     call this%set_restart_var(vname='fates_npp_acc', vtype=cohort_r8, &
          long_name='ed cohort - accumulated npp over dynamics step', &
@@ -2379,6 +2385,7 @@ contains
            rio_height_co               => this%rvars(ir_height_co)%r81d, &
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
+           rio_c13disc_acc_co          => this%rvars(ir_c13disc_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
            rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
@@ -2788,6 +2795,7 @@ contains
                 rio_g_sb_laweight_co(io_idx_co)= ccohort%g_sb_laweight
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
+                rio_c13disc_acc_co(io_idx_co)  = ccohort%c13disc_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
                 rio_resp_m_acc_co(io_idx_co)     = ccohort%resp_m_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
@@ -3454,6 +3462,7 @@ contains
           rio_height_co               => this%rvars(ir_height_co)%r81d, &
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
+          rio_c13disc_acc_co          => this%rvars(ir_c13disc_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
           rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
@@ -3828,6 +3837,7 @@ contains
                 ccohort%height       = rio_height_co(io_idx_co)
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
+                ccohort%c13disc_acc  = rio_c13disc_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
                 ccohort%resp_m_acc   = rio_resp_m_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
