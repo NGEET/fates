@@ -91,8 +91,8 @@ def main():
     
     new_data = {}
     new_data['attributes'] = data['attributes']
-    new_data['parameters'] = {}
     new_data['dimensions'] = {}
+    new_data['parameters'] = {}
 
     # Add a log to the history
     time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
