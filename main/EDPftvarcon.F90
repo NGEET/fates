@@ -146,7 +146,7 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
-
+     
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
      ! -------------------------------------------------------------------------------------------
@@ -287,6 +287,14 @@ module EDPftvarcon
 
      ! Grazing
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
+
+     ! dry deposition
+     real(r8), allocatable :: wesley_veg_index(:)  ! Wesley vegetation index for dry deposition calculation
+     real(r8), allocatable :: wesley_sum_thresh(:) ! LAI threshold to determine Wesley summer (m2/m2)
+     real(r8), allocatable :: wesley_aut_thresh(:) ! LAI threshold to determine Wesley early/late autmn (m2/m2)
+
+     ! MEGAN (used in NorESM)
+     integer,  allocatable :: voc_pftindex(:)      ! Index for MEGAN parameters 
 
      ! Clearing mortality rate
      real(r8), allocatable :: landuse_clearing_mortality(:) ! Fraction of cohort killed when patch is cleared during land use transitions
@@ -719,6 +727,22 @@ contains
     allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
     EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
+    param_p => pstruct%GetParamFromName('fates_wesley_veg_index')
+    allocate(EDPftvarcon_inst%wesley_veg_index(numpft))
+    EDPftvarcon_inst%wesley_veg_index(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_sum_thresh')
+    allocate(EDPftvarcon_inst%wesley_sum_thresh(numpft))
+    EDPftvarcon_inst%wesley_sum_thresh(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_aut_thresh')
+    allocate(EDPftvarcon_inst%wesley_aut_thresh(numpft))
+    EDPftvarcon_inst%wesley_aut_thresh(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_voc_pftindex')
+    allocate(EDPftvarcon_inst%voc_pftindex(numpft))
+    EDPftvarcon_inst%voc_pftindex(:) = param_p%i_data_1d(:)
+
     param_p => pstruct%GetParamFromName('fates_landuse_clearing_mortality')
     allocate(EDPftvarcon_inst%landuse_clearing_mortality(numpft))
     EDPftvarcon_inst%landuse_clearing_mortality(:) = param_p%r_data_1d(:)
@@ -868,7 +892,8 @@ contains
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
         write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
-        
+        write(fates_log(),fmt0) 'voc_pftindex = ',EDPftvarcon_inst%voc_pftindex        
+
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
@@ -931,6 +956,9 @@ contains
         write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
+        write(fates_log(),fmt0) 'wesley_veg_index = ', EDPftvarcon_inst%wesley_veg_index
+        write(fates_log(),fmt0) 'wesley_sum_thresh = ', EDPftvarcon_inst%wesley_sum_thresh
+        write(fates_log(),fmt0) 'wesley_aut_thresh = ', EDPftvarcon_inst%wesley_aut_thresh
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
@@ -1308,6 +1336,16 @@ contains
            endif
         endif
 
+
+        if (hlm_use_dbh_init .eq. itrue) then
+           if (EDPftvarcon_inst%initdbh(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial dbh cannot be less or equal zero.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+        endif
+
         if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
            call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1358,6 +1396,11 @@ contains
 
         end if
 
+        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 16 ) then
+           write(fates_log(),*) 'MEGAN indices must be between 1 and 16',ipft,EDPftvarcon_inst%voc_pftindex(ipft)
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+        
         if( hlm_use_fixed_biogeog .eq. itrue ) then
            ! check that the host-fates PFT map adds to one along HLM dimension so that all the HLM area
            ! goes to a FATES PFT.  Each FATES PFT can get < or > 1 of an HLM PFT.
