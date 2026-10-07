@@ -1,0 +1,258 @@
+module test_QuadraticRoots
+  !
+  ! DESCRIPTION:
+  !		Tests the QuadraticRootsNSWC method
+  !
+  use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesUnitTestUtils, only : endrun_msg
+  use FatesUtilsMod,      only : QuadraticRootsNSWC
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestQuadraticRoots
+  
+  end type TestQuadraticRoots
+  
+  real(r8), parameter :: tol = 1.e-13_r8
+
+  contains 
+
+    @Test 
+    subroutine QuadraticRootsNSWC_DistinctRealRoots(this)
+      ! Basic sanity check with two distinct, real roots
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! known values
+      a = 1.0_r8
+      b = -5.0_r8
+      c = 6.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! roots should be (2.0, 3.0)
+      
+      ! sum of roots = -b/a
+      @assertEqual(5.0_r8, root1 + root2, tol)
+      
+      ! products of root = c/a
+      @assertEqual(6.0_r8, root1 * root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_DistinctRealRoots
+    
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_DoubleRoot(this)
+      ! tests double root (discriminant = 0)
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! known values
+      a = 1.0_r8
+      b = -4.0_r8
+      c = 4.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! roots should be (2.0, 2.0)
+      
+      @assertEqual(2.0_r8, root1, tol)
+      @assertEqual(2.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_DoubleRoot
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_SimpleLinear(this)
+      ! tests a simple linear case
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! known values
+      a = 1.e-35_r8
+      b = 2.0_r8
+      c = -4.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! root2 should get linear result (-c/b)
+      ! root1 is 0.0
+      @assertEqual(0.0_r8, root1, tol)
+      @assertEqual(2.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_SimpleLinear
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_AllZeroCoeffs(this)
+      ! tests that the routine handles when all coefficients are zero
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      call QuadraticRootsNSWC(0.0_r8, 0.0_r8, 0.0_r8, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! should be zero output
+      @assertEqual(0.0_r8, root1, tol)
+      @assertEqual(0.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_AllZeroCoeffs
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_ZeroC(this)
+     ! tests that the routine handles the c = 0 branch
+      class(TestQuadraticRoots), intent(inout) :: this  
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! known values
+      a = 1.0_r8
+      b = 2.0_r8
+      c = 0.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      @assertEqual(-2.0_r8, root1, tol)
+      @assertEqual(0.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_ZeroC
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_PureQuadratic(this)
+     ! tests that the routine handles a "pure" quadratic equation
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! Equation x^2 - 4 = 0 => Roots: 2, -2
+      a = 1.0_r8
+      b = 0.0_r8
+      c = -4.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      @assertEqual(-2.0_r8, root1, tol)
+      @assertEqual(2.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_PureQuadratic
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_ImaginaryRoots(this)
+      ! tests that the routine handles a complex conjugate case
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8)                        :: a, b, c      ! arguments
+      real(r8)                        :: root1, root2 ! roots
+      logical                         :: err          ! error
+      character(len=:), allocatable   :: expected_msg ! expected error message for failure
+      
+      expected_msg = endrun_msg("imaginary roots detected in quadratic solve")
+      
+      a = 1.0_r8
+      b = 0.0_r8
+      c = 1.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertExceptionRaised(expected_msg)
+      @assertTrue(err)
+
+    end subroutine QuadraticRootsNSWC_ImaginaryRoots
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_CatastrophicCancellation(this)
+     ! tests that the routine handles a catastrophic cancellation case
+     ! when b >> a or c, make sure we don't lose the smaller root due 
+     ! to subtraction of nearly equal numbers
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! equation x^2 + 10^8x + 1 = 0
+      a = 1.0_r8
+      b = 1.0e8_r8
+      c = 1.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! r1 calculation (-b1 + d)/a:
+      ! b1 is 5e7. Since b1 > 0, d is made negative. 
+      ! r1 = (-5e7 - 5e7) / 1 = -1e8
+      @assertEqual(-1.0e8_r8, root1, tol)
+      
+      ! r2 calculation (c/r1)/a:
+      ! r2 = (1.0 / -1e8) / 1.0 = -1e-8
+      @assertEqual(-1.0e-8_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_CatastrophicCancellation
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_OverflowAvoidance(this)
+      ! tests that the routine handles a potential overflow issue
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      ! coefficients that would overflow if squared
+      a = 1.0e200_r8
+      b = 2.0e200_r8
+      c = 1.0e200_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! expected roots for (x+1)^2 = 0 are -1, -1
+      @assertEqual(-1.0_r8, root1, tol)
+      @assertEqual(-1.0_r8, root2, tol)
+      
+    end subroutine QuadraticRootsNSWC_OverflowAvoidance
+    
+    @Test 
+    subroutine QuadraticRootsNSWC_UnderflowAvoidance(this)
+     ! tests that the routine handles a potential underflow issue
+      class(TestQuadraticRoots), intent(inout) :: this
+      real(r8) :: a, b, c      ! arguments
+      real(r8) :: root1, root2 ! roots
+      logical  :: err          ! error
+      
+      a = 1.0e-20_r8 ! tiny, but larger than zero
+      b = 1.0_r8
+      c = 1.0_r8
+      
+      call QuadraticRootsNSWC(a, b, c, root1, root2, err)
+      
+      @assertFalse(err)
+      
+      ! r1 = -b/a = -1.0 / 1e-20 = -1e20
+      ! r2 = -c/b = -1.0 / 1.0 = -1.0
+      
+      @assertRelativelyEqual(-1.0e20_r8, root1, tol)
+      @assertRelativelyEqual(-1.0_r8, root2, tol)
+    
+    end subroutine QuadraticRootsNSWC_UnderflowAvoidance
+    
+end module test_QuadraticRoots

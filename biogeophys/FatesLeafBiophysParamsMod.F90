@@ -2,218 +2,109 @@ module FatesLeafBiophysParamsMod
 
   use FatesConstantsMod , only: r8 => fates_r8
   use FatesConstantsMod , only: fates_check_param_set
-  use FatesParametersInterface, only : param_string_length
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use LeafBiophysicsMod, only : lb_params,btran_on_gs_gs1,btran_on_ag_none
-  use FatesParametersInterface, only : fates_parameters_type
-  ! Register the parameters we want the host to provide, and
-  ! indicate whether they are fates parameters or host parameters
-  ! that need to be synced with host values.
-  use FatesParametersInterface, only : fates_parameters_type, param_string_length
-  use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
-  use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_scalar
-  use FatesUtilsMod, only : ArrayNint
+  use JSONParameterUtilsMod,only : params_type,param_type
   
   implicit none
   private ! Modules are private by default
   save
 
-  public :: LeafBiophysRegisterParams
-  public :: LeafBiophysReceiveParams
+
+  public :: TransferParamsLeafBiophys
   public :: LeafBiophysReportParams
   
   character(len=*), parameter :: sourcefile = &
         __FILE__
 
-  integer, parameter  :: lower_bound_pft = 1
-
 contains
 
   ! =====================================================================================
 
-  subroutine LeafBiophysRegisterParams(fates_params)
+  subroutine TransferParamsLeafBiophys(pstruct)
 
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
-    character(len=param_string_length) :: name
-    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
-
-
-    ! Register PFT dimensioned
+    type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
+    type(param_type),pointer :: param_p  ! Pointer to one specific parameter
+    integer                  :: numpft
     
-    name = 'fates_leaf_c3psn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_btran_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_agross_btran_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    numpft = pstruct%GetDimSizeFromName('fates_pft')
     
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_leaf_c3psn')
+    allocate(lb_params%c3psn(numpft))
+    lb_params%c3psn(:) = param_p%i_data_1d(:)
 
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_leaf_stomatal_btran_model')
+    allocate(lb_params%stomatal_btran_model(numpft))
+    lb_params%stomatal_btran_model(:) = param_p%i_data_1d(:)
     
-    name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_reduction_curvature'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_reduction_intercept'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_reduction_upthresh'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_leaf_atkin2017_baserate'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_leaf_ryan1991_baserate'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxha'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxha'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxhd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxhd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxse'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxse'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_fnps'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
+    param_p => pstruct%GetParamFromName('fates_leaf_agross_btran_model')
+    allocate(lb_params%agross_btran_model(numpft))
+    lb_params%agross_btran_model(:) = param_p%i_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_stomatal_slope_medlyn')
+    allocate(lb_params%medlyn_slope(numpft))
+    lb_params%medlyn_slope(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_stomatal_slope_ballberry')
+    allocate(lb_params%bb_slope(numpft))
+    lb_params%bb_slope(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_stomatal_intercept')
+    allocate(lb_params%stomatal_intercept(numpft))
+    lb_params%stomatal_intercept(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_leaf_ryan1991_baserate')
+    allocate(lb_params%maintresp_leaf_ryan1991_baserate(numpft))
+    lb_params%maintresp_leaf_ryan1991_baserate(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_leaf_atkin2017_baserate')
+    allocate(lb_params%maintresp_leaf_atkin2017_baserate(numpft))
+    lb_params%maintresp_leaf_atkin2017_baserate(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_reduction_curvature')
+    allocate(lb_params%maintresp_reduction_curvature(numpft))
+    lb_params%maintresp_reduction_curvature(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_reduction_intercept')
+    allocate(lb_params%maintresp_reduction_intercept(numpft))
+    lb_params%maintresp_reduction_intercept(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_reduction_upthresh')
+    allocate(lb_params%maintresp_reduction_upthresh(numpft))
+    lb_params%maintresp_reduction_upthresh(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_vcmaxha')
+    allocate(lb_params%vcmaxha(numpft))
+    lb_params%vcmaxha(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_jmaxha')
+    allocate(lb_params%jmaxha(numpft))
+    lb_params%jmaxha(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_vcmaxhd')
+    allocate(lb_params%vcmaxhd(numpft))
+    lb_params%vcmaxhd(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_jmaxhd')
+    allocate(lb_params%jmaxhd(numpft))
+    lb_params%jmaxhd(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_vcmaxse')
+    allocate(lb_params%vcmaxse(numpft))
+    lb_params%vcmaxse(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_jmaxse')
+    allocate(lb_params%jmaxse(numpft))
+    lb_params%jmaxse(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_fnps')
+    allocate(lb_params%fnps(numpft))
+    lb_params%fnps(:) = param_p%r_data_1d(:)
     
     return
-  end subroutine LeafBiophysRegisterParams
-
-  ! =====================================================================================
-
-  subroutine LeafBiophysReceiveParams(fates_params)
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-    real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
-    real(r8)              :: tmpscalar
-    character(len=param_string_length) :: name
-
-    name = 'fates_leaf_c3psn'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(lb_params%c3psn(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,lb_params%c3psn)
-    deallocate(tmpreal)
-
-    name = 'fates_leaf_stomatal_btran_model'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(lb_params%stomatal_btran_model(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,lb_params%stomatal_btran_model)
-    deallocate(tmpreal)
-
-    name = 'fates_leaf_agross_btran_model'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(lb_params%agross_btran_model(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,lb_params%agross_btran_model)
-    deallocate(tmpreal)
-    
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%medlyn_slope)
-
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%bb_slope)
-
-    name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%stomatal_intercept)
-
-    name = 'fates_maintresp_leaf_ryan1991_baserate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%maintresp_leaf_ryan1991_baserate)
-
-    name = 'fates_maintresp_leaf_atkin2017_baserate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%maintresp_leaf_atkin2017_baserate)
-
-    name = 'fates_maintresp_reduction_curvature'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%maintresp_reduction_curvature)
-
-    name = 'fates_maintresp_reduction_intercept'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%maintresp_reduction_intercept)
-
-    name = 'fates_maintresp_reduction_upthresh'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%maintresp_reduction_upthresh)
-
-    name = 'fates_leaf_vcmaxha'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%vcmaxha)
-
-    name = 'fates_leaf_jmaxha'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%jmaxha)
-
-    name = 'fates_leaf_vcmaxhd'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%vcmaxhd)
-
-    name = 'fates_leaf_jmaxhd'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%jmaxhd)
-
-    name = 'fates_leaf_vcmaxse'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%vcmaxse)
-
-    name = 'fates_leaf_jmaxse'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%jmaxse)
-
-    name = 'fates_leaf_fnps'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=lb_params%fnps)
-
-    return
-  end subroutine LeafBiophysReceiveParams
+  end subroutine TransferParamsLeafBiophys
 
   ! ====================================================================================
 

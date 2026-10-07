@@ -3,7 +3,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log
-  use FatesGlobals         , only : FatesWarn,N2S,A2S
+  use FatesGlobals         , only : FatesWarn,N2S,A2S,I2S
   use FatesInterfaceTypesMod, only : hlm_freq_day
   use FatesInterfaceTypesMod, only : hlm_current_tod
   use EDPftvarcon          , only : EDPftvarcon_inst
@@ -71,7 +71,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
-  use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use EDParamsMod          , only : mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -99,15 +99,13 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTBurnLosses
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp   
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
   use EDParamsMod,            only : maxpatches_by_landuse
-  use FatesRunningMeanMod,    only : ema_sdlng_mdd
-  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,    only : ema_sdlng_mdd
+  use FatesRunningSummMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
+  use FatesRunningSummMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRadiationMemMod,   only : num_swb
 
   ! CIME globals
@@ -175,6 +173,7 @@ contains
     ! !USES:
     use EDMortalityFunctionsMod , only : mortality_rates
     use EDMortalityFunctionsMod , only : ExemptTreefallDist
+
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -205,6 +204,7 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
+    integer  :: max_soil_ind ! max soil layer with roots
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -246,8 +246,10 @@ contains
           ! Mortality for trees in the understorey.
           !currentCohort%patchptr => currentPatch
           mean_temp = currentPatch%tveg24%GetMean()
-          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft,      &
-            mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+
+          call mortality_rates(currentCohort,site_in,bc_in,currentPatch%btran_ft,   &
+               mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+          
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%crowndamage,currentCohort%c_area)
@@ -360,7 +362,7 @@ contains
              ! Treefall Disturbance Rate.  Only count this for trees, not grasses
              if ( .not. ExemptTreefallDist(currentCohort) ) then
                 currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
-                     fates_mortality_disturbance_fraction * &
+                     mortality_disturbance_fraction * &
                      min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
              end if
 
@@ -554,6 +556,7 @@ contains
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
+    logical  :: clear_all
     !---------------------------------------------------------------------
 
     if (hlm_use_nocomp .eq. itrue) then
@@ -772,9 +775,18 @@ contains
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
+                               ! If we are clearing to make crops, then kill everything
+                               if (i_landusechange_receiverpatchlabel .eq. cropland .or. &
+                                    i_landusechange_receiverpatchlabel .eq. pastureland) then
+                                  clear_all = .true.
+                               else ! otherwise kill a fraction of the cohort determined by the clearing mortality param
+                                  clear_all = .false.
+                               end if
+                               
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in, &
-                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
+                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel), &
+                                    clear_all)
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
                                newPatch%changed_landuse_this_ts = .true.
@@ -807,7 +819,7 @@ contains
                                !  (Keeping as an example)
                                ! Allocate running mean functions
                                !allocate(nc%tveg_lpa)
-                               !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
+                               !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
 
                                call nc%ZeroValues()
 
@@ -842,7 +854,7 @@ contains
                                      ! because this is the part of the original patch where no trees have actually fallen
                                      ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved
 
-                                     currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                                     currentCohort%n = currentCohort%n * (1.0_r8 - mortality_disturbance_fraction * &
                                           min(1.0_r8,currentCohort%dmort * hlm_freq_day))
 
                                      nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.
@@ -1134,8 +1146,8 @@ contains
 
                                      endif
 
-                                     currentSite%mass_balance(el)%burn_flux_to_atm = &
-                                          currentSite%mass_balance(el)%burn_flux_to_atm + &
+                                     currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) = &
+                                          currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) + &
                                           leaf_burn_frac * leaf_m * nc%n
 
                                      ! This term increments the loss flux from surviving trees
@@ -1300,8 +1312,16 @@ contains
 
                                   ! now apply survivorship based on the type of landuse transition
                                   if ( clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) ) then
-                                     ! kill everything
-                                     nc%n = 0._r8
+
+                                     ! If we are clearing for crops then kill everything 
+                                     if (i_landusechange_receiverpatchlabel == cropland .or. &
+                                          i_landusechange_receiverpatchlabel == pastureland) then
+                                        nc%n = 0._r8
+                                     else
+                                        ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
+                                        nc%n = nc%n * (1.0_r8 - EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft) )
+                                     end if
+
                                   end if
 
                                case default
@@ -1773,7 +1793,7 @@ contains
        !  (Keeping as an example)
        ! Allocate running mean functions
        !allocate(nc%tveg_lpa)
-       !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+       !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
        call nc%ZeroValues()
 
@@ -2042,7 +2062,10 @@ contains
 
 
        if (debug) then
-          burn_flux0    = site_mass%burn_flux_to_atm
+          burn_flux0 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux0    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
@@ -2051,19 +2074,16 @@ contains
          frac_burnt = 0.0_r8
          if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
+            burned_mass = curr_litt%ag_cwd(c) * patch_site_areadis * frac_burnt
+            site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
          end if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
                                (1._r8 - frac_burnt)
 
-          burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               frac_burnt
- 
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
-
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
           ! Transfer below ground CWD (none burns)
           do sl = 1,currentSite%nlevsoil
@@ -2074,24 +2094,22 @@ contains
           
        enddo
        
-       frac_burnt = 0.0_r8
-       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
-         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
-      end if 
              
        do dcmpy=1,ndcmpy
+
+           frac_burnt = 0.0_r8
+           if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+              frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+              burned_mass = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * frac_burnt
+              site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
+           end if 
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
                                       (1._r8 - frac_burnt)
 
-           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                       frac_burnt
-
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
-           
-           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
@@ -2122,13 +2140,21 @@ contains
        ! EDMainMod start triggering.
        ! --------------------------------------------------------------------------
        if (debug) then
-          burn_flux1    = site_mass%burn_flux_to_atm
+          burn_flux1 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux1    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
              write(fates_log(),*) 'abs error: ',error
+             write(fates_log(),*) 'dist type: ', dist_type
+             write(fates_log(),*) 'litt stock 1, 0: ', litter_stock1, litter_stock0
+             write(fates_log(),*) 'area: rem, new ', remainder_area, newPatch%area
+             write(fates_log(),*) 'burn flux 1, 0: ', burn_flux1, burn_flux0, sum(site_mass%burn_flux_to_atm)
+             write(fates_log(),*) 'burn flux: ', site_mass%burn_flux_to_atm
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end if
@@ -2301,7 +2327,7 @@ contains
                                                donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2363,7 +2389,7 @@ contains
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
-                      site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2490,7 +2516,7 @@ contains
              ! generating mortality rate.
              
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
-                   hlm_freq_day * fates_mortality_disturbance_fraction)
+                   hlm_freq_day * mortality_disturbance_fraction)
              
           elseif(prt_params%woody(pft) == itrue) then
              
@@ -2615,12 +2641,15 @@ contains
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
        newPatch, patch_site_areadis, bc_in,  &
-       clearing_matrix_element)
+       clearing_matrix_element, clear_all)
     !
     ! !DESCRIPTION:
     !  CWD pool from land use change.
     !  Carbon going from felled trees into CWD pool
-    !  Either kill everything or nothing on disturbed land, depending on clearing matrix
+    !  Whether or not to clear PFTs during transition from one land use class
+    !  to another is based on the clearing logic matrix. 
+    !  If clearing occurs, the fraction of the PFT killed depends on the
+    !  pft-level clearing mortality parameter
     !
     ! !USES:
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
@@ -2632,7 +2661,8 @@ contains
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
-
+    logical                , intent(in)            :: clear_all ! should all vegetation be killed - applies to crops
+    
     !
     ! !LOCAL VARIABLES:
 
@@ -2679,7 +2709,13 @@ contains
        if (hlm_use_planthydro == itrue) then
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
-             num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft)
+             end if
              call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
              currentCohort => currentCohort%taller
           end do
@@ -2750,8 +2786,15 @@ contains
 
 
              ! Absolute number of dead trees being transfered in with the donated area
-             num_dead_trees = (currentCohort%n * &
-                  patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(pft)
+             end if
 
              ! Contribution of dead trees to leaf litter
              donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
@@ -2768,7 +2811,8 @@ contains
                      donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                  site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2828,8 +2872,8 @@ contains
                    burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2841,7 +2885,8 @@ contains
                    woodproduct_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
@@ -3239,21 +3284,26 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    ! Weighted mean of the running means
-    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
-    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
+    ! Weighted mean of the running summaries
+    call rp%tveg24%FuseRSumm(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRSumm(dp%tveg_lpa,rp%area*inv_sum_area)
+
+    do pft = 1,numpft
+       call rp%btran24_ft(pft)%p%FuseRSumm(dp%btran24_ft(pft)%p,rp%area*inv_sum_area)
+    enddo
+
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
-       call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
-       call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
-       call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
+       call rp%seedling_layer_par24%FuseRSumm(dp%seedling_layer_par24,rp%area*inv_sum_area)
+       call rp%sdlng_mort_par%FuseRSumm(dp%sdlng_mort_par,rp%area*inv_sum_area)
+       call rp%sdlng2sap_par%FuseRSumm(dp%sdlng2sap_par,rp%area*inv_sum_area)
        do pft = 1,numpft
-          call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
-          call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_emerg_smp(pft)%p%FuseRSumm(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_mdd(pft)%p%FuseRSumm(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
        enddo
     end if
     
-    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+    call rp%tveg_longterm%FuseRSumm(dp%tveg_longterm,rp%area*inv_sum_area)
 
     rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
@@ -3273,10 +3323,6 @@ contains
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
 
-    ! Radiation
-    rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
-    rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
-    
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -3385,6 +3431,7 @@ contains
     real(r8) areatot ! variable for checking whether the total patch area is wrong.
     real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
+    character(len=1024) :: warn_msg   ! for defining a warning message
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3415,8 +3462,12 @@ contains
 
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
-                write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%land_use_label, currentPatch%area
+                warn_msg = 'small nocomp patch wasnt able to find '// &
+                           'another patch to fuse with. '// &
+                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                           'area: '//trim(N2S(currentPatch%area))
+                call FatesWarn(warn_msg,index=5)
              endif
 
           else nocomp_if
@@ -3866,6 +3917,10 @@ contains
     call rp%tveg24%CopyFromDonor(dp%tveg24)
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
+
+    do ipft = 1,numpft
+       call rp%btran24_ft(ipft)%p%CopyFromDonor(dp%btran24_ft(ipft)%p)
+    end do
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)

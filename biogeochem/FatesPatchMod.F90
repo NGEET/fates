@@ -12,7 +12,7 @@ module FatesPatchMod
   use FatesUtilsMod,          only : check_hlm_list
   use FatesUtilsMod,          only : check_var_real
   use FatesCohortMod,         only : fates_cohort_type
-  use FatesRunningMeanMod,    only : rmean_type, rmean_arr_type
+  use FatesRunningSummMod,    only : rsumm_type, rsumm_arr_type
   use FatesLitterMod,         only : litter_type
   use FatesFuelMod,           only : fuel_type
   use PRTGenericMod,          only : num_elements
@@ -24,9 +24,9 @@ module FatesPatchMod
   use EDParamsMod,            only : nlevleaf, nclmax, maxpft,max_cohort_per_patch
   use FatesConstantsMod,      only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,      only : t_water_freeze_k_1atm
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
-  use FatesRunningMeanMod,    only : ema_sdlng2sap_par, ema_sdlng_mdd
+  use FatesRunningSummMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+  use FatesRunningSummMod,    only : ema_sdlng2sap_par, ema_sdlng_mdd
   use TwoStreamMLPEMod,       only : twostream_type
   use FatesRadiationMemMod,   only : num_swb
   use FatesRadiationMemMod,   only : num_rad_stream_types
@@ -96,23 +96,24 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! RUNNING MEANS
-    !class(rmean_type),    pointer :: t2m                  ! place-holder for 2m air temperature (variable window-size)
-    class(rmean_type),     pointer :: tveg24               ! 24-hour mean vegetation temperature [K]
-    class(rmean_type),     pointer :: tveg_lpa             ! running mean of vegetation temperature at the
+    !class(rsumm_type),    pointer :: t2m                  ! place-holder for 2m air temperature (variable window-size)
+    class(rsumm_type),     pointer :: tveg24               ! 24-hour summary vegetation temperature [K]
+    class(rsumm_type),     pointer :: tveg_lpa             ! running mean of vegetation temperature at the
                                                            !   leaf photosynthesis acclimation timescale [K]
-    class(rmean_type),     pointer :: tveg_longterm        ! long-term running mean of vegetation temperature at the
+    class(rsumm_type),     pointer :: tveg_longterm        ! long-term running mean of vegetation temperature at the
                                                            !   leaf photosynthesis acclimation timescale [K] (i.e T_home)
-    class(rmean_type),     pointer :: seedling_layer_par24 ! 24-hour mean of photosynthetically active radiation at seedling layer [W/m2]
-    class(rmean_arr_type), pointer :: sdlng_emerg_smp(:)   ! running mean of soil matric potential at the seedling
+    class(rsumm_arr_type), pointer :: btran24_ft(:)        ! 24-hour summary of transpiration wetness factor (aka btran)
+    class(rsumm_type),     pointer :: seedling_layer_par24 ! 24-hour summary of photosynthetically active radiation at seedling layer [W/m2]
+    class(rsumm_arr_type), pointer :: sdlng_emerg_smp(:)   ! running mean of soil matric potential at the seedling
                                                            !   rooting depth at the H2O seedling emergence timescale (see sdlng_emerg_h2o_timescale parameter)
-    class(rmean_type),     pointer :: sdlng_mort_par       ! running mean of photosythetically active radiation
+    class(rsumm_type),     pointer :: sdlng_mort_par       ! running mean of photosythetically active radiation
                                                            ! at the seedling layer and at the par-based seedling  
                                                            ! mortality timescale (sdlng_mort_par_timescale)
-    class(rmean_arr_type), pointer :: sdlng_mdd(:)         ! running mean of moisture deficit days
+    class(rsumm_arr_type), pointer :: sdlng_mdd(:)         ! running mean of moisture deficit days
                                                            ! at the seedling layer and at the mdd-based seedling  
                                                            ! mortality timescale (sdlng_mdd_timescale) 
                                                            ! (sdlng2sap_par_timescale)
-    class(rmean_type), pointer :: sdlng2sap_par            ! running mean of photosythetically active radiation
+    class(rsumm_type), pointer :: sdlng2sap_par            ! running mean of photosythetically active radiation
                                                            ! at the seedling layer and at the par-based seedling  
                                                            ! to sapling transition timescale 
                                                            ! (sdlng2sap_par_timescale)
@@ -149,8 +150,8 @@ module FatesPatchMod
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
-    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:) ! nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:) ! nclmax,maxpft,nlevleaf)
 
     !---------------------------------------------------------------------------
 
@@ -172,11 +173,6 @@ module FatesPatchMod
     real(r8),allocatable :: ed_laisun_z(:,:,:)   !nclmax,maxpft,nlevleaf)
     real(r8),allocatable :: ed_laisha_z(:,:,:)   !nclmax,maxpft,nlevleaf)
 
-    
-    ! radiation profiles for comparison against observations
-    real(r8),allocatable :: parprof_pft_dir_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8),allocatable :: parprof_pft_dif_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    
     real(r8), allocatable :: tr_soil_dir(:)               ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
     real(r8), allocatable :: tr_soil_dif(:)               ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
     real(r8), allocatable :: tr_soil_dir_dif(:)           ! fraction of incoming direct radiation that is transmitted to the soil as diffuse [0-1]
@@ -377,8 +373,6 @@ module FatesPatchMod
             deallocate(this%ed_parsha_z)
             deallocate(this%ed_laisun_z)
             deallocate(this%ed_laisha_z)
-            deallocate(this%parprof_pft_dir_z)
-            deallocate(this%parprof_pft_dif_z)
             deallocate(this%canopy_area_profile)
          else
             ! The number of canopy layers has not changed
@@ -406,14 +400,12 @@ module FatesPatchMod
          allocate(this%fabd_sha_z(ncan,numpft,nveg))
          allocate(this%fabi_sun_z(ncan,numpft,nveg))
          allocate(this%fabi_sha_z(ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dir_z(num_rad_stream_types,ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dif_z(num_rad_stream_types,ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dir_z(ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dif_z(ncan,numpft,nveg))
          allocate(this%ed_parsun_z(ncan,numpft,nveg))
          allocate(this%ed_parsha_z(ncan,numpft,nveg))
          allocate(this%ed_laisun_z(ncan,numpft,nveg))
          allocate(this%ed_laisha_z(ncan,numpft,nveg))
-         allocate(this%parprof_pft_dir_z(ncan,numpft,nveg))
-         allocate(this%parprof_pft_dif_z(ncan,numpft,nveg))
       end if
 
       return
@@ -430,8 +422,8 @@ module FatesPatchMod
       this%tlai_profile(:,:,:)          = nan 
       this%tsai_profile(:,:,:)          = nan
       this%canopy_area_profile(:,:,:)   = nan  
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = nan
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = nan
 
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
@@ -442,8 +434,6 @@ module FatesPatchMod
       this%ed_parsun_z(:,:,:)           = nan 
       this%ed_parsha_z(:,:,:)           = nan 
       this%f_sun(:,:,:)                 = nan
-      this%parprof_pft_dir_z(:,:,:)     = nan 
-      this%parprof_pft_dif_z(:,:,:)     = nan
       
     end subroutine NanDynamics
 
@@ -566,8 +556,8 @@ module FatesPatchMod
       this%fabi_sun_z(:,:,:) = 0._r8
       this%fabd_sha_z(:,:,:) = 0._r8
       this%fabi_sha_z(:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
 
       ! Added
       this%elai_profile(:,:,:)          = 0._r8
@@ -580,8 +570,6 @@ module FatesPatchMod
       this%ed_laisha_z(:,:,:)           = 0._r8
       this%ed_parsun_z(:,:,:)           = 0._r8
       this%ed_parsha_z(:,:,:)           = 0._r8
-      this%parprof_pft_dir_z(:,:,:)     = 0._r8
-      this%parprof_pft_dif_z(:,:,:)     = 0._r8
       
     end subroutine ZeroDynamics
     
@@ -607,13 +595,13 @@ module FatesPatchMod
       this%c_lblayer                         = 0.0_r8
 
       ! RADIATION
-      this%rad_error(:)                      = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
+      this%rad_error(:)                      = hlm_hio_ignore_val
       
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8
@@ -663,18 +651,28 @@ module FatesPatchMod
       ! Until bc's are pointed to by sites give veg a default temp [K]
       real(r8), parameter :: temp_init_veg     = 15._r8 + t_water_freeze_k_1atm
       real(r8), parameter :: init_seedling_par = 5.0_r8      ! arbitrary initialization for seedling layer [MJ m-2 d-1]
-      real(r8), parameter :: init_seedling_smp = -26652.0_r8 ! abitrary initialization of smp [mm]
+      real(r8), parameter :: init_seedling_smp = -26652.0_r8 ! arbitrary initialization of smp [mm]
+      real(r8), parameter :: init_btran        = 1.0_r8      ! arbitrary initial value for btran [fraction]
       integer             :: pft                             ! pft looping index
 
       allocate(this%tveg24)
       allocate(this%tveg_lpa)
       allocate(this%tveg_longterm)
+      allocate(this%btran24_ft(numpft))
 
-      ! set initial values for running means
-      call this%tveg24%InitRMean(fixed_24hr, init_value=temp_init_veg,         &
+      ! set initial values for running summaries
+      call this%tveg24%InitRSumm(fixed_24hr, init_value=temp_init_veg,         &
         init_offset=real(current_tod, r8))
-      call this%tveg_lpa%InitRmean(ema_lpa, init_value=temp_init_veg)
-      call this%tveg_longterm%InitRmean(ema_longterm, init_value=temp_init_veg)
+      call this%tveg_lpa%InitRSumm(ema_lpa, init_value=temp_init_veg)
+      call this%tveg_longterm%InitRSumm(ema_longterm, init_value=temp_init_veg)
+
+      do pft = 1,numpft
+         allocate(this%btran24_ft(pft)%p)
+
+         call this%btran24_ft(pft)%p%InitRSumm(fixed_24hr,init_value=init_btran, &
+            init_offset=real(current_tod, r8))
+      end do
+
 
       if (regeneration_model == TRS_regeneration) then
         allocate(this%seedling_layer_par24)
@@ -683,20 +681,20 @@ module FatesPatchMod
         allocate(this%sdlng_mort_par)
         allocate(this%sdlng2sap_par)
 
-        call this%seedling_layer_par24%InitRMean(fixed_24hr,                   &
+        call this%seedling_layer_par24%InitRSumm(fixed_24hr,                   &
           init_value=init_seedling_par, init_offset=real(current_tod, r8))
-        call this%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,                 &
-          init_value=temp_init_veg)
-        call this%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,                   &
+        call this%sdlng_mort_par%InitRSumm(ema_sdlng_mort_par,                 &
+          init_value=init_seedling_par)
+        call this%sdlng2sap_par%InitRSumm(ema_sdlng2sap_par,                   &
           init_value=init_seedling_par)
 
         do pft = 1,numpft
           allocate(this%sdlng_mdd(pft)%p)
           allocate(this%sdlng_emerg_smp(pft)%p)
 
-          call this%sdlng_mdd(pft)%p%InitRMean(ema_sdlng_mdd,             &
+          call this%sdlng_mdd(pft)%p%InitRSumm(ema_sdlng_mdd,             &
             init_value=0.0_r8)
-          call this%sdlng_emerg_smp(pft)%p%InitRMean(ema_sdlng_emerg_h2o, &
+          call this%sdlng_emerg_smp(pft)%p%InitRSumm(ema_sdlng_emerg_h2o, &
             init_value=init_seedling_smp)
         end do
      end if
@@ -951,8 +949,6 @@ module FatesPatchMod
          deallocate(this%ed_parsha_z)
          deallocate(this%ed_laisun_z)
          deallocate(this%ed_laisha_z)
-         deallocate(this%parprof_pft_dir_z)
-         deallocate(this%parprof_pft_dif_z)
          deallocate(this%canopy_area_profile)
       end if
       
@@ -961,7 +957,7 @@ module FatesPatchMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       
-      ! deallocate running means
+      ! deallocate running summaries
       deallocate(this%tveg24, stat=istat, errmsg=smsg)
       if (istat/=0) then
         write(fates_log(),*) 'dealloc011: fail on deallocate(this%tveg24):'//trim(smsg)
@@ -977,6 +973,12 @@ module FatesPatchMod
         write(fates_log(),*) 'dealloc013: fail on deallocate(this%tveg_longterm):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
+
+      do pft = 1, numpft 
+         deallocate(this%btran24_ft(pft)%p)
+      end do 
+      deallocate(this%btran24_ft)
+
 
       if (regeneration_model == TRS_regeneration) then 
         deallocate(this%seedling_layer_par24)

@@ -52,23 +52,14 @@ module FatesInterfaceTypesMod
    
    
    character(len=16), public :: hlm_nu_com ! This string defines which soil
-                                                      ! nutrient competition scheme is in use.
-                                                      ! current options with
-                                                      ! E3SM: RD, ECA
-                                                      ! CESM: NONE
-                                                      ! ATS: ?
-                                                      ! NORESM: ?
+                                           ! nutrient competition scheme is in use.
+                                           ! current options with
+                                           ! ELM: RD, ECA
+                                           ! CLM: NONE
+                                           ! ATS: ?
    
-
-   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
-                                                     ! species are active if any:
-                                                     ! 0: none
-                                                     ! 1: nh4 only
-                                                     ! 2: nh4 and no3
-
-   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
-                                                     ! 0: none
-                                                     ! 1: p is on
+   integer, public :: hlm_nitrogen_suppl    ! HLM nitrogen supplementation status   (True=Supplementing)
+   integer, public :: hlm_phosphorus_suppl  ! HLM phosphorus supplementation status (True=Supplementing)
 
    real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
                                            ! moreover, this is the shortest main-model timestep
@@ -120,6 +111,10 @@ module FatesInterfaceTypesMod
                                                          ! 1 = use lu harvest from hlm  
                                                          ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
+
+   integer, public :: hlm_lu_transition_logic    ! This flag signals which logic to use in transitions between land use classes
+                                                 ! See the FATES user guide for full description of options
+   
 
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
@@ -216,6 +211,11 @@ module FatesInterfaceTypesMod
                                                                     ! there locations and their formats
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
+
+   integer, public :: hlm_use_dbh_init                              ! Flag to use fates_recruit_init_dbh
+                                                                    ! instead of fates_recruit_init_density
+                                                                    ! only works in nocomp mode
+                                                                    !  1 = TRUE, 0 = FALSE 
 
   integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
                                                                     !  1 = TRUE, 0 = FALSE 
@@ -578,6 +578,13 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
 
+      ! Diagnostic quantities for outputting FATES patch-resolved
+      real(r8),allocatable :: lhflux_pa(:)         ! latent heat flux
+      real(r8),allocatable :: shflux_pa(:)         ! sensible heat flux
+      real(r8),allocatable :: swabs_pa(:)          ! shortwave absorbed radiation
+      real(r8),allocatable :: netlw_pa(:)          ! longwave net radiation
+      real(r8),allocatable :: t2m_pa(:)            ! 2m air temeprature
+
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
@@ -746,7 +753,7 @@ module FatesInterfaceTypesMod
                                                  ! used for calculating patch-level aerenchyma porosity
       
       real(r8)          :: ema_npp               ! site-level NPP smoothed over time, see PrepCH4BCs()
-                                                 ! used for N fixation in ELM/CLM right now
+                                                 ! used for N fixation in ELM/CLM right now [gc/m2/yr]
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
