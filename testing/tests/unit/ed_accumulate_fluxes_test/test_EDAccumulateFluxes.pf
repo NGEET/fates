@@ -1,0 +1,681 @@
+!> Summary: Unit tests for EDAccumulateFluxesMod covering normal, edge-case, multi-cohort, multi-patch, multi-site, multi-PFT, zero-layer, and subnormal floating point behaviors.
+!> This module contains fortified unit tests for the EDAccumulateFluxesMod production module,
+!> which aggregates and tracks plant carbon, water, and nutrient fluxes (e.g., GPP, respiration) over time.
+module test_EDAccumulateFluxes
+  use FatesConstantsMod, only : r8 => fates_r8, nocomp_bareground
+  use EDTypesMod, only : ed_site_type
+  use FatesPatchMod, only : fates_patch_type
+  use FatesCohortMod, only : fates_cohort_type
+  use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
+  use EDAccumulateFluxesMod, only : AccumulateFluxes_ED
+  use FatesFactoryMod, only : CreateTestSite, SetTestFluxes
+  use funit
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestEDAccumulateFluxes
+  contains
+  end type TestEDAccumulateFluxes
+
+  contains
+
+    ! Test normal accumulation of GPP, respiration, N-fixation, C13 discrimination, and net uptake
+    @Test
+    subroutine test_AccumulateFluxes_ED_Normal(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for isolating single-location flux integration
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Comprehensive assertions for accumulated variables
+      @assertEqual(1.5_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.07_r8, cohort%sym_nfix_daily, tolerance=1.e-8_r8)
+      ! c13disc_acc = (0.1*1.0 + 0.2*0.5)/(1.0+0.5) = 0.2 / 1.5 = 0.13333333_r8
+      @assertEqual(0.13333333333333333_r8, cohort%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.7_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      ! Assert input timestep fluxes remain unmutated
+      @assertEqual(0.5_r8, cohort%gpp_tstep, tolerance=1.e-8_r8)
+      @assertEqual(0.1_r8, cohort%resp_m_tstep, tolerance=1.e-8_r8)
+      @assertEqual(0.02_r8, cohort%sym_nfix_tstep, tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_Normal
+
+    ! Test divide-by-zero protection in C13 discrimination when total GPP accumulates to zero
+    @Test
+    subroutine test_AccumulateFluxes_ED_c13ZeroDenom(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for isolating zero-GPP denominator branch
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0_r8, gpp_tstep=-1.0_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      @assertEqual(0.0_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.0_r8, cohort%c13disc_acc, tolerance=1.e-8_r8)
+      ! Ensure other fluxes still accumulate correctly under zero GPP
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.07_r8, cohort%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.7_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_c13ZeroDenom
+
+    ! Test reset behavior when year_net_uptake contains the 999.0 uninitialized sentinel value
+    @Test
+    subroutine test_AccumulateFluxes_ED_YearNetUptake999(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for sentinel net uptake reset validation
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.2_r8, sym_nfix_tstep=0.2_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=999.0_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! year_net_uptake(1) should reset from sentinel 999.0 to 0, then add 0.5
+      @assertEqual(0.5_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+      @assertEqual(1.5_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.4_r8, cohort%sym_nfix_daily, tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_YearNetUptake999
+
+    ! Test skip conditions for bare ground patches and inactive photosynthesis filter values
+    @Test
+    subroutine test_AccumulateFluxes_ED_SkipConditions(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for verifying patch skip conditions
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch_bare, patch_skip
+      type(fates_cohort_type), pointer :: cohort_bare, cohort_skip
+      real(r8) :: dt_time
+
+      allocate(patch_bare)
+      allocate(cohort_bare)
+      call cohort_bare%CreateBare(pft=1, nn=0.1_r8, height=10.0_r8)
+      allocate(patch_skip)
+      allocate(cohort_skip)
+      call cohort_skip%CreateBare(pft=1, nn=0.1_r8, height=10.0_r8)
+
+      ! Patch 1: Bare ground patch label
+      patch_bare%patchno = 1
+      patch_bare%nocomp_pft_label = nocomp_bareground
+      call SetTestFluxes(cohort_bare, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.2_r8, sym_nfix_tstep=0.2_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+      cohort_bare%taller => null()
+      patch_bare%shortest => cohort_bare
+
+      ! Patch 2: filter_photo_pa != 3 (inactive photosynthesis filter)
+      patch_skip%patchno = 2
+      patch_skip%nocomp_pft_label = 1
+      call SetTestFluxes(cohort_skip, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.2_r8, sym_nfix_tstep=0.2_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+      cohort_skip%taller => null()
+      patch_skip%shortest => cohort_skip
+
+      patch_bare%younger => patch_skip
+      patch_skip%younger => null()
+      sites(1)%oldest_patch => patch_bare
+      
+      allocate(bc_in(1)%filter_photo_pa(2))
+      ! FATES photosynthesis filter flag 3 indicates active photosynthesis on vegetated patch
+      bc_in(1)%filter_photo_pa(1) = 3
+      ! FATES photosynthesis filter flag 1 indicates inactive photosynthesis skip condition
+      bc_in(1)%filter_photo_pa(2) = 1
+
+      ! Timestep duration of 1 hour (3600s) + 0.2s offset (unreferenced dummy argument in AccumulateFluxes_ED)
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify NO fields were mutated for bare ground
+      @assertEqual(1.0_r8, cohort_bare%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_bare%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_bare%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.1_r8, cohort_bare%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_bare%year_net_uptake(1), tolerance=1.e-8_r8)
+      
+      ! Verify NO fields were mutated for inactive filter patch
+      @assertEqual(1.0_r8, cohort_skip%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_skip%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_skip%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.1_r8, cohort_skip%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.2_r8, cohort_skip%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort_skip)
+      deallocate(patch_skip)
+      deallocate(cohort_bare)
+      deallocate(patch_bare)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_SkipConditions
+
+    ! Test cohort linked list traversal for multiple cohorts (understory to canopy) on a single patch
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiCohort(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for cohort linked list traversal
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort_under, cohort_canopy
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort_under, bc_in, heights=[5.0_r8, 15.0_r8])
+      cohort_canopy => cohort_under%taller
+
+      call SetTestFluxes(cohort_under, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      call SetTestFluxes(cohort_canopy, gpp_acc=2.0_r8, gpp_tstep=1.0_r8, resp_m_acc=0.4_r8, &
+                         resp_m_tstep=0.2_r8, sym_nfix_daily=0.10_r8, sym_nfix_tstep=0.04_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.4_r8, &
+                         ts_net_uptake=1.0_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify full accumulation on understory cohort
+      @assertEqual(1.5_r8, cohort_under%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort_under%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.07_r8, cohort_under%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.7_r8, cohort_under%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      ! Verify full accumulation on canopy cohort
+      @assertEqual(3.0_r8, cohort_canopy%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.6_r8, cohort_canopy%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.14_r8, cohort_canopy%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(1.4_r8, cohort_canopy%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort_canopy)
+      deallocate(cohort_under)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiCohort
+
+    ! Test vertical canopy layer loop accumulation across multiple leaf layers (nv > 1)
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiLayerCanopy(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for multi-layer canopy testing
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, nv=3)
+      cohort%year_net_uptake(1) = 0.1_r8
+      cohort%year_net_uptake(2) = 999.0_r8
+      cohort%year_net_uptake(3) = 0.3_r8
+
+      cohort%ts_net_uptake(1) = 0.5_r8
+      cohort%ts_net_uptake(2) = 0.4_r8
+      cohort%ts_net_uptake(3) = 0.2_r8
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify layer 1, layer 2 (reset from 999.0), and layer 3 all accumulated
+      @assertEqual(0.6_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+      @assertEqual(0.4_r8, cohort%year_net_uptake(2), tolerance=1.e-8_r8)
+      @assertEqual(0.5_r8, cohort%year_net_uptake(3), tolerance=1.e-8_r8)
+      @assertEqual(1.5_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiLayerCanopy
+
+    ! Test patch age-distribution linked list traversal for multiple active vegetated patches
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiPatchActive(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for patch age sequence traversal
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch_old, patch_young
+      type(fates_cohort_type), pointer :: cohort_old, cohort_young
+      real(r8) :: dt_time
+
+      allocate(patch_old)
+      allocate(cohort_old)
+      call cohort_old%CreateBare(pft=1, nn=0.1_r8, height=15.0_r8)
+      allocate(patch_young)
+      allocate(cohort_young)
+      call cohort_young%CreateBare(pft=1, nn=0.1_r8, height=5.0_r8)
+
+      patch_old%patchno = 1
+      patch_old%nocomp_pft_label = 1
+      call SetTestFluxes(cohort_old, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+      cohort_old%taller => null()
+      patch_old%shortest => cohort_old
+
+      patch_young%patchno = 2
+      patch_young%nocomp_pft_label = 1
+      call SetTestFluxes(cohort_young, gpp_acc=2.0_r8, gpp_tstep=1.0_r8, resp_m_acc=0.4_r8, &
+                         resp_m_tstep=0.2_r8, sym_nfix_daily=0.10_r8, sym_nfix_tstep=0.04_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.4_r8, &
+                         ts_net_uptake=1.0_r8, nv=1)
+      cohort_young%taller => null()
+      patch_young%shortest => cohort_young
+
+      patch_old%younger => patch_young
+      patch_young%younger => null()
+      sites(1)%oldest_patch => patch_old
+
+      allocate(bc_in(1)%filter_photo_pa(2))
+      ! FATES photosynthesis filter flag 3 indicates active photosynthesis on vegetated patch
+      bc_in(1)%filter_photo_pa(1) = 3
+      bc_in(1)%filter_photo_pa(2) = 3
+      ! Timestep duration of 1 hour (3600s) + 0.2s offset (unreferenced dummy argument in AccumulateFluxes_ED)
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify accumulation occurred on both oldest and younger patches
+      @assertEqual(1.5_r8, cohort_old%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort_old%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(3.0_r8, cohort_young%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.6_r8, cohort_young%resp_m_acc, tolerance=1.e-8_r8)
+
+      deallocate(cohort_young)
+      deallocate(patch_young)
+      deallocate(cohort_old)
+      deallocate(patch_old)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiPatchActive
+
+    ! Test near-zero floating point denominator handling in C13 discrimination calculation
+    @Test
+    subroutine test_AccumulateFluxes_ED_c13NearZeroDenom(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for near-zero subnormal float accumulation
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0e-16_r8, gpp_tstep=-1.0e-16_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! c13disc_acc should fall back cleanly to 0.0_r8 without NaN or overflow
+      @assertEqual(0.0_r8, cohort%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_c13NearZeroDenom
+
+    ! Test multi-site iteration (nsites > 1) with fortified assertions for all accumulated state fields
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiSite(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Two site configuration for testing multi-site outer loop iteration
+      integer, parameter :: nsites = 2
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch1, patch2
+      type(fates_cohort_type), pointer :: cohort1, cohort2
+      real(r8) :: dt_time
+
+      ! Site 1
+      call CreateTestSite(sites(1:1), patch1, cohort1, bc_in(1:1), heights=[10.0_r8])
+      call SetTestFluxes(cohort1, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      ! Site 2
+      call CreateTestSite(sites(2:2), patch2, cohort2, bc_in(2:2), heights=[10.0_r8])
+      call SetTestFluxes(cohort2, gpp_acc=5.0_r8, gpp_tstep=2.0_r8, resp_m_acc=1.0_r8, &
+                         resp_m_tstep=0.4_r8, sym_nfix_daily=0.1_r8, sym_nfix_tstep=0.05_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=1.0_r8, &
+                         ts_net_uptake=2.0_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Fortified assertions: Verify ALL state variables accumulated across site 1 and site 2
+      @assertEqual(1.5_r8, cohort1%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort1%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.07_r8, cohort1%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.13333333333333333_r8, cohort1%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.7_r8, cohort1%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      @assertEqual(7.0_r8, cohort2%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(1.4_r8, cohort2%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.15_r8, cohort2%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.12857142857142856_r8, cohort2%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(3.0_r8, cohort2%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort1)
+      deallocate(patch1)
+      deallocate(cohort2)
+      deallocate(patch2)
+      deallocate(bc_in(1)%filter_photo_pa)
+      deallocate(bc_in(2)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiSite
+
+    ! Test empty cohort linked list (patch with shortest => null) with fortified state assertions
+    @Test
+    subroutine test_AccumulateFluxes_ED_NullCohort(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for null cohort list traversal
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      real(r8) :: dt_time
+
+      allocate(patch)
+      patch%patchno = 1
+      patch%nocomp_pft_label = 1
+      patch%shortest => null() ! empty cohort list
+      patch%younger => null()
+      sites(1)%oldest_patch => patch
+
+      allocate(bc_in(1)%filter_photo_pa(1))
+      ! FATES photosynthesis filter flag 3 indicates active photosynthesis on vegetated patch
+      bc_in(1)%filter_photo_pa(1) = 3
+      ! Timestep duration of 1 hour (3600s) + 0.2s offset (unreferenced dummy argument in AccumulateFluxes_ED)
+      dt_time = 3600.2_r8
+
+      ! Execution must complete cleanly without crash/segfault
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Fortified assertions: Verify patch structure remains intact and cohort list stays null
+      @assertTrue(associated(sites(1)%oldest_patch))
+      @assertFalse(associated(sites(1)%oldest_patch%shortest))
+      @assertEqual(1, sites(1)%oldest_patch%patchno)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_NullCohort
+
+    ! Test protection when total GPP accumulation sums to a negative value with fortified assertions
+    @Test
+    subroutine test_AccumulateFluxes_ED_c13NegativeDenom(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for negative GPP accumulation branch
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=0.0_r8, gpp_tstep=-0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Fortified assertions: Verify c13disc_acc falls back to 0.0_r8 while other state fields accumulate
+      @assertEqual(0.0_r8, cohort%c13disc_acc, tolerance=1.e-8_r8)
+      @assertEqual(-0.5_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.07_r8, cohort%sym_nfix_daily, tolerance=1.e-8_r8)
+      @assertEqual(0.7_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_c13NegativeDenom
+
+    ! NEW: Test zero leaf layer count (nv = 0) to ensure loop boundary protection
+    @Test
+    subroutine test_AccumulateFluxes_ED_ZeroLayers(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for zero canopy leaf layer boundary test
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort, bc_in, heights=[10.0_r8])
+
+      call SetTestFluxes(cohort, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=0)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify cohort-level GPP and respiration accumulated despite nv=0
+      @assertEqual(1.5_r8, cohort%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort%resp_m_acc, tolerance=1.e-8_r8)
+      ! Net uptake loop (1 to nv) should not execute for nv = 0
+      @assertEqual(0.2_r8, cohort%year_net_uptake(1), tolerance=1.e-8_r8)
+
+      deallocate(cohort)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_ZeroLayers
+
+    ! NEW: Test multi-PFT cohort mix on a single patch (PFT 1 and PFT 2)
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiPFT(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for testing multi-PFT cohort mixes
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch
+      type(fates_cohort_type), pointer :: cohort_pft1, cohort_pft2
+      real(r8) :: dt_time
+
+      call CreateTestSite(sites, patch, cohort_pft1, bc_in, heights=[10.0_r8, 10.0_r8], pft=1)
+      cohort_pft2 => cohort_pft1%taller
+      cohort_pft2%pft = 2
+
+      call SetTestFluxes(cohort_pft1, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, &
+                         resp_m_tstep=0.1_r8, sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.2_r8, &
+                         ts_net_uptake=0.5_r8, nv=1)
+
+      call SetTestFluxes(cohort_pft2, gpp_acc=3.0_r8, gpp_tstep=1.5_r8, resp_m_acc=0.6_r8, &
+                         resp_m_tstep=0.3_r8, sym_nfix_daily=0.15_r8, sym_nfix_tstep=0.06_r8, &
+                         c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, year_net_uptake=0.6_r8, &
+                         ts_net_uptake=1.5_r8, nv=1)
+
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify accumulation on both PFT 1 and PFT 2 cohorts
+      @assertEqual(1.5_r8, cohort_pft1%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.3_r8, cohort_pft1%resp_m_acc, tolerance=1.e-8_r8)
+      @assertEqual(4.5_r8, cohort_pft2%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(0.9_r8, cohort_pft2%resp_m_acc, tolerance=1.e-8_r8)
+
+      deallocate(cohort_pft2)
+      deallocate(cohort_pft1)
+      deallocate(patch)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiPFT
+
+    ! NEW: Test multi-cohort linked list combined with multi-patch age sequence
+    @Test
+    subroutine test_AccumulateFluxes_ED_MultiCohortMultiPatch(this)
+      class(TestEDAccumulateFluxes), intent(inout) :: this
+      ! Single site configuration for multi-cohort multi-patch traversal
+      integer, parameter :: nsites = 1
+      type(ed_site_type), target :: sites(nsites)
+      type(bc_in_type) :: bc_in(nsites)
+      type(bc_out_type) :: bc_out(nsites)
+      type(fates_patch_type), pointer :: patch1, patch2
+      type(fates_cohort_type), pointer :: c1_p1, c2_p1, c1_p2, c2_p2
+      real(r8) :: dt_time
+
+      allocate(patch1)
+      allocate(patch2)
+      allocate(c1_p1)
+      call c1_p1%CreateBare(pft=1, nn=0.1_r8, height=5.0_r8)
+      allocate(c2_p1)
+      call c2_p1%CreateBare(pft=1, nn=0.1_r8, height=15.0_r8)
+      allocate(c1_p2)
+      call c1_p2%CreateBare(pft=1, nn=0.1_r8, height=5.0_r8)
+      allocate(c2_p2)
+      call c2_p2%CreateBare(pft=1, nn=0.1_r8, height=15.0_r8)
+
+      ! Patch 1 with 2 cohorts
+      patch1%patchno = 1
+      patch1%nocomp_pft_label = 1
+      call SetTestFluxes(c1_p1, gpp_acc=1.0_r8, gpp_tstep=0.5_r8, resp_m_acc=0.2_r8, resp_m_tstep=0.1_r8, &
+                         sym_nfix_daily=0.05_r8, sym_nfix_tstep=0.02_r8, c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, &
+                         year_net_uptake=0.2_r8, ts_net_uptake=0.5_r8, nv=1)
+
+      call SetTestFluxes(c2_p1, gpp_acc=2.0_r8, gpp_tstep=1.0_r8, resp_m_acc=0.4_r8, resp_m_tstep=0.2_r8, &
+                         sym_nfix_daily=0.1_r8, sym_nfix_tstep=0.04_r8, c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, &
+                         year_net_uptake=0.4_r8, ts_net_uptake=1.0_r8, nv=1)
+
+      c1_p1%taller => c2_p1
+      c2_p1%taller => null()
+      patch1%shortest => c1_p1
+
+      ! Patch 2 with 2 cohorts
+      patch2%patchno = 2
+      patch2%nocomp_pft_label = 1
+      call SetTestFluxes(c1_p2, gpp_acc=3.0_r8, gpp_tstep=1.5_r8, resp_m_acc=0.6_r8, resp_m_tstep=0.3_r8, &
+                         sym_nfix_daily=0.15_r8, sym_nfix_tstep=0.06_r8, c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, &
+                         year_net_uptake=0.6_r8, ts_net_uptake=1.5_r8, nv=1)
+
+      call SetTestFluxes(c2_p2, gpp_acc=4.0_r8, gpp_tstep=2.0_r8, resp_m_acc=0.8_r8, resp_m_tstep=0.4_r8, &
+                         sym_nfix_daily=0.20_r8, sym_nfix_tstep=0.08_r8, c13disc_acc=0.1_r8, c13disc_clm=0.2_r8, &
+                         year_net_uptake=0.8_r8, ts_net_uptake=2.0_r8, nv=1)
+
+      c1_p2%taller => c2_p2
+      c2_p2%taller => null()
+      patch2%shortest => c1_p2
+
+      patch1%younger => patch2
+      patch2%younger => null()
+      sites(1)%oldest_patch => patch1
+
+      allocate(bc_in(1)%filter_photo_pa(2))
+      ! FATES photosynthesis filter flag 3 indicates active photosynthesis on vegetated patch
+      bc_in(1)%filter_photo_pa(1) = 3
+      bc_in(1)%filter_photo_pa(2) = 3
+      ! Timestep duration of 1 hour (3600s) + 0.2s offset (unreferenced dummy argument in AccumulateFluxes_ED)
+      dt_time = 3600.2_r8
+
+      call AccumulateFluxes_ED(nsites, sites, bc_in, bc_out, dt_time)
+
+      ! Verify accumulation across all 4 cohorts over 2 patches
+      @assertEqual(1.5_r8, c1_p1%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(3.0_r8, c2_p1%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(4.5_r8, c1_p2%gpp_acc, tolerance=1.e-8_r8)
+      @assertEqual(6.0_r8, c2_p2%gpp_acc, tolerance=1.e-8_r8)
+
+      deallocate(c2_p2)
+      deallocate(c1_p2)
+      deallocate(c2_p1)
+      deallocate(c1_p1)
+      deallocate(patch2)
+      deallocate(patch1)
+      deallocate(bc_in(1)%filter_photo_pa)
+    end subroutine test_AccumulateFluxes_ED_MultiCohortMultiPatch
+
+end module test_EDAccumulateFluxes

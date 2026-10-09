@@ -13,7 +13,8 @@ module FatesFactoryMod
   use FatesGlobals,                only : endrun => fates_endrun
   use FatesCohortMod,              only : fates_cohort_type
   use FatesPatchMod,               only : fates_patch_type
-  use EDTypesMod,                  only : init_spread_inventory
+  use EDTypesMod,                  only : init_spread_inventory, ed_site_type
+  use FatesInterfaceTypesMod,      only : bc_in_type, bc_out_type
   use FatesRadiationMemMod,        only : num_swb
   use EDParamsMod,                 only : vai_top_bin_width
   use EDParamsMod,                 only : vai_width_increase_factor
@@ -390,10 +391,10 @@ module FatesFactoryMod
     ! initialize the PRT object
     call PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     
-    ! create the cohort
-    call cohort%Create(prt, pft, number_local, height, age_local, dbh_local,             &
-      status_local, canopy_trim_local, can_area, canopy_layer_local, crown_damage_local, &
-      init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
+    ! create the cohort using lightweight CreateBare constructor
+    call cohort%CreateBare(prt=prt, pft=pft, nn=number_local, height=height, coage=age_local, &
+      dbh=dbh_local, status=status_local, ctrim=canopy_trim_local, carea=can_area,          &
+      clayer=canopy_layer_local, crowndamage=crown_damage_local)
   
   end subroutine CohortFactory
   
@@ -514,6 +515,7 @@ module FatesFactoryMod
     
     ! LOCALS:
     type(fates_cohort_type), pointer :: cohort, next_cohort ! cohort objects
+    class(prt_vartypes),      pointer :: null_prt => null() ! null pointer fallback for CreateBare
     integer                          :: num_cohorts         ! number of cohorts to add to list 
     integer                          :: i                   ! looping index
     
@@ -529,15 +531,22 @@ module FatesFactoryMod
     
     ! initialize first cohort
     allocate(cohort)
-    cohort%height = heights(1)
-    if (present(dbhs)) cohort%dbh = dbhs(1)
+    ! Default nominal PFT = 1 and density = 0.1 /m2 for synthetic test patch list
+    if (present(dbhs)) then
+      call cohort%CreateBare(prt=null_prt, pft=1, nn=0.1_r8, height=heights(1), dbh=dbhs(1))
+    else
+      call cohort%CreateBare(prt=null_prt, pft=1, nn=0.1_r8, height=heights(1))
+    endif
     patch%shortest => cohort
     
     ! initialize the rest of the cohorts
     do i = 2, num_cohorts
       allocate(next_cohort)
-      next_cohort%height = heights(i)
-      if (present(dbhs)) next_cohort%dbh = dbhs(i)
+      if (present(dbhs)) then
+        call next_cohort%CreateBare(prt=null_prt, pft=1, nn=0.1_r8, height=heights(i), dbh=dbhs(i))
+      else
+        call next_cohort%CreateBare(prt=null_prt, pft=1, nn=0.1_r8, height=heights(i))
+      endif
       cohort%taller => next_cohort
       next_cohort%shorter => cohort
       cohort => next_cohort
@@ -545,5 +554,86 @@ module FatesFactoryMod
     patch%tallest => cohort
   
   end subroutine CreateTestPatchList
-  
+
+  !---------------------------------------------------------------------------------------
+  ! DESCRIPTION:
+  ! Helper for setting transient timestep flux rates and accumulators on a cohort for unit testing.
+  ! Parameter choices represent nominal physical flux fixtures (e.g. gpp_tstep, resp_m_tstep)
+  ! to verify rate accumulation without invoking numerical solver machinery.
+  subroutine SetTestFluxes(cohort, gpp_acc, gpp_tstep, resp_m_acc, resp_m_tstep, &
+                           sym_nfix_daily, sym_nfix_tstep, c13disc_acc, c13disc_clm, &
+                           year_net_uptake, ts_net_uptake, nv)
+    type(fates_cohort_type), pointer, intent(inout) :: cohort
+    real(r8), optional, intent(in) :: gpp_acc          ! baseline accumulated GPP [kgC/m2]
+    real(r8), optional, intent(in) :: gpp_tstep        ! current timestep GPP flux rate [kgC/m2/s]
+    real(r8), optional, intent(in) :: resp_m_acc       ! baseline accumulated maintenance respiration [kgC/m2]
+    real(r8), optional, intent(in) :: resp_m_tstep     ! current timestep maintenance respiration [kgC/m2/s]
+    real(r8), optional, intent(in) :: sym_nfix_daily   ! daily accumulated symbiotic N-fixation [gN/m2]
+    real(r8), optional, intent(in) :: sym_nfix_tstep   ! current timestep symbiotic N-fixation [gN/m2/s]
+    real(r8), optional, intent(in) :: c13disc_acc      ! baseline C13 discrimination accumulator [per mil]
+    real(r8), optional, intent(in) :: c13disc_clm      ! canopy-level C13 discrimination rate [per mil]
+    real(r8), optional, intent(in) :: year_net_uptake  ! annual net uptake rate fixture [kgC/m2/yr]
+    real(r8), optional, intent(in) :: ts_net_uptake    ! timestep net uptake rate fixture [kgC/m2/s]
+    integer,  optional, intent(in) :: nv               ! number of active canopy leaf layers
+
+    if (present(gpp_acc))          cohort%gpp_acc            = gpp_acc
+    if (present(gpp_tstep))        cohort%gpp_tstep          = gpp_tstep
+    if (present(resp_m_acc))       cohort%resp_m_acc         = resp_m_acc
+    if (present(resp_m_tstep))      cohort%resp_m_tstep       = resp_m_tstep
+    if (present(sym_nfix_daily))   cohort%sym_nfix_daily     = sym_nfix_daily
+    if (present(sym_nfix_tstep))   cohort%sym_nfix_tstep     = sym_nfix_tstep
+    if (present(c13disc_acc))      cohort%c13disc_acc        = c13disc_acc
+    if (present(c13disc_clm))      cohort%c13disc_clm        = c13disc_clm
+    if (present(nv))               cohort%nv                 = nv
+
+    if (present(year_net_uptake)) then
+       cohort%year_net_uptake(1) = year_net_uptake
+    end if
+    if (present(ts_net_uptake)) then
+       cohort%ts_net_uptake(1) = ts_net_uptake
+    end if
+
+  end subroutine SetTestFluxes
+
+  !---------------------------------------------------------------------------------------
+  ! DESCRIPTION:
+  ! High-level factory building a site containing a patch with a cohort linked list.
+  ! Magic constants:
+  ! - local_pft = 1: default Plant Functional Type index for synthetic test fixtures
+  ! - filter_photo_pa(1) = 3: FATES boundary condition flag indicating active photosynthesis
+  subroutine CreateTestSite(sites, patch, cohort, bc_in, heights, dbhs, pft)
+    type(ed_site_type),     target, intent(inout) :: sites(:)
+    type(fates_patch_type), pointer, intent(out)   :: patch
+    type(fates_cohort_type), pointer, intent(out)   :: cohort
+    type(bc_in_type),               intent(inout) :: bc_in(:)
+    real(r8),                       intent(in)    :: heights(:)
+    real(r8),             optional, intent(in)    :: dbhs(:)
+    integer,              optional, intent(in)    :: pft
+
+    integer :: local_pft
+
+    ! Default to PFT index 1 when optional pft argument is omitted
+    local_pft = 1; if (present(pft)) local_pft = pft
+
+    allocate(patch)
+    ! Create patch and cohort linked list via CreateTestPatchList
+    if (present(dbhs)) then
+       call CreateTestPatchList(patch, heights, dbhs=dbhs)
+    else
+       call CreateTestPatchList(patch, heights)
+    end if
+
+    ! Set default single-patch topology and label
+    patch%patchno = 1
+    patch%nocomp_pft_label = local_pft
+    sites(1)%oldest_patch => patch
+    cohort => patch%shortest
+
+    if (allocated(bc_in(1)%filter_photo_pa)) deallocate(bc_in(1)%filter_photo_pa)
+    allocate(bc_in(1)%filter_photo_pa(1))
+    ! FATES photosynthesis filter flag 3 indicates active photosynthesis on vegetated patch
+    bc_in(1)%filter_photo_pa(1) = 3
+
+  end subroutine CreateTestSite
+
 end module FatesFactoryMod
