@@ -1,5 +1,6 @@
 """Utility functions related to getting paths to various important places"""
 
+import os
 import sys
 import importlib
 from pathlib import Path
@@ -38,12 +39,24 @@ def path_to_cime() -> Path:
         RuntimeError: can't find path to cime
 
     Returns:
-        str: full path to cime
+        Path: full path to cime
     """
+    # 1. Check HLM_ROOT environment variable if set
+    hlm_root = os.environ.get("HLM_ROOT")
+    if hlm_root:
+        cime_path = (Path(hlm_root) / "cime").resolve()
+        if cime_path.is_dir():
+            return cime_path
+
+    # 2. Fallback to nested location relative to FATES root
     cime_path = (path_to_fates_root() / "../../cime").resolve()
     if cime_path.is_dir():
         return cime_path
-    raise RuntimeError("Cannot find cime.")
+
+    raise RuntimeError(
+        "Cannot find cime. Please define the HLM_ROOT environment variable "
+        "pointing to the parent of your local CIME directory."
+    )
 
 
 def path_to_fates_root() -> Path:
