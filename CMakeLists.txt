@@ -42,16 +42,16 @@ add_subdirectory(${HLM_ROOT}/share/src csm_share)
 add_subdirectory(${HLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 
 # Add FATES source directories
-add_subdirectory(${HLM_ROOT}/src/fates/main fates_main)
-add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
-add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
-add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
-add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
-add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/main fates_main)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/biogeochem fates_biogeochem)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/biogeophys fates_biogeophys)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/parteh fates_parteh)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/fire fates_fire)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/radiation fates_radiation)
 
 # Testing directories
-add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/fortran_shr test_share)
-add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/functional/fire/shr fire_share)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing/tests/fortran_shr test_share)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing/tests/functional/fire/shr fire_share)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
@@ -111,4 +111,4 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_libraries(esmf)
               
 # Add the main test directory
-add_subdirectory(${HLM_ROOT}/src/fates/testing)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing)
