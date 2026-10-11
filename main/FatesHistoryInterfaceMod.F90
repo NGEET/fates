@@ -2718,7 +2718,7 @@ contains
             hio_elai_si(io_si) = hio_elai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
             
-            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl * cpatch%area * AREA_INV
 
             ! only valid when "strict ppa" enabled
             if ( comp_excln_exp .lt. 0._r8 ) then
@@ -4916,7 +4916,7 @@ contains
           end do
 
           hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-               + cpatch%ncl_p * patch_area_div_site_area
+               + cpatch%ncl * patch_area_div_site_area
 
           hio_fracarea_burnt_si_age(io_si,cpatch%age_class) = hio_fracarea_burnt_si_age(io_si,cpatch%age_class) + &
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
@@ -5235,6 +5235,7 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
+    integer  :: ico        ! cohort index
     integer  :: age_class  ! class age index
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
     real(r8) :: site_area_rad_inv   ! inverse canopy area of site for only
@@ -5377,9 +5378,10 @@ contains
                        cpatch%total_canopy_area * site_area_veg_inv
                end if
 
-               ccohort => cpatch%shortest
+               ico = 0
+               ccohort => cpatch%tallest
                do while(associated(ccohort))
-
+                  ico = ico+1
                   n_perm2   = ccohort%n * AREA_INV
 
                   if_notnew: if ( .not. ccohort%isnew ) then
@@ -5389,44 +5391,44 @@ contains
                      
                      ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                      hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                          (ccohort%gpp_tstep-ccohort%resp_m_tstep) * n_perm2 * dt_tstep_inv - &
+                          (cpatch%coarrays%gpp_tstep(ico)-cpatch%coarrays%resp_m_tstep(ico)) * n_perm2 * dt_tstep_inv - &
                           (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
-                          ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
+                          cpatch%coarrays%gpp_tstep(ico) * n_perm2 * dt_tstep_inv
 
                      hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
-                          ccohort%resp_m_tstep * n_perm2 * dt_tstep_inv
-
+                          cpatch%coarrays%resp_m_tstep(ico) * n_perm2 * dt_tstep_inv
+                     
                      hio_maint_resp_unreduced_si(io_si) = hio_maint_resp_unreduced_si(io_si) + &
-                          ccohort%resp_m_unreduced * n_perm2 * dt_tstep_inv
+                          cpatch%coarrays%resp_m_unreduced(ico) * n_perm2 * dt_tstep_inv
 
                      ! Maintenance respiration of different organs
-                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + ccohort%rdark &
-                          * n_perm2
-                     hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
-                          * n_perm2
-                     hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + ccohort%livecroot_mr &
-                          * n_perm2
-                     hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
-                          * n_perm2
-
+                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + &
+                          cpatch%coarrays%rdark_tstep(ico) * n_perm2
+                     hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + &
+                          cpatch%coarrays%froot_mr(ico) * n_perm2
+                     hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + &
+                          cpatch%coarrays%livecroot_mr(ico) * n_perm2
+                     hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + &
+                          cpatch%coarrays%livestem_mr(ico) * n_perm2
+                     
                      ! accumulate fluxes on canopy- and understory- separated fluxes
                      ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
                      if (ccohort%canopy_layer .eq. 1) then
 
                         hio_gpp_canopy_si(io_si) = hio_gpp_canopy_si(io_si) + &
-                             ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
+                             cpatch%coarrays%gpp_tstep(ico) * n_perm2 * dt_tstep_inv
 
                      else
 
                         hio_gpp_understory_si(io_si) = hio_gpp_understory_si(io_si) + &
-                             ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
+                             cpatch%coarrays%gpp_tstep(ico) * n_perm2 * dt_tstep_inv
 
                      end if
 
                   end if if_notnew
-                  ccohort => ccohort%taller
+                  ccohort => ccohort%shorter
                end do
                cpatch => cpatch%younger
             end do
@@ -5455,8 +5457,8 @@ contains
 
     ! Locals
     integer  :: s        ! The local site index
-    integer  :: io_si     ! The site index of the IO array
-
+    integer  :: io_si    ! The site index of the IO array
+    integer  :: ico      ! cohort index
     real(r8) :: landuse_statevector(n_landuse_cats)
     real(r8) :: canopy_area_bylanduse(n_landuse_cats)
     integer  :: i_lu
@@ -5570,13 +5572,15 @@ contains
          ! for GPP by land use, we need to loop over both patches and cohorts
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-            ccohort => cpatch%shortest
+            ico = 0
+            ccohort => cpatch%tallest
             do while(associated(ccohort))
+               ico = ico + 1
                if ( (.not. ccohort%isnew) .and. (cpatch%land_use_label .gt. nocomp_bareground_land) ) then
                   hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
-                       + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
+                       + cpatch%coarrays%gpp_tstep(ico) * ccohort%n * dt_tstep_inv
                end if
-               ccohort => ccohort%taller
+               ccohort => ccohort%shorter
             end do
             cpatch => cpatch%younger
          end do
@@ -5614,6 +5618,7 @@ contains
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
+    integer  :: ico
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
@@ -5695,10 +5700,11 @@ contains
          patch_loop1: do while(associated(cpatch))
             
             nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-            
-            ccohort => cpatch%shortest
-            do while(associated(ccohort))
 
+            ico=0
+            ccohort => cpatch%tallest
+            do while(associated(ccohort))
+               ico=ico+1
                n_perm2   = ccohort%n * AREA_INV
 
                if ( .not. ccohort%isnew ) then
@@ -5709,7 +5715,7 @@ contains
 
                     ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                     hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2 + &
+                         (cpatch%coarrays%resp_m_tstep(ico)*dt_tstep_inv) * n_perm2 + &
                          (ccohort%resp_g_acc_hold + ccohort%resp_excess_hold)* n_perm2 / days_per_year / sec_per_day
 
                     ! Growth AR (kgC/m2/s)   ! CDK: this should be daily
@@ -5718,56 +5724,56 @@ contains
 
                     ! Maint AR (kgC/m2/s)
                     hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2
+                         (cpatch%coarrays%resp_m_tstep(ico)*dt_tstep_inv) * n_perm2
 
                     ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_agsapm_si_scpf(io_si,scpf) = hio_ar_agsapm_si_scpf(io_si,scpf) + &
-                         ccohort%livestem_mr * n_perm2
+                         cpatch%coarrays%livestem_mr(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
-                         ccohort%rdark * n_perm2
+                         cpatch%coarrays%rdark_tstep(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
-                         ccohort%livecroot_mr * n_perm2
+                         cpatch%coarrays%livecroot_mr(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
-                         ccohort%froot_mr * n_perm2
+                         cpatch%coarrays%froot_mr(ico) * n_perm2
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
                        hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                            ccohort%rdark  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%livestem_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%livestem_mr(ico)  * ccohort%n * ha_per_m2
                        hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%livecroot_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%livecroot_mr(ico)  * ccohort%n * ha_per_m2
                        hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%froot_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%froot_mr(ico)  * ccohort%n * ha_per_m2
                        hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
                             ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv * ha_per_m2
+                            cpatch%coarrays%resp_m_tstep(ico)  * ccohort%n * dt_tstep_inv * ha_per_m2
                     else
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
                        hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                            ccohort%rdark  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%livestem_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%livestem_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%livecroot_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%livecroot_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%froot_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%froot_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
                             ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv  * ha_per_m2
+                            cpatch%coarrays%resp_m_tstep(ico)  * ccohort%n * dt_tstep_inv  * ha_per_m2
                     endif
                   end associate
                endif
@@ -5777,10 +5783,10 @@ contains
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
                   hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) = hio_ts_net_uptake_si_cnlf(io_si, cnlf_indx) + &
-                       ccohort%ts_net_uptake(ileaf) * dt_tstep_inv * ccohort%c_area * area_inv
+                       cpatch%coarrays%ts_net_uptake(ileaf,ico) * dt_tstep_inv * ccohort%c_area * area_inv
                end do
 
-               ccohort => ccohort%taller
+               ccohort => ccohort%shorter
             enddo ! cohort loop
 
 
@@ -5789,7 +5795,7 @@ contains
             if_zenith1: if( sites(s)%coszen>0._r8 ) then
 
                do_pft1: do ipft=1,numpft
-                  do_canlev1: do ican=1,cpatch%ncl_p
+                  do_canlev1: do ican=1,cpatch%ncl
                      do_leaflev1: do ileaf=1,cpatch%nrad(ican,ipft)
 
                         ! calculate where we are on multiplexed dimensions
@@ -5999,7 +6005,7 @@ contains
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
-    integer :: s, io_si
+    integer :: s, io_si, ico
     real(r8) :: site_canopy_area
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
     real(r8) :: patch_canarea_div_site_canarea  ! Weighting based on patch canopy area relative to site canopy area
@@ -6047,19 +6053,18 @@ contains
              hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
           end if
 
-          ccohort => cpatch%shortest
+          ico=0
+          ccohort => cpatch%tallest
           do while(associated(ccohort))
-             if (ccohort%isnew) then
-                ccohort => ccohort%taller
-                cycle
-             end if
-             cohort_n_div_site_area = ccohort%n * AREA_INV
+             ico=ico+1
+             if (.not.ccohort%isnew) then
+                cohort_n_div_site_area = ccohort%n * AREA_INV
 
-             hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
-                  + ccohort%gpp_tstep * dt_tstep_inv &
+                hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                     + cpatch%coarrays%gpp_tstep(ico) * dt_tstep_inv &
                   * cohort_n_div_site_area
-
-             ccohort => ccohort%taller
+             end if
+             ccohort => ccohort%shorter
           end do  ! cohort loop
 
           cpatch => cpatch%younger

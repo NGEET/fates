@@ -42,20 +42,21 @@ module FatesRadiationDriveMod
   use FatesGlobals, only      : endrun => fates_endrun
   use EDPftvarcon,        only : EDPftvarcon_inst
   use FatesNormanRadMod,  only : PatchNormanRadiation
-  
+
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
   implicit none
 
   private
+  public :: FatesNormalizedPatchRadiation
   public :: FatesNormalizedCanopyRadiation  ! Surface albedo and two-stream fluxes
   public :: FatesSunShadeFracs
 
-  logical :: debug = .false.  ! for debugging this module
+  logical,parameter :: debug = .false.  ! for debugging this module
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
-  
+
 contains
 
   subroutine FatesNormalizedCanopyRadiation(sites, bc_in, bc_out )
@@ -82,14 +83,7 @@ contains
     integer :: s                                   ! site loop counter
     integer :: nsites                              ! number of sites
     integer :: ifp                                 ! patch loop counter
-    integer :: ib                                  ! radiation broad band counter
-    integer :: cl, iv, icol, ft                    ! indices for canopy layer,leaf layer,
-                                                   ! rad column and functional type
-    integer :: nv                                  ! number of veg layers
-    real(r8) :: area_frac                          ! area fraction for layer of interest
-    real(r8) :: vai_top                            ! integrated (top-down) vegetation area
-                                                   ! index at lop of layer
-    real(r8) :: vai                                ! total VAI of the scattering element
+  
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
@@ -99,7 +93,7 @@ contains
     ! re-examined int he future
     ! RGK,2016-08-06: FATES is still incompatible with VOC emission module
     ! -------------------------------------------------------------------------------
-    
+
     nsites = size(sites,dim=1)
 
     do s = 1, nsites
@@ -111,127 +105,150 @@ contains
        do while (associated(currentpatch))
 
           ifp = currentpatch%patchno
-          
+
           if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-             
-             ! Initialize output boundary conditions with trivial assumption
-             ! This matches CLM/ELM
-             ! Albedo is perfect reflector, no flux into or through canopy
-             bc_out(s)%albd_parb(ifp,:)            = 1._r8
-             bc_out(s)%albi_parb(ifp,:)            = 1._r8
-             bc_out(s)%fabi_parb(ifp,:)            = 0._r8
-             bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-             bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
-             bc_out(s)%ftid_parb(ifp,:)            = 0._r8
-             bc_out(s)%ftii_parb(ifp,:)            = 0._r8
 
-             ! Zero diagnostics
-             currentPatch%f_sun      (:,:,:) = 0._r8
-             currentPatch%fabd_sun_z (:,:,:) = 0._r8
-             currentPatch%fabd_sha_z (:,:,:) = 0._r8
-             currentPatch%fabi_sun_z (:,:,:) = 0._r8
-             currentPatch%fabi_sha_z (:,:,:) = 0._r8
-             currentPatch%fabd       (:)     = 0._r8
-             currentPatch%fabi       (:)     = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
-             currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
-             currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
-             currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
-             currentPatch%rad_error(:)           = hlm_hio_ignore_val
-             
-             if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
-                
-                select case(hlm_radiation_model)
-                case(norman_solver)
+             call FatesNormalizedPatchRadiation(ifp,sites(s),bc_in(s),bc_out(s))
 
-                   call PatchNormanRadiation (currentPatch, &
-                        bc_in(s)%coszen, &
-                        bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
-                        bc_out(s)%albi_parb(ifp,:), &   ! Surface Albedo (indirect) diffuse
-                        bc_out(s)%fabd_parb(ifp,:), &   ! Fraction direct absorbed by canopy per unit incident
-                        bc_out(s)%fabi_parb(ifp,:), &   ! Fraction diffuse absorbed by canopy per unit incident
-                        bc_out(s)%ftdd_parb(ifp,:), &   ! Down direct flux below canopy per unit direct at top
-                        bc_out(s)%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
-                        bc_out(s)%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
-
-                case(twostr_solver)
-
-                   associate( twostr => currentPatch%twostr)
-
-                     call twostr%CanopyPrep(currentPatch%fcansno) 
-                     call twostr%ZenithPrep(sites(s)%coszen)
-
-                     do ib = 1,num_swb
-
-                        twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
-                        twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
-
-                        call twostr%Solve(ib,             &  ! in
-                             normalized_upper_boundary,   &  ! in
-                             1.0_r8,1.0_r8,               &  ! in
-                             sites(s)%taulambda_2str,         &  ! inout (scratch)
-                             sites(s)%omega_2str,             &  ! inout (scratch)
-                             sites(s)%ipiv_2str,              &  ! inout (scratch)
-                             bc_out(s)%albd_parb(ifp,ib), &  ! out
-                             bc_out(s)%albi_parb(ifp,ib), &  ! out
-                             currentPatch%rad_error(ib),  &  ! out
-                             bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                             bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                             bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                             bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                             bc_out(s)%ftii_parb(ifp,ib))
-
-                        if(debug) then
-                           currentPatch%twostr%band(ib)%Rbeam_atm = 1._r8
-                           currentPatch%twostr%band(ib)%Rdiff_atm = 1._r8
-                           call CheckPatchRadiationBalance(currentPatch, sites(s)%snow_depth, & 
-                                ib, bc_out(s)%fabd_parb(ifp,ib),bc_out(s)%fabi_parb(ifp,ib))
-                           currentPatch%twostr%band(ib)%Rbeam_atm = fates_unset_r8
-                           currentPatch%twostr%band(ib)%Rdiff_atm = fates_unset_r8
-
-                           if(bc_out(s)%fabi_parb(ifp,ib)>1.0 .or. bc_out(s)%fabd_parb(ifp,ib)>1.0)then
-                              write(fates_log(),*) 'absorbed fraction > 1.0?'
-                              write(fates_log(),*) ifp,ib,bc_out(s)%fabi_parb(ifp,ib),bc_out(s)%fabd_parb(ifp,ib)
-                              call twostr%Dump(ib,lat=sites(s)%lat,lon=sites(s)%lon)
-                              call endrun(msg=errMsg(sourcefile, __LINE__))
-                           end if
-                        end if
-                     end do
-
-                     ! Fill in the diagnostic arrays for normalized radiation profiles
-                     do_cl: do cl = 1,twostr%n_lyr
-                        do_icol: do icol = 1,twostr%n_col(cl)
-                           ft = twostr%scelg(cl,icol)%pft
-                           if_notair: if (ft>0) then
-                              area_frac = twostr%scelg(cl,icol)%area
-                              vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
-                              nv = GetNVegLayers(vai)
-                              do iv = 1, nv
-                                 vai_top = dlower_vai(iv)
-                                 currentPatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) = currentPatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
-                                 currentPatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) = currentPatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
-                                      area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
-                              end do
-                           end if if_notair
-                        end do do_icol
-                     end do do_cl
-                     
-                   end associate
-                end select
-             endif if_zenith_flag
           end if if_bareground
           currentPatch => currentPatch%younger
        end do
     end do
-    
+
     return
   end subroutine FatesNormalizedCanopyRadiation
 
   ! ======================================================================================
 
+  subroutine FatesNormalizedPatchRadiation(ifp,site,bc_in,bc_out)
+
+    type(ed_site_type), intent(inout) :: site
+    type(bc_in_type),   intent(in)    :: bc_in
+    type(bc_out_type),  intent(inout) :: bc_out
+    integer,intent(in)                :: ifp                                 ! patch loop counter
+
+    type(fates_patch_type), pointer :: patch
+    integer :: ib                                  ! radiation broad band counter
+    integer :: cl, iv, icol, ft                    ! indices for canopy layer,leaf layer,
+    ! rad column and functional type
+    integer :: nv                                  ! number of veg layers
+    real(r8) :: area_frac                          ! area fraction for layer of interest
+    real(r8) :: vai_top                            ! integrated (top-down) vegetation area
+    ! index at lop of layer
+    real(r8) :: vai                                ! total VAI of the scattering element
+    
+    patch => site%pa_vec(ifp)%p
+    
+    ! Initialize output boundary conditions with trivial assumption
+    ! This matches CLM/ELM
+    ! Albedo is perfect reflector, no flux into or through canopy
+    bc_out%albd_parb(ifp,:)            = 1._r8
+    bc_out%albi_parb(ifp,:)            = 1._r8
+    bc_out%fabi_parb(ifp,:)            = 0._r8
+    bc_out%fabd_parb(ifp,:)            = 0._r8
+    bc_out%ftdd_parb(ifp,:)            = 0._r8
+    bc_out%ftid_parb(ifp,:)            = 0._r8
+    bc_out%ftii_parb(ifp,:)            = 0._r8
+
+    ! Zero diagnostics
+    patch%f_sun      (:,:,:) = 0._r8
+    patch%fabd_sun_z (:,:,:) = 0._r8
+    patch%fabd_sha_z (:,:,:) = 0._r8
+    patch%fabi_sun_z (:,:,:) = 0._r8
+    patch%fabi_sha_z (:,:,:) = 0._r8
+    patch%fabd       (:)     = 0._r8
+    patch%fabi       (:)     = 0._r8
+    patch%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+    patch%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
+    patch%gnd_alb_dif(1:num_swb) = bc_in%albgr_dif_rb(1:num_swb)
+    patch%gnd_alb_dir(1:num_swb) = bc_in%albgr_dir_rb(1:num_swb)
+    patch%fcansno                = bc_in%fcansno_pa(ifp)
+    patch%rad_error(:)           = hlm_hio_ignore_val
+
+    if_zenith_flag: if( bc_in%coszen>0._r8 )then
+
+       select case(hlm_radiation_model)
+       case(norman_solver)
+
+          call PatchNormanRadiation (patch, &
+               bc_in%coszen, &
+               bc_out%albd_parb(ifp,:), &   ! Surface Albedo direct
+               bc_out%albi_parb(ifp,:), &   ! Surface Albedo (indirect) diffuse
+               bc_out%fabd_parb(ifp,:), &   ! Fraction direct absorbed by canopy per unit incident
+               bc_out%fabi_parb(ifp,:), &   ! Fraction diffuse absorbed by canopy per unit incident
+               bc_out%ftdd_parb(ifp,:), &   ! Down direct flux below canopy per unit direct at top
+               bc_out%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
+               bc_out%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
+
+       case(twostr_solver)
+
+          associate( twostr => patch%twostr)
+
+            call twostr%CanopyPrep(patch%fcansno) 
+            call twostr%ZenithPrep(site%coszen)
+
+            do ib = 1,num_swb
+
+               twostr%band(ib)%albedo_grnd_diff = patch%gnd_alb_dif(ib)
+               twostr%band(ib)%albedo_grnd_beam = patch%gnd_alb_dir(ib)
+
+               call twostr%Solve(ib,             &  ! in
+                    normalized_upper_boundary,   &  ! in
+                    1.0_r8,1.0_r8,               &  ! in
+                    bc_out%albd_parb(ifp,ib), &  ! out
+                    bc_out%albi_parb(ifp,ib), &  ! out
+                    patch%rad_error(ib),  &  ! out
+                    bc_out%fabd_parb(ifp,ib), &  ! out
+                    bc_out%fabi_parb(ifp,ib), &  ! out
+                    bc_out%ftdd_parb(ifp,ib), &  ! out
+                    bc_out%ftid_parb(ifp,ib), &  ! out
+                    bc_out%ftii_parb(ifp,ib))
+
+               if(debug) then
+                  patch%twostr%band(ib)%Rbeam_atm = 1._r8
+                  patch%twostr%band(ib)%Rdiff_atm = 1._r8
+                  call CheckPatchRadiationBalance(patch, site%snow_depth, & 
+                       ib, bc_out%fabd_parb(ifp,ib),bc_out%fabi_parb(ifp,ib))
+                  patch%twostr%band(ib)%Rbeam_atm = fates_unset_r8
+                  patch%twostr%band(ib)%Rdiff_atm = fates_unset_r8
+
+                  if(bc_out%fabi_parb(ifp,ib)>1.0 .or. bc_out%fabd_parb(ifp,ib)>1.0)then
+                     write(fates_log(),*) 'absorbed fraction > 1.0?'
+                     write(fates_log(),*) ifp,ib,bc_out%fabi_parb(ifp,ib),bc_out%fabd_parb(ifp,ib)
+                     call twostr%Dump(ib,lat=site%lat,lon=site%lon)
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
+               end if
+            end do
+
+            ! Fill in the diagnostic arrays for normalized radiation profiles
+            do_cl: do cl = 1,twostr%n_lyr
+               do_icol: do icol = 1,twostr%n_col(cl)
+                  ft = twostr%scelg(cl,icol)%pft
+                  if_notair: if (ft>0) then
+                     area_frac = twostr%scelg(cl,icol)%area
+                     vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
+                     nv = GetNVegLayers(vai)
+                     do iv = 1, nv
+                        vai_top = dlower_vai(iv)
+                        patch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) = patch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) + &
+                             area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
+                        patch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) = patch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) + &
+                             area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
+                             area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
+                     end do
+                  end if if_notair
+               end do do_icol
+            end do do_cl
+
+          end associate
+       end select
+    endif if_zenith_flag
+
+  end subroutine FatesNormalizedPatchRadiation
+
+  ! =========================================================================================
+  
   subroutine FatesSunShadeFracs(nsites, sites,bc_in,bc_out)
 
     implicit none
@@ -262,18 +279,18 @@ contains
     real(r8) :: vai
     logical  :: call_fail
     type(fates_patch_type), pointer :: fpatch ! patch pointer for failure reporting
-    
+
     do s = 1,nsites
 
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))
 
           ifp = cpatch%patchno
-          
+
           if_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
              ! do not do albedo calculations for bare ground patch in SP mode
-             
+
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -284,14 +301,14 @@ contains
 
                 sunlai = 0._r8
                 shalai = 0._r8
-                
+
                 ! Loop over patches to calculate laisun_z and laisha_z for each layer.
                 ! Derive canopy laisun, laisha, and fsun from layer sums.
                 ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
                 ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
                 ! cpatch%f_sun is calculated in the surface_albedo routine...
-                
-                do cl = 1, cpatch%ncl_p
+
+                do cl = 1, cpatch%ncl
                    do ft = 1,numpft
                       do iv = 1,cpatch%nrad(cl,ft)
                          cpatch%ed_laisun_z(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) * &
@@ -310,41 +327,41 @@ contains
                 else
                    bc_out(s)%fsun_pa(ifp) = 0._r8
                 endif
-                
+
                 if(debug)then
                    if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
                       write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
                            sunlai,shalai
                    endif
                 end if
-                
+
                 elai = calc_areaindex(cpatch,'elai')
-                
+
                 bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
                 bc_out(s)%laisha_pa(ifp) = elai*(1.0_r8-bc_out(s)%fsun_pa(ifp))
-                
+
                 ! Absorbed PAR profile through canopy
                 ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
                 ! are canopy integrated so that layer values equal big leaf values.
-                
-                do cl = 1, cpatch%ncl_p
+
+                do cl = 1, cpatch%ncl
                    do ft = 1,numpft
                       do iv = 1, cpatch%nrad(cl,ft)
-                         
+
                          cpatch%ed_parsun_z(cl,ft,iv) = &
                               bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(cl,ft,iv) + &
                               bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(cl,ft,iv)
-                         
+
                          cpatch%ed_parsha_z(cl,ft,iv) = &
                               bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(cl,ft,iv) + &
                               bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(cl,ft,iv)
-                         
+
                       end do !iv
                    end do !ft
                 end do !cl
-                
-                
-                
+
+
+
              else  ! if_norm_twostr
 
                 ! If there is no sun out, we have a trivial solution
@@ -354,7 +371,7 @@ contains
                    bc_out(s)%laisun_pa(ifp) = 0._r8
                    bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
                    bc_out(s)%fsun_pa(ifp)   = 0._r8
-                   
+
                 else
 
                    ! Two-stream 
@@ -363,20 +380,20 @@ contains
                       cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
                       cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
                    end do
-                   
+
                    area_vlpfcl(:,:,:) = 0._r8
                    cpatch%f_sun(:,:,:) = 0._r8
-                   
+
                    call FatesPatchFSun(sites(s),cpatch,    &
                         bc_out(s)%fsun_pa(ifp),   &
                         bc_out(s)%laisun_pa(ifp), &
                         bc_out(s)%laisha_pa(ifp))
-                   
+
                    associate(twostr => cpatch%twostr)
-                     
+
                      do_cl: do cl = 1,twostr%n_lyr
                         do_icol: do icol = 1,twostr%n_col(cl)
-                           
+
                            ft = twostr%scelg(cl,icol)%pft
                            if_notair: if (ft>0) then
                               area_frac = twostr%scelg(cl,icol)%area
@@ -385,7 +402,7 @@ contains
                               nv = GetNVegLayers(vai)
 
                               do iv = 1, nv
-                                 
+
                                  vai_top = dlower_vai(iv)
 
                                  if(iv == nv) then
@@ -393,7 +410,7 @@ contains
                                  else
                                     vai_bot = dlower_vai(iv+1)
                                  end if
-                                 
+
                                  call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
                                       Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
 
@@ -407,19 +424,19 @@ contains
                                     call twostr%Dump(ipar,lat=sites(s)%lat,lon=sites(s)%lon)
                                     call endrun(msg=errMsg(sourcefile, __LINE__))
                                  end if
-                                 
+
                                  cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) + &
                                       area_frac*leaf_sun_frac
                                  cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) + &
                                       area_frac*(rd_abs_leaf*leaf_sun_frac + rb_abs_leaf)
                                  cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) + &
                                       area_frac*rd_abs_leaf*(1._r8-leaf_sun_frac)
-                                 
+
                                  area_vlpfcl(iv,ft,cl) = area_vlpfcl(iv,ft,cl) + area_frac
                               end do
                            end if if_notair
                         end do do_icol
-                        
+
                         do ft = 1,numpft
                            do_iv: do iv = 1,cpatch%nleaf(cl,ft)
                               if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
@@ -428,16 +445,16 @@ contains
                               cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                            end do do_iv
                         end do
-                        
+
                      end do do_cl
 
                    end associate
 
                 end if if_zenithflag
              endif if_norm_twostr
-             
+
           end if if_bareground
-          
+
           cpatch => cpatch%younger
        enddo
 

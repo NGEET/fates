@@ -11,6 +11,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : nearzero, area_error_1
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
+  use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod,      only : i_term_mort_type_canlev
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -23,12 +24,16 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesAllometryMod     , only : CrownDepth
+  use FatesAllometryMod     , only : bleaf
+  use FatesAllometryMod, only : storage_fraction_of_target
+  use LeafBiophysicsMod, only : LowstorageMainRespReduction
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod           , only : nclmax
   use EDParamsMod           , only : nlevleaf
   use EDParamsMod           , only : GetNVegLayers
   use EDParamsMod           , only : comp_excln_exp
+  use EDParamsMod           , only : maxpft
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -37,7 +42,8 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : numpft
-  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod,  only : bc_in_type
+  use FatesInterfaceTypesMod , only : fates_maxPatchesPerSite
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : leaf_organ
@@ -51,6 +57,14 @@ module EDCanopyStructureMod
   use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
   use FatesRadiationMemMod  , only : num_rad_stream_types
+  use LeafBiophysicsMod     , only : UpdateSlowBiophysicalRates
+  use LeafBiophysicsMod, only : DecayCoeffVcmax
+  use PRTGenericMod,     only : carbon_only
+  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesParameterDerivedMod,only: param_derived
+  use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
+  use DamageMainMod,           only : GetCrownReduction
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -349,7 +363,7 @@ contains
           write(fates_log(),*) 'and you think this number of canopy layers is reasonable.'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        else
-          currentPatch%NCL_p = z
+          currentPatch%ncl = z
        end if
        
        ! -------------------------------------------------------------------------------------------
@@ -689,11 +703,11 @@ contains
          ! keep track of number and biomass promoted/demoted
 
          if( layer_co(ic)%pd_area > 0._r8 ) then
-            leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
-            store_c  = cohort%prt%GetState(store_organ,carbon12_element)
-            fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
-            sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
-            struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
+            leaf_c   = sum(cohort%prt%leaf_c(:))
+            store_c  = cohort%prt%store_c
+            fnrt_c   = cohort%prt%fnrt_c
+            sapw_c   = cohort%prt%sapw_c
+            struct_c = cohort%prt%struct_c
             
             if(phase==demotion_phase) then
                site%demotion_rate(cohort%size_class) = &
@@ -787,7 +801,8 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
     use FatesConstantsMod         , only : itrue
-
+    use EDParamsMod                    , only : maxpatch_total
+    
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -798,6 +813,7 @@ contains
     type (fates_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
+    integer  :: ift              ! index of unique plant functional type array
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch.
     real(r8) :: leaf_c           ! leaf carbon [kg]
@@ -805,7 +821,7 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
-
+   
     !----------------------------------------------------------------------
 
     if ( debug ) then
@@ -813,32 +829,44 @@ contains
     endif
 
     do s = 1,nsites
-
+       
        ! --------------------------------------------------------------------------------
        ! Set the patch indices (this is usefull mostly for communicating with a host or
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
        call set_patchno( sites(s) , .false., 0)
-
+      
        currentPatch => sites(s)%oldest_patch
-
        do while(associated(currentPatch))
-
+          
           !zero cohort-summed variables.
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
 
+          ! Tracking unique pft counts on this patch
+          ! used to help speed up photosynthesis calculations
+          currentPatch%unique_pfts(:) = 0
+          currentPatch%upft_index(:)  = 0
+          currentPatch%nupft          = 0
+           
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
-          do while(associated(currentCohort))
+          co_loop1: do while(associated(currentCohort))
 
              ft = currentCohort%pft
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-             struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
-             store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
+
+             if( .not. any(currentPatch%unique_pfts(1:numpft) == ft) )then
+                currentPatch%nupft = currentPatch%nupft+1
+                currentPatch%unique_pfts(currentPatch%nupft) = ft
+                currentPatch%upft_index(ft) = currentPatch%nupft
+             end if
+             
+             leaf_c   = sum(currentCohort%prt%leaf_c(:))
+             sapw_c   = currentCohort%prt%sapw_c
+             struct_c = currentCohort%prt%struct_c
+             fnrt_c   = currentCohort%prt%fnrt_c
+             store_c  = currentCohort%prt%store_c
 
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
@@ -902,7 +930,7 @@ contains
 
              currentCohort => currentCohort%taller
 
-          enddo ! ends 'do while(associated(currentCohort))
+          enddo co_loop1 ! ends 'do while(associated(currentCohort))
 
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
@@ -915,15 +943,28 @@ contains
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
+          do ift=1,currentPatch%nupft
+             ft = currentPatch%unique_pfts(ift)
+             call UpdateSlowBiophysicalRates(currentPatch%bprates,ft,&
+                  currentPatch%tveg_lpa%GetMean(), &
+                  currentPatch%tveg_longterm%GetMean())
+          end do
+          
           currentPatch => currentPatch%younger
        end do !patch loop
-
+       
        call leaf_area_profile(sites(s))
        
        if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s))
        end if
        
+       currentPatch => sites(s)%oldest_patch
+       do while(associated(currentPatch))
+          ! Transfer cohort info to patch level scratch space
+          call CopyCohortToCoArray(currentPatch)
+          currentPatch => currentPatch%younger
+       end do
     end do ! site loop
 
     return
@@ -1037,6 +1078,8 @@ contains
        ! or resized
        call cpatch%ReAllocateDynamics()
 
+       
+       
        ! These calls NaN and zero the above mentioned arrays
        call cpatch%NanDynamics()
        call cpatch%ZeroDynamics()
@@ -1205,7 +1248,7 @@ contains
           ! should have a value of exactly 1.0 in its top leaf layer
           ! --------------------------------------------------------------------------
 
-          if ( (cpatch%NCL_p > 1) .and. &
+          if ( (cpatch%ncl > 1) .and. &
                (sum(cpatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
              write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
              write(fates_log(), *) 'cl: ',1
@@ -1238,7 +1281,7 @@ contains
           ! It should never be larger than 1 or less than 0.
           ! --------------------------------------------------------------------------
 
-          do cl = 1,cpatch%NCL_p
+          do cl = 1,cpatch%ncl
              do iv = 1,cpatch%nleaf(cl,ft)
 
                 if( debug .and. sum(cpatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
@@ -1298,7 +1341,7 @@ contains
           ! preserve_b4b will be removed soon. This is kept here to prevent
           ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
           if(preserve_b4b) then
-             do cl = 1,cpatch%NCL_p
+             do cl = 1,cpatch%ncl
                 do ft = 1,numpft
                    do  iv = 1, cpatch%nrad(cl,ft)
                       if(cpatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
@@ -1308,16 +1351,24 @@ contains
                 end do
              end do
           else
-             do cl = 1,cpatch%NCL_p
+             do cl = 1,cpatch%ncl
                 do ft = 1,numpft
                    if(cpatch%canopy_area_profile(cl,ft,1) > 0._r8 ) cpatch%canopy_mask(cl,ft) = 1
                 end do
              end do
           end if
-
              
        end if if_any_canopy_area
 
+       ! Identify the maximum number of leaf layers for any canopy
+       ! or pft, this helps with efficient memory allocation during
+       ! photosynthesis
+
+       cpatch%nleafmax = maxval(cpatch%nleaf)
+
+      
+
+       
        cpatch => cpatch%younger
     enddo !patch
 
@@ -1574,14 +1625,14 @@ contains
 
     ai = 0._r8
     if     (trim(ai_type) == 'elai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
           enddo
        enddo
     elseif (trim(ai_type) == 'tlai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
@@ -1589,14 +1640,14 @@ contains
        enddo
 
     elseif (trim(ai_type) == 'esai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
           enddo
        enddo
     elseif (trim(ai_type) == 'tsai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
@@ -1711,7 +1762,7 @@ contains
    real(r8) :: treesai                             ! stem area index within crown m2/m2
    
    ! Obtain the leaf carbon
-   leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
+   leaf_c = sum(currentCohort%prt%leaf_c(:))
 
    ! Note that tree_lai has an internal check on the canopy location
    call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
@@ -1754,4 +1805,189 @@ contains
 
   end function NumCanopyLayers
 
+  ! =====================================================================================
+  
+  subroutine CopyCohortToCoArray(patch)
+
+    ! Copy data from the cohort linked-list to the cohort
+    ! vectors. These are only the variables that are
+    ! used at high frequencies
+    
+    type(fates_patch_type),intent(inout) :: patch
+    type(fates_cohort_type),pointer :: cohort
+
+    integer :: ico  ! cohort index
+    integer :: ft
+    real(r8) :: leaf_c,leaf_n
+    real(r8) :: lnc_top
+    real(r8) :: store_c_target
+    real(r8) :: mr_reduction_factor
+    real(r8) :: storage_target_frac
+    real(r8) :: agb_frac                         ! fraction of biomass aboveground
+    real(r8) :: branch_frac                      ! fraction of aboveground woody biomass in branches
+    real(r8) :: crown_reduction                  ! reduction in crown biomass from damage
+    real(r8) :: sapw_c_bgw                       ! belowground sapwood
+    real(r8) :: sapw_c_agw                       ! aboveground sapwood
+    real(r8) :: sapw_c_undamaged                 ! the target sapwood of an undamaged tree
+    real(r8) :: sapw_n                           ! sapwood nitrogen
+    real(r8) :: sapw_n_bgw                       ! nitrogen in belowground portion of sapwood
+    real(r8) :: sapw_n_agw                       ! nitrogen in aboveground portion of sapwood
+    real(r8) :: sapw_n_undamaged                 ! nitrogen in sapwood of undamaged tree
+
+    associate(coarr => patch%coarrays)
+    
+    ico = 0
+    cohort => patch%tallest
+    do while (associated(cohort))
+       ico = ico + 1
+
+       coarr%vcmax25top(ico) = cohort%vcmax25top
+       coarr%jmax25top(ico) = cohort%jmax25top
+       coarr%kp25top(ico) = cohort%kp25top
+       coarr%pft(ico) = cohort%pft
+       coarr%c_area(ico) = cohort%c_area
+       coarr%nplant(ico) = cohort%n
+       coarr%canopy_layer(ico) = cohort%canopy_layer
+       coarr%nv(ico) = cohort%nv
+       coarr%treesai(ico) = cohort%treesai
+       coarr%treelai(ico) = cohort%treelai
+       coarr%height(ico) = cohort%height
+
+       call bleaf(cohort%dbh,cohort%pft,&
+            cohort%crowndamage,cohort%canopy_trim,1.0_r8,store_c_target)
+       
+       call storage_fraction_of_target(store_c_target, &
+            cohort%prt%store_c, &
+            storage_target_frac)
+       
+       call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
+            mr_reduction_factor)
+       
+       coarr%mr_reduction_factor(ico) = mr_reduction_factor
+       coarr%twostr_col(ico) = cohort%twostr_col
+       
+       ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
+       ft = cohort%pft
+       select case(hlm_parteh_mode)
+       case (carbon_only)
+          lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
+       case (carbon_nitrogen_phosphorus)
+          leaf_c  = sum(cohort%prt%leaf_c(:))
+          if( (leaf_c*prt_params%slatop(ft)) > nearzero) then
+             leaf_n  = sum(cohort%prt%leaf_n(:))
+             lnc_top = leaf_n / (prt_params%slatop(ft) * leaf_c )
+          else
+             lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
+          end if
+       end select
+       
+       coarr%lnc_top(ico) = lnc_top
+       coarr%kn_leafn(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+            prt_params%leafn_vert_scaler_coeff1(ft), &
+            prt_params%leafn_vert_scaler_coeff2(ft))
+
+       coarr%kn_atk(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+            EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+            EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
+       
+       if (hlm_use_planthydro.eq.itrue ) then
+          coarr%leaf_psi(ico) = cohort%co_hydr%psi_ag(1)
+          coarr%btran(ico)    = cohort%co_hydr%btran 
+       else
+          coarr%btran(ico) = patch%btran_ft(ft)
+          coarr%leaf_psi(ico) = fates_unset_r8
+       end if
+
+       ! Organ Respiration:
+       ! --------------------------------------------------------------
+       
+       if (hlm_use_tree_damage .eq. itrue) then
+          
+          ! Crown damage currenly only reduces the aboveground portion of 
+          ! sapwood. Therefore we calculate the aboveground and the belowground portion 
+          ! sapwood for use in stem respiration. 
+          call GetCrownReduction(cohort%crowndamage, crown_reduction)
+          
+       else
+          crown_reduction = 0.0_r8
+       end if
+       
+       ! If crown reduction is zero, undamaged sapwood target will equal sapwood carbon
+       agb_frac = prt_params%allom_agb_frac(cohort%pft)
+       branch_frac = param_derived%branch_frac(cohort%pft)
+       sapw_c_undamaged = cohort%prt%sapw_c / (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+       
+       ! Undamaged below ground portion
+       sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
+       
+       ! Damaged aboveground portion
+       sapw_c_agw = cohort%prt%sapw_c - sapw_c_bgw                         
+       
+       select case(hlm_parteh_mode)
+       case (carbon_only)
+          
+          coarr%live_stem_n(ico) = sapw_c_agw * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+          
+          coarr%live_croot_n(ico) = sapw_c_bgw * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+          
+          coarr%fnrt_n(ico) = cohort%prt%fnrt_c * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
+          
+       case(carbon_nitrogen_phosphorus)
+          
+          coarr%fnrt_n(ico) = cohort%prt%fnrt_n
+          
+          if (hlm_use_tree_damage .eq. itrue) then
+             
+             sapw_n_undamaged = cohort%prt%sapw_n / &
+                  (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+             
+             sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
+             sapw_n_agw = cohort%prt%sapw_n - sapw_n_bgw
+             
+             coarr%live_croot_n(ico) = sapw_n_bgw
+             
+             coarr%live_stem_n(ico) = sapw_n_agw
+          else
+             
+             coarr%live_stem_n(ico) = prt_params%allom_agb_frac(cohort%pft) * &
+                  cohort%prt%sapw_n
+             
+             coarr%live_croot_n(ico) = (1.0_r8-prt_params%allom_agb_frac(cohort%pft)) * &
+                  cohort%prt%sapw_n
+             
+          end if
+          
+       case default
+       end select
+
+       ! Force stem respiration to zero for non-woody species
+       if ( int(prt_params%woody(ft)) == ifalse) then
+          coarr%live_stem_n(ico) = 0._r8
+       end if
+       
+
+       ! IN/OUT (THIS SHOULDN'T BE NEEDED BUT BTRAN CALCULATION IS
+       ! OUT OF ORDER, THIS IS ONLY USED ONCE ON RESTARTS
+       coarr%g_sb_laweight(ico)    = cohort%g_sb_laweight
+
+       ! OUTPUTS
+       !coarr%resp_m_tstep(ico) = 
+       !coarr%gpp_tstep(ico) = 
+       !coarr%rdark_tstep(ico) = 
+       !coarr%c13disc_clm(ico) = 
+       !coarr%g_sb_laweight(ico) = 
+
+       
+       cohort => cohort%shorter
+    enddo
+
+    coarr%ncohorts = ico
+    
+  end associate
+    
+  end subroutine CopyCohortToCoArray
+  
 end module EDCanopyStructureMod
