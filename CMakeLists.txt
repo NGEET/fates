@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Determine HLM_ROOT path (compatible with CMake 3.10+)
+if (NOT DEFINED HLM_ROOT)
+  if (NOT "$ENV{HLM_ROOT}" STREQUAL "")
+    set(HLM_ROOT "$ENV{HLM_ROOT}")
+  else()
+    set(HLM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+  endif()
+endif()
+get_filename_component(HLM_ROOT "${HLM_ROOT}" ABSOLUTE)
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../share/cmake")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../components/cmeps/cmake")
+list(APPEND CMAKE_MODULE_PATH "${HLM_ROOT}/share/cmake")
+list(APPEND CMAKE_MODULE_PATH "${HLM_ROOT}/components/cmeps/cmake")
 
 FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
 FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
@@ -17,8 +26,6 @@ include(CIME_initial_setup)
 project(FATES_tests Fortran C)
 
 include(CIME_utils)
-
-set(HLM_ROOT "../../")
 
 if (DEFINED ENV{ESMF_ROOT})
   list(APPEND CMAKE_MODULE_PATH $ENV{ESMF_ROOT}/cmake)
@@ -42,16 +49,16 @@ add_subdirectory(${HLM_ROOT}/share/src csm_share)
 add_subdirectory(${HLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 
 # Add FATES source directories
-add_subdirectory(${HLM_ROOT}/src/fates/main fates_main)
-add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
-add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
-add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
-add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
-add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/main fates_main)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/biogeochem fates_biogeochem)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/biogeophys fates_biogeophys)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/parteh fates_parteh)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/fire fates_fire)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/radiation fates_radiation)
 
 # Testing directories
-add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/fortran_shr test_share)
-add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/functional/fire/shr fire_share)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing/tests/fortran_shr test_share)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing/tests/functional/fire/shr fire_share)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
@@ -111,4 +118,4 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_libraries(esmf)
               
 # Add the main test directory
-add_subdirectory(${HLM_ROOT}/src/fates/testing)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/testing)
