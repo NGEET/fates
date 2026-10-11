@@ -1,0 +1,243 @@
+! Summary: Unit tests for FatesPlantHydraulicsMod size-dependent state updates when plant geometry changes.
+!=========================================================================================
+! Tests for FatesPlantHydraulicsMod size-dependent state updates when plant geometry changes
+!=========================================================================================
+module FatesPlantHydraulicsMod_sizedep_test
+  use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps, UpdateSizeDepPlantHydStates, UpdateSizeDepRhizHydProps, InitHydroGlobals
+  use funit
+
+  use FatesHydraulicsMemMod, only : ed_cohort_hydr_type, ed_site_hydr_type, n_hypool_ag, n_hypool_leaf, &
+       aroot_p_media, leaf_p_media, stem_p_media, troot_p_media, n_plant_media
+  use EDPftvarcon, only : EDPftvarcon_inst
+  use FatesConstantsMod, only : r8 => fates_r8, denh2o => dens_fresh_liquid_water
+  use EDTypesMod, only : ed_site_type
+  use FatesCohortMod, only : fates_cohort_type
+  use FatesPatchMod, only : fates_patch_type
+  use FatesInterfaceTypesMod, only : bc_in_type
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestPlantHydraulicsSizedep
+  contains
+  end type TestPlantHydraulicsSizedep
+
+contains
+
+
+  ! Summary: Tests size-dependent hydraulic property recalculation (node lengths, volumes, conductances) when plant geometry changes.
+  @Test
+  subroutine test_UpdateSizeDepPlantHydProps(this)
+    use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+    use EDPftvarconMockMod, only : init_mock_edpftvarcon
+    use EDTypesMockMod, only : init_mock_site_patch_cohort
+
+    class(TestPlantHydraulicsSizedep), intent(inout) :: this
+    type(ed_site_type), pointer :: csite => null()
+    type(fates_patch_type), pointer :: cpatch => null()
+    type(fates_cohort_type), pointer :: ccohort => null()
+    integer :: nlevrhiz = 1
+    real(r8) :: expected_kmax
+    real(r8), parameter :: tol = 1.e-6_r8
+    
+    ! Initialize mock global structures and hydraulics parameters
+    call init_mock_prt_params()
+    call init_mock_edpftvarcon()
+    call InitHydroGlobals()
+    
+    call init_mock_site_patch_cohort(csite, cpatch, ccohort)
+    ccohort%pft = 1
+    
+    ! Configure 1 soil layer and initialize hydraulics site and cohort structures
+    csite%si_hydr%nlevrhiz = nlevrhiz
+    call csite%si_hydr%InitHydrSite(1, 1, 1, 1)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(nlevrhiz)
+    
+    ! Soil geometry: thickness dz [m], interface zi [m]
+    csite%si_hydr%zi_rhiz(1) = 0.5_r8
+    csite%si_hydr%dz_rhiz(1) = 0.5_r8
+    csite%si_hydr%l_aroot_layer(1) = 1.0_r8
+    csite%si_hydr%map_r2s(1,1) = 1
+    csite%si_hydr%map_r2s(1,2) = 1
+
+    ! Execute size-dependent hydraulic property update routine
+    call UpdateSizeDepPlantHydProps(csite, ccohort)
+    
+    ! Expected analytical kmax [kg/m2/MPa/s] derived from sapwood cross-sectional area and organ geometry
+    expected_kmax = 0.006733541266373205_r8
+
+    @assertEqual(expected_kmax, ccohort%co_hydr%kmax_stem_lower(1), tolerance=tol)
+    
+    ! Clean up allocated cohort structures
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+  end subroutine test_UpdateSizeDepPlantHydProps
+
+  ! Summary: Tests relative water content (theta) scaling to conserve total water mass when compartment volume changes.
+  @Test
+  subroutine test_UpdateSizeDepPlantHydStates(this)
+    class(TestPlantHydraulicsSizedep), intent(inout) :: this
+    type(ed_site_type), target :: currentSite
+    type(fates_cohort_type), target :: ccohort
+    integer :: nlevrhiz = 2
+    integer :: ft = 1
+    
+    ! Setup node saturation and residual moisture thresholds for mock testing
+    if (.not. allocated(EDPftvarcon_inst%hydr_thetas_node)) then
+       allocate(EDPftvarcon_inst%hydr_thetas_node(1, n_plant_media))
+       allocate(EDPftvarcon_inst%hydr_resid_node(1, n_plant_media))
+    end if
+    ! Saturation moisture threshold [m3/m3]
+    EDPftvarcon_inst%hydr_thetas_node(1, :) = 0.5_r8
+    ! Residual moisture threshold [m3/m3]
+    EDPftvarcon_inst%hydr_resid_node(1, :) = 0.05_r8
+    
+    allocate(currentSite%si_hydr)
+    currentSite%si_hydr%nlevrhiz = nlevrhiz
+    currentSite%si_hydr%h2oveg_growturn_err = 0.0_r8
+    
+    ccohort%pft = ft
+    ! Cohort density n [indiv/m2]
+    ccohort%n = 1.0_r8
+    allocate(ccohort%co_hydr)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(nlevrhiz)
+    
+    ! Test inputs: initial volume v_init [m3], current volume v_curr [m3], initial theta [m3/m3]
+    ccohort%co_hydr%v_ag = 2.0_r8
+    ccohort%co_hydr%v_ag_init = 1.0_r8
+    ccohort%co_hydr%th_ag = 0.3_r8
+    
+    ccohort%co_hydr%v_troot = 2.0_r8
+    ccohort%co_hydr%v_troot_init = 1.0_r8
+    ccohort%co_hydr%th_troot = 0.3_r8
+    
+    ccohort%co_hydr%v_aroot_layer(:) = 2.0_r8
+    ccohort%co_hydr%v_aroot_layer_init(:) = 1.0_r8
+    ccohort%co_hydr%th_aroot(:) = 0.3_r8
+    
+    ! Execute state update routine
+    call UpdateSizeDepPlantHydStates(currentSite, ccohort)
+    
+    ! Analytical solution derivation:
+    ! Water mass conservation: theta_new * v_curr = theta_old * v_init
+    ! theta_new = 0.3 * (1.0 / 2.0) = 0.15 m3/m3 (uncapped since 0.05 <= 0.15 <= 0.5)
+    @assertEqual(0.15_r8, ccohort%co_hydr%th_ag(1), tolerance=1.e-8_r8)
+    @assertEqual(0.15_r8, ccohort%co_hydr%th_troot, tolerance=1.e-8_r8)
+    @assertEqual(0.15_r8, ccohort%co_hydr%th_aroot(1), tolerance=1.e-8_r8)
+
+    ! Invariant D: Volume scaling water mass conservation (theta_new * v_curr == theta_old * v_init)
+    @assertEqual(0.3_r8 * 1.0_r8, ccohort%co_hydr%th_ag(1) * ccohort%co_hydr%v_ag(1), tolerance=1.e-8_r8)
+    @assertEqual(0.3_r8 * 1.0_r8, ccohort%co_hydr%th_troot * ccohort%co_hydr%v_troot, tolerance=1.e-8_r8)
+    @assertEqual(0.3_r8 * 1.0_r8, ccohort%co_hydr%th_aroot(1) * ccohort%co_hydr%v_aroot_layer(1), tolerance=1.e-8_r8)
+
+    ! Teardown
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+    deallocate(ccohort%co_hydr)
+    deallocate(currentSite%si_hydr)
+  end subroutine test_UpdateSizeDepPlantHydStates
+
+  ! Summary: Tests residual moisture floor clamping in UpdateSizeDepPlantHydStates when organ volume expands rapidly.
+  @Test
+  subroutine test_UpdateSizeDepPlantHydStates_ResidualClamping(this)
+    class(TestPlantHydraulicsSizedep), intent(inout) :: this
+    type(ed_site_type), target :: currentSite
+    type(fates_cohort_type), target :: ccohort
+    integer :: nlevrhiz = 1
+    integer :: ft = 1
+    real(r8) :: expected_clamped_theta
+    ! Small theta offset parameter used in constrain_water_contents to prevent exact boundary singularities [m3/m3]
+    real(r8), parameter :: small_theta_num = 1.e-7_r8
+
+    if (.not. allocated(EDPftvarcon_inst%hydr_thetas_node)) then
+       allocate(EDPftvarcon_inst%hydr_thetas_node(1, n_plant_media))
+       allocate(EDPftvarcon_inst%hydr_resid_node(1, n_plant_media))
+    end if
+    ! Saturation moisture threshold [m3/m3]
+    EDPftvarcon_inst%hydr_thetas_node(1, :) = 0.5_r8
+    ! Residual moisture threshold [m3/m3]
+    EDPftvarcon_inst%hydr_resid_node(1, :) = 0.05_r8
+
+    allocate(currentSite%si_hydr)
+    currentSite%si_hydr%nlevrhiz = nlevrhiz
+    currentSite%si_hydr%h2oveg_growturn_err = 0.0_r8
+
+    ccohort%pft = ft
+    ccohort%n = 1.0_r8
+    allocate(ccohort%co_hydr)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(nlevrhiz)
+
+    ! Large volume expansion: v_init = 1.0 m3, v_curr = 100.0 m3, th_init = 0.10 m3/m3
+    ! Uncorrected theta = 0.10 * (1.0 / 100.0) = 0.001 m3/m3, which drops below 0.05 residual floor
+    ccohort%co_hydr%v_ag = 100.0_r8
+    ccohort%co_hydr%v_ag_init = 1.0_r8
+    ccohort%co_hydr%th_ag = 0.10_r8
+
+    ccohort%co_hydr%v_troot = 100.0_r8
+    ccohort%co_hydr%v_troot_init = 1.0_r8
+    ccohort%co_hydr%th_troot = 0.10_r8
+
+    ccohort%co_hydr%v_aroot_layer(:) = 100.0_r8
+    ccohort%co_hydr%v_aroot_layer_init(:) = 1.0_r8
+    ccohort%co_hydr%th_aroot(:) = 0.10_r8
+
+    call UpdateSizeDepPlantHydStates(currentSite, ccohort)
+
+    ! Expected moisture content clamped to residual threshold + small_theta_num offset: 0.05 + 1.e-7 = 0.0500001 m3/m3
+    expected_clamped_theta = 0.05_r8 + small_theta_num
+
+    @assertEqual(expected_clamped_theta, ccohort%co_hydr%th_ag(1), tolerance=1.e-8_r8)
+    @assertEqual(expected_clamped_theta, ccohort%co_hydr%th_troot, tolerance=1.e-8_r8)
+    @assertEqual(expected_clamped_theta, ccohort%co_hydr%th_aroot(1), tolerance=1.e-8_r8)
+
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+    deallocate(ccohort%co_hydr)
+    deallocate(currentSite%si_hydr)
+  end subroutine test_UpdateSizeDepPlantHydStates_ResidualClamping
+
+  ! Summary: Tests rhizosphere shell volume and root surface area update routines when root lengths change.
+  @Test
+  subroutine test_UpdateSizeDepRhizHydProps(this)
+    class(TestPlantHydraulicsSizedep), intent(inout) :: this
+    type(ed_site_type), target :: currentSite
+    type(bc_in_type) :: bc_in
+    integer :: nlevrhiz = 1
+    
+    allocate(currentSite%si_hydr)
+    currentSite%si_hydr%nlevrhiz = nlevrhiz
+    call currentSite%si_hydr%InitHydrSite(1, 1, 1, 1)
+    
+    allocate(bc_in%hksat_sisl(1))
+    allocate(bc_in%dz_sisl(1))
+    bc_in%hksat_sisl(1) = 0.1_r8
+    bc_in%dz_sisl(1) = 0.5_r8
+    
+    ! Initial values: l_aroot = 10.0 m, r_node_shell = 2.0 m, v_shell = 3.0 m3
+    currentSite%si_hydr%l_aroot_layer(:) = 10.0_r8
+    currentSite%si_hydr%r_node_shell(:,:) = 2.0_r8
+    currentSite%si_hydr%v_shell(:,:) = 3.0_r8
+    currentSite%si_hydr%dz_rhiz(:) = 0.5_r8
+    currentSite%si_hydr%rs1(:) = 0.01_r8
+    currentSite%si_hydr%map_r2s(1,1) = 1
+    currentSite%si_hydr%map_r2s(1,2) = 1
+
+    ! Empty patch topology: youngest_patch = null
+    nullify(currentSite%youngest_patch)
+    
+    ! Execute rhizosphere property update routine
+    call UpdateSizeDepRhizHydProps(currentSite, bc_in)
+    
+    ! SavePreviousRhizVolumes copies current properties to _init variables before recalculation
+    @assertEqual(10.0_r8, currentSite%si_hydr%l_aroot_layer_init(1), tolerance=1.e-8_r8)
+    @assertEqual(2.0_r8, currentSite%si_hydr%r_node_shell_init(1,1), tolerance=1.e-8_r8)
+    @assertEqual(3.0_r8, currentSite%si_hydr%v_shell_init(1,1), tolerance=1.e-8_r8)
+    
+    ! With no patches present, l_aroot_layer is re-summed to 0.0 m
+    @assertEqual(0.0_r8, currentSite%si_hydr%l_aroot_layer(1), tolerance=1.e-8_r8)
+    
+    ! Teardown
+    deallocate(bc_in%hksat_sisl)
+    deallocate(bc_in%dz_sisl)
+    deallocate(currentSite%si_hydr)
+  end subroutine test_UpdateSizeDepRhizHydProps
+
+end module FatesPlantHydraulicsMod_sizedep_test
+
