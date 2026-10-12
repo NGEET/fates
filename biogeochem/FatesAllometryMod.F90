@@ -557,6 +557,32 @@ contains
      end if
   end if
  end subroutine bbranch_liu
+ 
+ !=============================================================
+ !   #Mahmood et al, 2019, model 2
+ !   #ln (B) = a + b ln (DBH) + c ln (H)
+ !   a=-3.007; b= 2.761; c= -0.69
+ !==============================================
+ subroutine bbranch_mahmood_m2(d, h, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
+  implicit none
+  real(r8), intent(in) :: d, h, a, b, c, c2b, dbh_maxh
+  real(r8), intent(out) :: bbranch
+  real(r8), intent(out), optional :: dbbranchdd
+  real(r8) :: d_eff, y, deriv
+
+  d_eff = min(d, dbh_maxh)
+  y = a + b * log(d_eff) + c * log(h)
+  bbranch = exp(y) / c2b
+
+   if (present(dbbranchdd)) then
+     if (d < dbh_maxh) then
+        deriv = b / d
+        dbbranchdd = exp(y) * deriv / c2b
+     else
+        dbbranchdd = 0.0
+     end if
+   end if
+  end subroutine bbranch_mahmood_m2
  !=====================================================================
  !   #Mahmood et al, 2019, model 3,best branch biomass model
  !   #ln (B) = a + b ln (DBH) + c ln (H) +d ln (WD)
@@ -585,32 +611,6 @@ contains
      end if
   end if
  end subroutine bbranch_mahmood_m3
- !=============================================================
- !    #Mahmood et al, 2019, model 2
- !   #ln (B) = a + b ln (DBH) + c ln (H)
- !   a=-3.007; b= 2.761; c= -0.69
- !==============================================
- subroutine bbranch_mahmood_m2(d, h, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
-  implicit none
-  real(r8), intent(in) :: d, h, a, b, c, c2b, dbh_maxh
-  real(r8), intent(out) :: bbranch
-  real(r8), intent(out), optional :: dbbranchdd
-  real(r8) :: d_eff, y, deriv
-
-  d_eff = min(d, dbh_maxh)
-  y = a + b * log(d_eff) + c * log(h)
-  bbranch = exp(y) / c2b
-
-   if (present(dbbranchdd)) then
-     if (d < dbh_maxh) then
-        deriv = b / d
-        dbbranchdd = exp(y) * deriv / c2b
-     else
-        dbbranchdd = 0.0
-     end if
-   end if
-  end subroutine bbranch_mahmood_m2
-
 
   ! ============================================================================
   ! Generic crown area allometry wrapper
