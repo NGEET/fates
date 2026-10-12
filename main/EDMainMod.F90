@@ -336,6 +336,15 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
+
+    ! This call can come earlier in the call sequence. We keep
+    ! it here temporarily to prevent issues with b4b-ness.
+    ! We lose some precision in litter fluxes during disturbance
+    ! since we have to re-scale litter fluxes when the areas
+    ! of patches change. 
+    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
+
+    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -655,7 +664,7 @@ contains
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
-
+          ! Add efflux to the bc_out flux pools
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in, bc_out )
 
           if(element_pos(nitrogen_element)>0) then
@@ -789,14 +798,6 @@ contains
 
        currentPatch => currentPatch%older
     enddo
-
-
-    ! RGK: This call is unecessary for CLM coupling. I believe we
-    ! can remove it completely if/when this call is added in ELM to 
-    ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
-
-    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
-
 
     ! Update cohort number.
     ! This needs to happen after the CWD_input and seed_input calculations as they
