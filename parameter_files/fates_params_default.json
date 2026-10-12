@@ -548,6 +548,41 @@
       "units": "gP/gC/s",
       "data": [5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10]
     },
+    "fates_crownfire_min_lfmc": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "minimum live fuel moisture content that is observed for the system",
+      "units": "%",
+      "data": [80.0]
+    },
+    "fates_crownfire_coeff_lfmc": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "coefficient for live fuel moisture prediction given per unit change in both SMP and LAI",
+      "units": "unitless",
+      "data": [30.0]
+    },
+    "fates_crownfire_smp_lfmc": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "slope associated with soil metric potential for live fuel moisture prediction",
+      "units": "unitless",
+      "data": [4e-4]
+    },
+    "fates_crownfire_lai_lfmc": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "slope associated with leaf area index for live fuel moisture prediction",
+      "units": "unitless",
+      "data": [0.15]
+    },
+    "fates_crownfire_inter_lfmc": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "interaction term to account for the interaction between SMP and LAI for live fuel moisture prediction",
+      "units": "unitless",
+      "data": [0.0]
+    },
     "fates_damage_frac": {
       "dtype": "float",
       "dims": ["fates_pft"],

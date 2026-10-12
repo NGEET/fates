@@ -322,7 +322,7 @@ module CrownFireEquationsMod
     ! Calculate ROS_active, used for determining whether there is active or passtive crown fire
     ROS_active = ForwardRateOfSpread(fuel_bd, eps_fm10, q_ig_fm10, i_r_fm10, &
                                         xi_fm10, phi_wind_fm10)
-   ! apply the multiplier of 3.34 for the correlation between durface ROS and active crown fire ROS 
+   ! apply the multiplier of 3.34 for the correlation between surface ROS and active crown fire ROS 
    ! EQ. 8 
     ROS_active = ROS_active * 3.34_r8
 

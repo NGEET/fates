@@ -50,6 +50,13 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_rxfire_fuel_min      ! minimum fuel load at or below which rx fire is disallowed
    real(r8),protected, public :: SF_val_rxfire_fuel_max      ! maximum fuel load at or above which rx fire is disallowed
    real(r8),protected, public :: SF_val_rxfire_min_frac      ! minimum burnable fraction at site level at or above which rx fire is allowed
+   ! Crown fire relevant parameters
+   real(r8),protected, public :: SF_val_crownfire_min_lfmc   ! minimum live fuel moisture content 
+   real(r8),protected, public :: SF_val_crownfire_coeff_lfmc ! live fuel moisture content coefficient
+   real(r8),protected, public :: SF_val_crownfire_smp_lfmc   ! slope associated with soil metric potential for LFMC
+   real(r8),protected, public :: SF_val_crownfire_lai_lfmc   ! slope associated with LAI for LFMC
+   real(r8),protected, public :: SF_val_crownfire_inter_lfmc ! interaction term for SMP and LAI when calculating LFMC  
+   
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
    real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
@@ -161,6 +168,12 @@ contains
     SF_val_rxfire_fuel_min = nan
     SF_val_rxfire_fuel_max = nan
     SF_val_rxfire_min_frac = nan
+    SF_val_crownfire_min_lfmc = nan
+    SF_val_crownfire_coeff_lfmc = nan
+    SF_val_crownfire_smp_lfmc = nan
+    SF_val_crownfire_lai_lfmc = nan
+    SF_val_crownfire_inter_lfmc = nan
+
 
   end subroutine SpitFireParamsInit
 
@@ -272,6 +285,21 @@ contains
     
     param_p => pstruct%GetParamFromName("fates_rxfire_min_frac")
     SF_val_rxfire_min_frac = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_crownfire_min_lfmc")
+    SF_val_crownfire_min_lfmc = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_crownfire_coeff_lfmc")
+    SF_val_crownfire_coeff_lfmc = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_crownfire_smp_lfmc")
+    SF_val_crownfire_smp_lfmc = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_crownfire_lai_lfmc")
+    SF_val_crownfire_lai_lfmc = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_crownfire_inter_lfmc")
+    SF_val_crownfire_inter_lfmc = param_p%r_data_scalar
     
   end subroutine TransferParamsSpitFire
 

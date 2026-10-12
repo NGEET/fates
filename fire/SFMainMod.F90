@@ -215,6 +215,9 @@ contains
     use FatesConstantsMod,      only : denh2o => dens_fresh_liquid_water
     use FatesHydraulicsMemMod,  only : n_hypool_leaf
     use FatesHydraulicsMemMod,  only : ed_cohort_hydr_type
+    use SFParamsMod,            only : SF_val_crownfire_min_lfmc, SF_val_crownfire_coeff_lfmc, &
+                                       SF_val_crownfire_smp_lfmc, SF_val_crownfire_lai_lfmc, &
+                                       SF_val_crownfire_inter_lfmc
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite  ! site object
@@ -242,12 +245,6 @@ contains
 
     ! Parameters
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
-    ! LFMC parameters for testing
-    real(r8), parameter :: min_lfmc = 80.0_r8
-    real(r8), parameter :: coeff_lfmc = 30.0_r8
-    real(r8), parameter :: smp_alpha = 4E-4_r8
-    real(r8), parameter :: lai_beta = 0.15_r8
-    real(r8), parameter :: gamma_int = 0.0_r8
 
     ! update site level soil matric potential for each PFT
     mean_10day_smp(:) = 0.0_r8
@@ -302,7 +299,7 @@ contains
 
       
           ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)
-          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then
             ! calculate canopy base height for cohort, this is a different concept than the canopy fuel bed base height
             call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
             cbh_co = currentCohort%height - crown_depth
@@ -334,7 +331,8 @@ contains
             else
               currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
                        mean_10day_smp(currentCohort%pft), &
-                       min_lfmc, coeff_lfmc, smp_alpha, lai_beta, gamma_int)
+                       SF_val_crownfire_min_lfmc, SF_val_crownfire_coeff_lfmc, &
+                       SF_val_crownfire_smp_lfmc, SF_val_crownfire_lai_lfmc, SF_val_crownfire_inter_lfmc)
             end if
             write(fates_log(),*) 'current cohort cwc is ', currentCohort%lfmc
 
@@ -344,10 +342,11 @@ contains
         write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
 
         ! loop across cohorts to calculate patch level canopy water content
+        ! weighted by the cohort 1 hour canopy fuel
         currentCohort => currentPatch%tallest
 
         do while(associated(currentCohort))
-         if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+         if ( int(prt_params%woody(currentCohort%pft)) == itrue) then 
             call currentPatch%fuel%CanopyWaterContent(currentCohort%lfmc, &
             currentCohort%canopy_fuel_1h)
          end if
