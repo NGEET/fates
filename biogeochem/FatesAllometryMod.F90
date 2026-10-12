@@ -499,31 +499,27 @@ contains
     integer(i4), intent(in) :: ipft         ! PFT index
     real(r8), intent(out)   :: bbranch      ! Branch carbon [kg]
     real(r8), intent(out), optional :: dbbranchdd  ! Derivative wrt diameter [kg/cm]
-    real(r8) a,b,c, dparam                !temp. parameters
-    integer mode                          !branch allometry mode
     associate( dbh_maxh    => prt_params%allom_dbh_maxheight(ipft), &
                rho         => prt_params%wood_density(ipft),         &
-               !mode        => prt_params%branch_mode(ipft),          &
-               !a           => prt_params%branch_param_a(ipft),       &
-               !b           => prt_params%branch_param_b(ipft),       &
-               !c           => prt_params%branch_param_c(ipft),       &
-               !dparam      => prt_params%branch_param_d(ipft),       &
+               mode        => prt_params%branch_mode(ipft),          &
+               a           => prt_params%branch_param_a(ipft),       &
+               b           => prt_params%branch_param_b(ipft),       &
+               c           => prt_params%branch_param_c(ipft),       &
+               dparam      => prt_params%branch_param_d(ipft),       &
                c2b         => prt_params%c2b(ipft) )
-      !bypassing parameter file for now
-      mode = 3
-      a = -3.007
-      b =  2.761
-      c = -0.69
-      
+
       select case(mode)
       case(1)  ! Liu et al. (2023)
-         call bbranch_liu(d, h, rho, a, b, c, dbh_maxh, c2b, bbranch, dbbranchdd)
+         call bbranch_liu(d, h, rho, a, b, c, c2b=c2b, dbh_maxh=dbh_maxh, &
+              bbranch=bbranch, dbbranchdd=dbbranchdd)
 
-      case(2)  ! Mahmood et al. (2019) - Model 3
-         call bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, dbh_maxh, c2b, bbranch, dbbranchdd)
+      case(2)  ! Mahmood et al. (2019) - Model 2
+         call bbranch_mahmood_m2(d, h, a, b, c, c2b=c2b, dbh_maxh=dbh_maxh, &
+              bbranch=bbranch, dbbranchdd=dbbranchdd)
 
-      case(3)  ! Mahmood et al. (2019) - Model 2
-         call bbranch_mahmood_m2(d, h, a, b, c, dbh_maxh, c2b, bbranch, dbbranchdd)
+      case(3)  ! Mahmood et al. (2019) - Model 3
+         call bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, c2b=c2b, dbh_maxh=dbh_maxh, &
+              bbranch=bbranch, dbbranchdd=dbbranchdd)
 
       case default
          write(fates_log(),*) 'Undefined branch allometry model: ', mode
