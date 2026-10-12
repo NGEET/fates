@@ -560,6 +560,9 @@ contains
  
  !=============================================================
  !   #Mahmood et al, 2019, model 2
+ !   #Mahmood et al, 2019. Allometric models for estimating biomass, 
+ !   #carbon and nutrient stock in the Sal zone of Bangladesh. 
+ !   #IForest-Biogeosciences and Forestry, 12(1), p.69.
  !   #ln (B) = a + b ln (DBH) + c ln (H)
  !   a=-3.007; b= 2.761; c= -0.69
  !==============================================
@@ -586,9 +589,6 @@ contains
  !=====================================================================
  !   #Mahmood et al, 2019, model 3,best branch biomass model
  !   #ln (B) = a + b ln (DBH) + c ln (H) +d ln (WD)
- !   #Mahmood et al, 2019. Allometric models for estimating biomass, 
- !   #carbon and nutrient stock in the Sal zone of Bangladesh. 
- !   #IForest-Biogeosciences and Forestry, 12(1), p.69.
  !   a = -3.154; b=2.798; c=	-0.729; d=	-0.355
  !===========================================================================
  subroutine bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, c2b, dbh_maxh, bbranch, dbbranchdd)
