@@ -488,9 +488,11 @@ contains
     end associate
     return
   end subroutine blmax_allom
+
   ! ============================================================================
   ! generic allometry for branch biomass
   ! ============================================================================
+
   subroutine bbranch_allom(d, h, ipft, bbranch, dbbranchdd)
     implicit none
 
@@ -536,6 +538,7 @@ contains
   !  https://doi.org/10.1016/j.gecco.2022.e02359
   !  a=-2.5612; b=1.3958; c=-0.5762
   !===============================================================
+
   subroutine bbranch_liu(d, h, rho, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
   implicit none
   real(r8), intent(in) :: d, h, rho, a, b, c, c2b, dbh_maxh
@@ -566,6 +569,7 @@ contains
  !   #ln (B) = a + b ln (DBH) + c ln (H)
  !   a=-3.007; b= 2.761; c= -0.69
  !==============================================
+
  subroutine bbranch_mahmood_m2(d, h, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
   implicit none
   real(r8), intent(in) :: d, h, a, b, c, c2b, dbh_maxh
@@ -586,11 +590,13 @@ contains
      end if
    end if
   end subroutine bbranch_mahmood_m2
+
  !=====================================================================
  !   #Mahmood et al, 2019, model 3,best branch biomass model
  !   #ln (B) = a + b ln (DBH) + c ln (H) +d ln (WD)
  !   a = -3.154; b=2.798; c=	-0.729; d=	-0.355
  !===========================================================================
+  
  subroutine bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, c2b, dbh_maxh, bbranch, dbbranchdd)
   implicit none
   real(r8), intent(in) :: d, h, rho, a, b, c, dparam, c2b, dbh_maxh
