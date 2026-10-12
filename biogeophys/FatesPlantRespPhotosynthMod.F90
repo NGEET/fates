@@ -55,6 +55,8 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
   use EDParamsMod,       only : maintresp_nonleaf_baserate
+  use EDParamsMod,       only : maintresp_wood_model
+  use FatesConstantsMod, only : woodrespmodel_surface_area
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
@@ -999,7 +1001,8 @@ contains
                         ! Live stem MR (kgC/plant/s) (above ground sapwood)
                         ! ------------------------------------------------------------------
                         !put the option of surface-area-based wood respiration
-                        surface_area_resp_flag = .true.
+                        ! fates_maintresp_wood_model: 0 = sapwood biomass based, 1 = surface area based
+                        surface_area_resp_flag = (maintresp_wood_model == woodrespmodel_surface_area)
                         ra_umol = 2.87_r8 !unit: umol/m^2/s, eq. (4) from   https://doi.org/10.1046/j.1365-3040.2002.00877.x
                         ra = ra_umol * 12._r8 * 1.e-9_r8 !convert to kg C/m2/s
                         rb = 0.07_r8

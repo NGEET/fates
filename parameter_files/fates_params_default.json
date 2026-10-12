@@ -2018,6 +2018,13 @@
       "units": "gC/gN/s",
       "data": [2.525e-06]
     },
+    "fates_maintresp_wood_model": {
+      "dtype": "integer",
+      "dims": ["scalar"],
+      "long_name": "switch for woody tissue (live stem and coarse root) maintenance respiration model: 0) based on sapwood biomass (nitrogen), 1) based on wood surface area",
+      "units": "unitless",
+      "data": [1]
+    },
     "fates_maxcohort": {
       "dtype": "integer",
       "dims": ["scalar"],

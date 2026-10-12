@@ -11,6 +11,8 @@ module EDParamsMod
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesConstantsMod,    only : fates_unset_r8
   use FatesConstantsMod,    only : n_landuse_cats
+  use FatesConstantsMod,    only : woodrespmodel_sapwood_biomass
+  use FatesConstantsMod,    only : woodrespmodel_surface_area
   use JSONParameterUtilsMod,only : params_type,param_type
   
   ! CIME Globals
@@ -19,6 +21,8 @@ module EDParamsMod
   implicit none
   private
   save
+
+   character(len=*), parameter, private :: sourcefile = __FILE__
 
    real(r8),protected, public :: vai_top_bin_width                    ! width in VAI units of uppermost leaf+stem
                                                                       ! layer scattering element in each canopy layer [m2/m2]
@@ -47,6 +51,9 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cwd_fcel                      ! Cellulose fraction for CWD
    real(r8),protected, public :: ED_val_cwd_flig                      ! Lignin fraction of coarse woody debris
    real(r8),protected, public :: maintresp_nonleaf_baserate           ! Base maintenance respiration rate for plant tissues
+   integer, protected, public :: maintresp_wood_model                 ! Woody tissue maintenance respiration model
+                                                                      !  0 = based on sapwood biomass (nitrogen)
+                                                                      !  1 = based on wood surface area
    real(r8),protected, public :: ED_val_phen_a                        ! GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)
    real(r8),protected, public :: ED_val_phen_b                        ! GDD accumulation function, multiplier parameter: gdd_thesh = a + b exp(c*ncd)
    real(r8),protected, public :: ED_val_phen_c                        ! GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)
@@ -230,6 +237,7 @@ module EDParamsMod
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
     maintresp_nonleaf_baserate            = nan
+    maintresp_wood_model                  = -9
     ED_val_phen_a                         = nan
     ED_val_phen_b                         = nan
     ED_val_phen_c                         = nan
@@ -342,6 +350,17 @@ module EDParamsMod
     
     param_p => pstruct%GetParamFromName("fates_maintresp_nonleaf_baserate")
     maintresp_nonleaf_baserate = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_maintresp_wood_model")
+    maintresp_wood_model = param_p%i_data_scalar
+    if ( (maintresp_wood_model /= woodrespmodel_sapwood_biomass) .and. &
+         (maintresp_wood_model /= woodrespmodel_surface_area) ) then
+       write(fates_log(),*) 'Invalid fates_maintresp_wood_model: ', maintresp_wood_model
+       write(fates_log(),*) ' Valid options are:'
+       write(fates_log(),*) '  0 - wood respiration based on sapwood biomass'
+       write(fates_log(),*) '  1 - wood respiration based on wood surface area'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
     
     param_p => pstruct%GetParamFromName("fates_phen_gddthresh_a")
     ED_val_phen_a = param_p%r_data_scalar
@@ -517,6 +536,7 @@ module EDParamsMod
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'fates_maintresp_nonleaf_baserate = ', maintresp_nonleaf_baserate
+        write(fates_log(),fmti) 'fates_maintresp_wood_model = ', maintresp_wood_model
         write(fates_log(),fmt0) 'ED_val_phen_a = ',ED_val_phen_a
         write(fates_log(),fmt0) 'ED_val_phen_b = ',ED_val_phen_b
         write(fates_log(),fmt0) 'ED_val_phen_c = ',ED_val_phen_c
