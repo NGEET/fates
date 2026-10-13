@@ -7,8 +7,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
-from functional_class import FunctionalTest
-from utils_plotting import get_color_palette
+from framework.functional_test import FunctionalTest
 
 class CanopyFuelTest(FunctionalTest):
     """Canopy fuel test class"""
