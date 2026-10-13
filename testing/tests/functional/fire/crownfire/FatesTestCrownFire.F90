@@ -2,12 +2,11 @@ program FatesTestCrownFire
   
   use FatesConstantsMod,           only : r8 => fates_r8 
   use FatesArgumentUtils,          only : command_line_arg
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
 
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader                 ! param reader instance
   character(len=:), allocatable      :: param_file                   ! input parameter file
   real(r8),         allocatable      :: CWC(:)                       ! canopy water content [%]
   real(r8),         allocatable      :: CBD(:)                       ! canopy bulk density in biomass [kg/m3]
@@ -91,8 +90,7 @@ program FatesTestCrownFire
   param_file = command_line_arg(1)
 
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
 
   ! calculate minimum fire intensity for igniting crown fuels
   call TestPassCrownFI(CBH, CWC, passive_crown_fi)

@@ -1,7 +1,7 @@
 program FatesTestCanopyFuel
 
    use FatesConstantsMod,           only : r8 => fates_r8
-   use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+   use FatesUnitTestParamReaderMod, only : ReadParameters
    use FatesArgumentUtils,          only : command_line_arg
    use FatesCohortMod,              only : fates_cohort_type
    use FatesPatchMod,               only : fates_patch_type
@@ -37,7 +37,6 @@ program FatesTestCanopyFuel
    implicit none
 
    ! LOCALS:
-   type(fates_unit_test_param_reader)             :: param_reader ! param reader instance
    type(synthetic_patch_array_type)               :: patch_data   ! array of synthetic patches
    type(fuel_models_array_class)                  :: fuel_models_array    ! array of fuel models
    class(fire_weather),               pointer     :: fireWeather          ! fire weather object
@@ -79,8 +78,8 @@ program FatesTestCanopyFuel
    real(r8),               allocatable            :: CBD(:)              ! patch level canopy bulk density [kg biomass / m3]
    real(r8),               allocatable            :: CBH(:)              ! patch level canopy base height [m]
    real(r8),               allocatable            :: ROS_front(:,:,:,:)  ! surface fire forward rate of spread [m/min]
-   real(r8),               allocatable            :: ROS_actfm10(:,:,:,:,:) ! active crown fire ROS [m/min]
-   real(r8),               allocatable            :: ROS_actCI(:,:,:,:,:)   ! active crown fire ROS [m/min]
+   real(r8),               allocatable            :: ROS_actfm10(:,:,:,:,:) ! active crown fire ROS  [m/min]
+   real(r8),               allocatable            :: ROS_actCI(:,:,:,:,:)   ! active crown fire ROS at the wind speed of crowning index [m/min]
    real(r8),               allocatable            :: ROS_critical(:)        ! critical ROS for active crown fire to occur, by stand type [m/min]
    real(r8),               allocatable            :: ROS_final(:,:,:,:,:)   ! final ROS by stand type and surface fuel model [m/min]
    real(r8),               allocatable            :: FI_final(:,:,:,:,:)    ! final fire intensity by stand type and surface fuel model [kW/m]
@@ -140,8 +139,7 @@ program FatesTestCanopyFuel
    allocate(CFB(num_wind, size(NI), num_patch_types, size(CWC), num_fuel_models))
 
    ! read in parameter file
-   call param_reader%Init(param_file)
-   call param_reader%RetrieveParameters()
+   call ReadParameters(param_file)
 
    ! set up fire weather class
    allocate(nesterov_index :: fireWeather)
