@@ -170,6 +170,41 @@
       "units": "unitless",
       "data": [-0.12, -0.34, -0.32, -0.22, -0.12, -0.35, 0.0, 0.0, 0.0, 0.0, 0.0, -0.487, -0.487, -0.259]
     },
+    "fates_allom_branch_mode": {
+      "dtype": "integer",
+      "dims": ["fates_pft"],
+      "long_name": "branch biomass allometry function index  1) Liu et al. (2023), 2) Mahmood et al. (2019) model 2, 3) Mahmood et al. (2019) model 3",
+      "units": "index",
+      "data": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    },
+    "fates_allom_branch_param_a": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "Parameter a for branch biomass allometry (intercept)",
+      "units": "variable",
+      "data": [-3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154, -3.154]
+    },
+    "fates_allom_branch_param_b": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "Parameter b for branch biomass allometry (log-dbh coefficient)",
+      "units": "variable",
+      "data": [2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798, 2.798]
+    },
+    "fates_allom_branch_param_c": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "Parameter c for branch biomass allometry (log-height coefficient)",
+      "units": "variable",
+      "data": [-0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729, -0.729]
+    },
+    "fates_allom_branch_param_d": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "Parameter d for branch biomass allometry (log-wood-density coefficient, only used by fates_allom_branch_mode 3)",
+      "units": "variable",
+      "data": [-0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355, -0.355]
+    },
     "fates_allom_cmode": {
       "dtype": "integer",
       "dims": ["fates_pft"],
@@ -1982,6 +2017,13 @@
       "long_name": "Base maintenance respiration rate for plant tissues, using Ryan 1991",
       "units": "gC/gN/s",
       "data": [2.525e-06]
+    },
+    "fates_maintresp_wood_model": {
+      "dtype": "integer",
+      "dims": ["scalar"],
+      "long_name": "switch for woody tissue (live stem and coarse root) maintenance respiration model: 0) based on sapwood biomass (nitrogen), 1) based on wood surface area",
+      "units": "unitless",
+      "data": [0]
     },
     "fates_maxcohort": {
       "dtype": "integer",

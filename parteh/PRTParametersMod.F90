@@ -162,6 +162,16 @@ module PRTParametersMod
      real(r8), allocatable :: allom_agb3(:)                 ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)                 ! Parameter 3 for agb allometry
 
+     integer , allocatable :: branch_mode(:)                ! branch biomass allometry function type
+                                                            !   1 - Liu et al. (2023)
+                                                            !   2 - Mahmood et al. (2019), model 2
+                                                            !   3 - Mahmood et al. (2019), model 3
+     real(r8), allocatable :: branch_param_a(:)             ! Parameter a for branch biomass allometry
+     real(r8), allocatable :: branch_param_b(:)             ! Parameter b for branch biomass allometry
+     real(r8), allocatable :: branch_param_c(:)             ! Parameter c for branch biomass allometry
+     real(r8), allocatable :: branch_param_d(:)             ! Parameter d for branch biomass allometry
+                                                            !   (only used by branch_mode 3)
+
      real(r8), allocatable :: allom_h2cd1(:)                ! Parameter 1 for crown depth allometry. When allom_dmode=1
                                                             !    this is fraction of the height of the plant that is
                                                             !    considered crown (former parameter crown_depth_frac).

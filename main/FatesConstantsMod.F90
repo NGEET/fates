@@ -167,6 +167,10 @@ integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that 
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
+  ! integer labels for specifying woody (live stem and coarse root) maintenance respiration models
+  integer, parameter, public :: woodrespmodel_sapwood_biomass = 0 ! based on sapwood nitrogen (Ryan 1991)
+  integer, parameter, public :: woodrespmodel_surface_area    = 1 ! based on wood surface area
+
   ! integer labels for specifying carbon starvation model
   integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
   integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
