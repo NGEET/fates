@@ -6,11 +6,9 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
+from framework.functional_test import FunctionalTest
+from framework.utils.plotting import blank_plot, get_color_palette
 
-from functional_class import FunctionalTest
-from utils_plotting import blank_plot
-
-COLORS = ["#793922", "#99291F", "#CC9728", "#6B8939", "#2C778A", "#2C378A"]
 MPERMIN_TO_KMPERHOUR = 0.06
 
 
@@ -85,14 +83,14 @@ class CrownFireTest(FunctionalTest):
         plt.grid(True)
 
         CWC = np.unique(data_frame.CWC.values)
-
+        colors = get_color_palette(len(CWC))
         for i, cwc in enumerate(CWC):
             dat = data_frame[data_frame.CWC == cwc]
             plt.plot(
                 dat.CBH.values,
                 dat["passive_crown_fi"].values,
                 lw=2,
-                color=COLORS[i],
+                color=colors[i],
                 label=cwc,
             )
 
@@ -127,7 +125,7 @@ class CrownFireTest(FunctionalTest):
         blank_plot(0.0, -10.0, 150.0, 0.0, draw_horizontal_lines=True)
 
         smp_alpha_vals = np.unique(data_frame.smp_alpha.values)
-
+        colors = get_color_palette(len(smp_alpha_vals))
         for i, alpha in enumerate(smp_alpha_vals):
             dat = data_frame[data_frame["smp_alpha"] == alpha]
             dat = dat.sort_values("smp")
@@ -136,7 +134,7 @@ class CrownFireTest(FunctionalTest):
                 dat.smp.values,
                 dat["LFMC"].values,
                 lw=2,
-                color=COLORS[i],
+                color=colors[i],
                 label=alpha,
             )
 
@@ -174,6 +172,7 @@ class CrownFireTest(FunctionalTest):
         blank_plot(max_wind, 0.0, max_ros_active, 0.0, draw_horizontal_lines=True)
 
         dr_vals = np.unique(data_frame.drying_ratio.values)
+        colors = get_color_palette(len(dr_vals))
         for i, dr in enumerate(dr_vals):
             dat = data_frame[data_frame["drying_ratio"] == dr]
 
@@ -181,7 +180,7 @@ class CrownFireTest(FunctionalTest):
             dat.wind_kmhr.values,
             dat["ros_active_fm10"].values,
             lw=2,
-            color=COLORS[i],
+            color=colors[i],
             label = dr,
             )
 
@@ -218,7 +217,7 @@ class CrownFireTest(FunctionalTest):
         blank_plot(max_CBD, 0.0, max_CI, 0.0, draw_horizontal_lines=True)
 
         dr_vals = np.unique(data_frame.drying_ratio.values)
-
+        colors = get_color_palette(len(dr_vals))
         for i, dr in enumerate(dr_vals):
             dat = data_frame[data_frame["drying_ratio"] == dr]
 
@@ -226,7 +225,7 @@ class CrownFireTest(FunctionalTest):
             dat.CBD.values,
             dat["CI_kmhr"].values,
             lw=2,
-            color=COLORS[i],
+            color=colors[i],
             label = dr
             )
 
