@@ -334,12 +334,10 @@ contains
                        SF_val_crownfire_min_lfmc, SF_val_crownfire_coeff_lfmc, &
                        SF_val_crownfire_smp_lfmc, SF_val_crownfire_lai_lfmc, SF_val_crownfire_inter_lfmc)
             end if
-            write(fates_log(),*) 'current cohort cwc is ', currentCohort%lfmc
 
           end if ! trees only
           currentCohort => currentCohort%shorter;
         end do ! end cohort loop
-        write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
 
         ! loop across cohorts to calculate patch level canopy water content
         ! weighted by the cohort 1 hour canopy fuel
@@ -356,8 +354,6 @@ contains
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
         ! update canopy fuel bulk density and canopy base height
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
-        write(fates_log(),*) 'current patch CBD is ', currentPatch%fuel%canopy_bulk_density
-        write(fates_log(),*) 'current patch canopy base height is ', currentPatch%fuel%canopy_base_height
 
         deallocate(biom_matrix)
 
@@ -710,9 +706,6 @@ contains
         ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
         FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height, &
                                             currentPatch%fuel%canopy_water_content)
-
-        write(fates_log(),*) 'FI_init is ', FI_init 
-        write(fates_log(),*) 'FI is ', currentPatch%FI
         
         ! check if there is a crown fire 
         if (currentPatch%FI > FI_init ) then
@@ -778,16 +771,6 @@ contains
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
           currentPatch%area, crown_frac_burnt, ROS_final)
-
-          write(fates_log(),*) 'FI_final is ', FI_final
-          write(fates_log(),*) 'passive crown fire is ', currentPatch%passive_crown_fire
-          write(fates_log(),*) 'active crown fire is ', currentPatch%active_crown_fire
-          write(fates_log(),*) 'FI final is ', FI_final
-          write(fates_log(),*) 'ROS final is  ', ROS_final 
-          write(fates_log(),*) 'ROS_active is ', ROS_active
-          write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
-          write(fates_log(),*) 'HPA is ', HPA
-
 
           ! only update FI and ROS_front when CFB > 0
           if (crown_frac_burnt > 0.0_r8) then
