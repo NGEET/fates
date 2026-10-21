@@ -23,6 +23,7 @@ module FATESPlantRespPhotosynthMod
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
   use FatesGlobals,      only : FatesWarn,N2S,A2S,I2S
+  use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
@@ -161,12 +162,15 @@ contains
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
-    ! photsynthesis
-    real(r8) :: psn_z(nlevleaf,maxpft,nclmax) 
+    ! internal leaf Co2 memory variable (for passing into MEGAN) Pa
+     real(r8) :: internal_co2_z(nlevleaf,maxpft,nclmax)
+    
+    ! photosynthesis [umol /m2 /s]
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
 
     ! carbon 13 in newly assimilated carbon at leaf level
-    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax)
-    
+    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax) 
+
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
@@ -245,7 +249,8 @@ contains
     real(r8) :: fsun                             ! sun-shade fraction
     real(r8) :: par_per_sunla, par_per_shala     ! PAR per sunlit and shaded leaf area [W/m2 leaf]
     real(r8) :: ac_utest, aj_utest               ! Gross rubisco and rubp limited assimilation (for unit tests)
-    real(r8) :: ap_utest, co2_inter_c_utest      ! PEP limited assimilation, and intracellular co2 (for unit tests)
+    real(r8) :: ap_utest, co2_inter_c_utest      ! PEP limited assimilation, and (for unit tests)
+
     real(r8),dimension(150) :: cohort_vaitop     ! The top-down integrated vegetation area index
                                                  ! (leaf+stem) at the top of the layer
     real(r8),dimension(150) :: cohort_vaibot     ! The top-down integrated vegetation area index
@@ -267,6 +272,9 @@ contains
     real(r8)               :: gstoma             ! stomatal conductance at leaf bin (sun/shade combined) [m/s]
     real(r8)               :: anet_ll            ! leaf level net assimilation   [umol CO2/m**2/s]
     real(r8)               :: c13disc_ll         ! leaf level c13 assimilation
+    real(r8)               :: co2_inter_c_ll     ! Leaf level intracellular co2 (Pa)
+    real(r8)               :: co2_inter_c        ! cohort level intracellular co2 (Pa) (sun/shade combined) [Pa]
+    real(r8)               :: patch_co2_inter    ! patch level level intracellular co2 (Pa) (sun/shade combined) [Pa]
     real(r8)               :: hydr_k_lwp         ! inner leaf humidity scaling coefficient [-]
     real(r8)               :: gs0                ! stomatal intercept, possibly scaled by btran depending on hypothesis
     real(r8)               :: gs1                ! stomatal slope, possibly scaled by btran depending on hypothesis
@@ -345,8 +353,10 @@ contains
                ! ---------------------------------------------------------------------------
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
+               bc_out(s)%ci_pa(ifp)     = 0._r8
 
                g_sb_leaves = 0._r8
+               patch_co2_inter = 0._r8
                patch_la    = 0._r8
 
                ! Part II. Filter out patches
@@ -471,6 +481,7 @@ contains
                         call LowstorageMainRespReduction(frac,currentCohort%pft, &
                              maintresp_reduction_factor)
 
+                        co2_inter_c = 0.0_r8
                         ! are there any leaves of this pft in this layer?
                         canopy_mask_if: if(currentPatch%canopy_mask(cl,ft) == 1)then
 
@@ -692,6 +703,8 @@ contains
                                  gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * vmol_cf
                                  
                                  gstoma = 0._r8
+                                 co2_inter_c_ll = 0.0_r8
+
                                  do_sunsha: do isunsha = 1,2
 
                                     ! Determine absorbed PAR per square meter of leaf
@@ -776,7 +789,7 @@ contains
                                          gstoma_ll,                          &  ! out
                                          anet_ll,                            &  ! out
                                          c13disc_ll,                         &  ! out
-                                         co2_inter_c_utest,                  &  ! out (unit tests)
+                                         co2_inter_c_ll,                     &  ! out (unit tests)
                                          solve_iter)                            ! out performance tracking
 
                                     ! Average output quantities across sunlit and shaded leaves
@@ -787,8 +800,8 @@ contains
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
-
-                                    
+                                    internal_co2_z(iv,ft,cl) = internal_co2_z(iv,ft,cl) &
+                                                                + area_frac * co2_inter_c_ll
                                  end do do_sunsha
                                  
                                  ! Stomatal resistance of the leaf-layer
@@ -832,6 +845,7 @@ contains
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
                                    c13disc_z(1:nv,ft,cl),                 & !in
+                                   internal_co2_z(1:nv,ft,cl),            & !in
                                    currentCohort%c_area,                  & !in
                                    currentCohort%n,                       & !in
                                    bc_in(s)%rb_pa(ifp),                   & !in
@@ -840,6 +854,7 @@ contains
                                    currentCohort%gpp_tstep,               & !out
                                    currentCohort%rdark,                   & !out
                                    currentCohort%c13disc_clm,             & !out
+                                   co2_inter_c,                           & !out
                                    cohort_eleaf_area)                       !out
 
                            else
@@ -852,6 +867,7 @@ contains
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
                                    c13disc_z(1:nv,ft,cl),                 & !in
+                                   internal_co2_z(1:nv,ft,cl),            & !in
                                    currentCohort%c_area,                  & !in
                                    currentCohort%n,                       & !in
                                    bc_in(s)%rb_pa(ifp),                   & !in
@@ -860,6 +876,7 @@ contains
                                    currentCohort%gpp_tstep,               & !out
                                    currentCohort%rdark,                   & !out
                                    currentCohort%c13disc_clm,             & !out
+                                   co2_inter_c,                           & !out
                                    cohort_eleaf_area)                       !out
                            end if
 
@@ -877,6 +894,7 @@ contains
                            currentCohort%rdark = 0.0_r8
                            currentCohort%g_sb_laweight = 0.0_r8
                            currentCohort%ts_net_uptake(:) = 0.0_r8
+                           co2_inter_c = 0.0_r8
 
                         end if canopy_mask_if
 
@@ -1060,7 +1078,8 @@ contains
                         ! of each cohort and has units of [m/s] * [m2 leaf]
 
                         g_sb_leaves  = g_sb_leaves + currentCohort%g_sb_laweight
-
+                        ! accumulate lead intercellular co2
+                        patch_co2_inter = patch_co2_inter + co2_inter_c
                         ! Accumulate the total effective leaf area from all cohorts
                         ! in this patch. Normalize by canopy area outside the loop
                         patch_la = patch_la + cohort_eleaf_area
@@ -1081,6 +1100,8 @@ contains
                      ! units of [m/s]*[m2] / [m2] = [m/s]
                      
                      g_sb_leaves = g_sb_leaves / patch_la
+
+                    patch_co2_inter = patch_co2_inter / patch_la
                      
                      if_above_mincond: if( g_sb_leaves > (1._r8/rsmax0) ) then
                         
@@ -1111,7 +1132,13 @@ contains
                      ! when it comes time to calculate a flux rate per unit ground
                      bc_out(s)%rssun_pa(ifp) = r_stomata
                      bc_out(s)%rssha_pa(ifp) = r_stomata
-                     
+
+                     if(hlm_use_nocomp .eq. itrue)then
+                        bc_out(s)%ci_pa(ifp) = patch_co2_inter
+                     else
+                        bc_out(s)%ci_pa(ifp) = -999
+                     endif 
+              
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
                      ! vmol_cf :  s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
@@ -1213,7 +1240,8 @@ contains
                                         lmr_llz,     &                ! in 
                                         rs_llz,      &                ! in 
                                         elai_llz,    &                ! in 
-                                        c13disc_llz, &                ! in 
+                                        c13disc_llz, &                ! in
+                                        internal_co2_llz, &           ! in
                                         c_area,      &                ! in 
                                         nplant,      &                ! in 
                                         rb,          &                ! in 
@@ -1222,6 +1250,7 @@ contains
                                         gpp,         &                ! out 
                                         rdark,       &                ! out 
                                         c13disc_clm, &                ! out 
+                                        co2_inter,   &                ! out
                                         cohort_eleaf_area )           ! out
 
     ! ------------------------------------------------------------------------------------
@@ -1241,6 +1270,7 @@ contains
     real(r8), intent(in) :: rs_llz(nv)       ! leaf layer stomatal resistance [s/m]
     real(r8), intent(in) :: elai_llz(nv)     ! exposed LAI per layer [m2 leaf/ m2 pft footprint]
     real(r8), intent(in) :: c13disc_llz(nv)  ! leaf layer c13 discrimination, weighted mean
+    real(r8), intent(in) :: internal_co2_llz(nv) !Intercellular co2 pressure per layer Pa
     real(r8), intent(in) :: c_area           ! crown area m2/m2
     real(r8), intent(in) :: nplant           ! indiv/m2
     real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
@@ -1251,6 +1281,7 @@ contains
     real(r8), intent(out) :: rdark             ! Dark Leaf Respiration (kgC/indiv/s)
     real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
     real(r8), intent(out) :: c13disc_clm       ! unpacked Cohort level c13 discrimination
+    real(r8), intent(out) :: co2_inter         ! Intercellular co2 pressure weighted by leaf area [P]*[m2]
     real(r8)              :: sum_weight        ! sum of weight for unpacking d13c flux (c13disc_z) from
                                                ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
 
@@ -1265,6 +1296,7 @@ contains
     g_sb_laweight     = 0.0_r8
     gpp               = 0.0_r8
     rdark             = 0.0_r8
+    co2_inter         = 0.0_r8
 
     do il = 1, nv        ! Loop over the leaf layers this cohort participates in
 
@@ -1285,6 +1317,8 @@ contains
        ! on total leaf area, and not really footprint area
        ! [m/s] * [m2 cohort's leaf layer]
        g_sb_laweight = g_sb_laweight + 1.0_r8/(rs_llz(il)+rb) * cohort_layer_eleaf_area
+       ! same for intercellular co2 [Pa] * [m2 cohort's leaf layer]
+       co2_inter     = co2_inter * cohort_layer_eleaf_area
 
        ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]
        gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area

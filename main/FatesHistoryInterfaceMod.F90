@@ -676,6 +676,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_seeds_in_local_si_pft     ! carbon only
   integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
   integer :: ih_seedling_pool_si_pft      ! carbon only
+  integer :: ih_lai_si_pft
+  integer :: ih_clai_si_pft
 
   ! Non-per-ageclass equivalents of per-ageclass variables
   integer :: ih_canopy_fracarea_si
@@ -3382,6 +3384,8 @@ contains
              hio_seedling_pool_si_pft             => this%hvars(ih_seedling_pool_si_pft)%r82d, &
              hio_seeds_in_si_pft                  => this%hvars(ih_seeds_in_si_pft)%r82d, &
              hio_seeds_in_local_si_pft            => this%hvars(ih_seeds_in_local_si_pft)%r82d, &
+             hio_lai_si_pft                       => this%hvars(ih_lai_si_pft)%r82d, &
+             hio_clai_si_pft                   => this%hvars(ih_clai_si_pft)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
@@ -3389,7 +3393,6 @@ contains
              hio_secondary_agb_si_agesinceanthro  => this%hvars(ih_secondary_agb_si_agesinceanthro)%r82d, &
              hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
-          model_day_int = nint(hlm_model_day)
 
           ! ---------------------------------------------------------------------------------
           ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -3399,7 +3402,8 @@ contains
           siteloop: do s = 1,nsites
 
              io_si  = sites(s)%h_gid
-
+             ! make this consistent with what is in the phenology
+             model_day_int = sites(s)%phen_model_date
              ! C13 will not get b4b restarts on the first day because
              ! there is no mechanism to remember the previous day's values
              ! through a restart. This should be added with the next refactor
@@ -3615,6 +3619,12 @@ contains
                          ! Update PFT partitioned biomass components
                          hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * leaf_m
+
+                         hio_clai_si_pft(io_si,ft) = hio_clai_si_pft(io_si,ft) + &
+                              (ccohort%n * AREA_INV) * leaf_m *g_per_kg * prt_params%slatop(ft) ! n/m2 * kg/n g/kg m2/g = 1/m2 m2
+
+                         hio_lai_si_pft(io_si,ft) = hio_lai_si_pft(io_si,ft) + &
+                            ccohort%treelai*ccohort%c_area  * AREA_INV 
 
                          hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * store_m
@@ -7528,6 +7538,19 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_mortality_si_pft)
 
+           call this%set_history_var(vname='FATES_LAI_PF', units='m2 m-2',          &
+               long='total PFT-level leaf area index',    &
+               use_default=trim(drop_in_sp), avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_lai_si_pft)
+
+           call this%set_history_var(vname='FATES_LAI_FROM_SLA_PF', units='m2 m-2',          &
+               long='total PFT-level leaf area index calculated from biomas and slatop',    &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_clai_si_pft)
+
+
           !MLO - Drought-deciduous phenology variables are now defined for each PFT.
           call this%set_history_var(vname='FATES_DROUGHT_STATUS_PF',                     &
                units='',                                                                &
@@ -7695,14 +7718,14 @@ contains
           call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRO_AP',           &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since anthropogenic disturbance', &
-               use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+               use_default=trim(drop_in_sp), avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si_age)
 
           call this%set_history_var(vname='FATES_SECONDARY_AREA_AP',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since any kind of disturbance', &
-               use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+               use_default=trim(drop_in_sp), avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_fracarea_si_age)
 
@@ -9276,25 +9299,25 @@ contains
 
           call this%set_history_var(vname='FATES_SWABS_LU', units='W m-2', &
                long='fates absorbed shortwave radiation by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_sw_abs_si_landuse )
 
           call this%set_history_var(vname='FATES_NETLW_LU', units='W m-2', &
                long='fates net longwave flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_lw_net_si_landuse )
 
           call this%set_history_var(vname='FATES_SHFLUX_LU', units='W m-2', &
                long='fates sensible heat flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_shflux_si_landuse )
 
           call this%set_history_var(vname='FATES_LHFLUX_LU', units='W m-2', &
                long='fates latent heat flux by land use type', &
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_landuse )
 
