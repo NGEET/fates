@@ -538,6 +538,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: net_seed_available  ! Available seed after inputs and decay
 
     do el = 1, num_elements
 
@@ -547,15 +548,20 @@ contains
        ! -----------------------------------------------------------------------------------
 
        do pft = 1,numpft
-          litt%seed(pft) = litt%seed(pft) + &
-               litt%seed_in_local(pft) +   &
-               litt%seed_in_extern(pft) -  &
-               litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
 
-          ! Note that the recruitment scheme will use seed_germ
-          ! for its construction costs.
-          litt%seed_germ(pft) = litt%seed_germ(pft) + &
+         ! Calculate net available seed after inputs and decay
+         net_seed_available = litt%seed(pft) + litt%seed_in_local(pft) + &
+            litt%seed_in_extern(pft) - litt%seed_decay(pft)
+
+         ! Cap germination at available seed to prevent negative seed pool
+         litt%seed_germ_in(pft) = min(litt%seed_germ_in(pft), net_seed_available)
+
+         ! Update pools 
+         litt%seed(pft) = net_seed_available - litt%seed_germ_in(pft)
+
+         ! Note that the recruitment scheme will use seed_germ
+         ! for its construction costs.
+         litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
@@ -2163,6 +2169,7 @@ contains
     real(r8) ::  seedling_light_mort_rate    ! daily seedling mortality rate from light stress
     real(r8) ::  seedling_h2o_mort_rate      ! daily seedling mortality rate from moisture stress
     real(r8) ::  seedling_mdds               ! moisture deficit days accumulated in the seedling layer
+    real(r8) ::  total_seedling_mort_rate    ! summed seedling mortality rates
 
     !----------------------------------------------------------------------
 
@@ -2231,20 +2238,26 @@ contains
 
           ! Calculate seedling mortality as a function of moisture deficit days (mdd)
           ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
+          
           if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
              seedling_h2o_mort_rate = 0.0_r8
           else
              seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+             ! Cap h2o mortality rate at 1, quadratic can produce values >1 for large moisture
+             ! deficit days 
+             seedling_h2o_mort_rate = min(1.0_r8, seedling_h2o_mort_rate)
           end if ! mdd threshold check
 
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
           ! to litter
-          litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
-               (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
-               (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
-               * years_per_day)
+          ! Cap total mortality rate at 1 to prevent negative seedling pool
+          total_seedling_mort_rate = seedling_light_mort_rate + &
+                        seedling_h2o_mort_rate + &
+                        (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+          litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+            min(1.0_r8, total_seedling_mort_rate)
 
        else
 
@@ -2350,6 +2363,9 @@ contains
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
              seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                   wetness_index**EDPftvarcon_inst%b_emerg(pft)
+             ! Cap emergence rate at 1, rate can exceed 1 for some parameter combinations,
+             ! leading to negative seed bank
+             seedling_emerg_rate = min(1.0_r8, seedling_emerg_rate )
           else
 
              seedling_emerg_rate = 0.0_r8
@@ -2432,6 +2448,7 @@ contains
       real(r8)                          :: stem_drop_fraction !
       real(r8)                          :: fnrt_drop_fraction !
       real(r8)                          :: sdlng2sap_par      ! running mean of PAR at the seedling layer [MJ/m2/day]
+      real(r8)                          :: sdlng2sap_rate     ! seedling-to-sapling transition rate factor (unitless)
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
@@ -2577,10 +2594,14 @@ contains
                      sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean()*     &
                         sec_per_day*megajoules_per_joule
 
+                     sdlng2sap_rate = EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+
+                     ! If the seedling to sapling transition rate exceeds 1, 
+                     ! cap at 1 (prevent seed_germ from going negative)
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 &
-                        EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+                        min(1.0_r8, sdlng2sap_rate)
 
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the
                      ! recruitment does not occur.
@@ -2690,6 +2711,7 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) =                   &
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     
                   end if
 
                end do
