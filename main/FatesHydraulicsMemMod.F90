@@ -123,7 +123,10 @@ module FatesHydraulicsMemMod
                                                     !  insufficient plant water available to 
                                                     !  support transpiration
 
-
+     real(r8) :: trans_err                          !error water pool for cases
+                                                    !where there is not enough
+                                                    !water in the plant or soil
+                                                    !for transpiration
      ! Useful diagnostics
      ! ----------------------------------------------------------------------------------
 
@@ -496,7 +499,8 @@ module FatesHydraulicsMemMod
 
          this%h2oveg_growturn_err = 0.0_r8
          this%h2oveg_hydro_err    = 0.0_r8
-         
+         this%trans_err    = 0.0_r8
+ 
          ! We have separate water transfer functions and parameters
          ! for each soil layer, and each plant compartment type
          allocate(this%wrf_soil(1:nlevrhiz))

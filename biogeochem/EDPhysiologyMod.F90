@@ -195,10 +195,6 @@ module EDPhysiologyMod
                                                       !    a residual amount of leaves, which may create
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
-
-  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for
-                                                      !    frozen or excessively dry soils, used when
-                                                      !    computing water stress.
   ! ============================================================================
 
 contains
@@ -542,6 +538,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: net_seed_available  ! Available seed after inputs and decay
 
     do el = 1, num_elements
 
@@ -551,15 +548,20 @@ contains
        ! -----------------------------------------------------------------------------------
 
        do pft = 1,numpft
-          litt%seed(pft) = litt%seed(pft) + &
-               litt%seed_in_local(pft) +   &
-               litt%seed_in_extern(pft) -  &
-               litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
 
-          ! Note that the recruitment scheme will use seed_germ
-          ! for its construction costs.
-          litt%seed_germ(pft) = litt%seed_germ(pft) + &
+         ! Calculate net available seed after inputs and decay
+         net_seed_available = litt%seed(pft) + litt%seed_in_local(pft) + &
+            litt%seed_in_extern(pft) - litt%seed_decay(pft)
+
+         ! Cap germination at available seed to prevent negative seed pool
+         litt%seed_germ_in(pft) = min(litt%seed_germ_in(pft), net_seed_available)
+
+         ! Update pools 
+         litt%seed(pft) = net_seed_available - litt%seed_germ_in(pft)
+
+         ! Note that the recruitment scheme will use seed_germ
+         ! for its construction costs.
+         litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
@@ -910,13 +912,11 @@ contains
     ! Phenology.
     !
     ! !USES:
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
     use EDParamsMod, only : ED_val_phen_chiltemp
     use EDParamsMod, only : ED_val_phen_mindayson
     use EDParamsMod, only : ED_val_phen_ncolddayslim
     use EDParamsMod, only : ED_val_phen_coldtemp
-    use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -925,25 +925,15 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(fates_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
-    integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
-    integer  :: j                 ! Soil layer index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
-    real(r8) :: leaf_c            ! leaf carbon [kg]
-    real(r8) :: fnrt_c            ! fineroot carbon [kg]
-    real(r8) :: sapw_c            ! sapwood carbon [kg]
-    real(r8) :: store_c           ! storage carbon [kg]
-    real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
-    real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
-    integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -985,38 +975,16 @@ contains
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
 
 
-    ! This is the integer model day. The first day of the simulation is 1, and it
-    ! continues monotonically, indefinitely
-    ! Advance it. (this should be a global, no reason
-    ! for site level, but we don't have global scalars in the
-    ! restart file)
-    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    ! This is the elapsed number of days since the very beginning of the simulation time
     model_day_int = currentSite%phen_model_date
 
 
-    ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414)
-    ! - this is arbitrary and poorly understood. Needs work. ED_
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = 0._r8
-    temp_wgt = 0._r8
-    cpatch => CurrentSite%oldest_patch
-    do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
-       temp_wgt = temp_wgt + cpatch%total_canopy_area
-       cpatch => cpatch%younger
-    end do
-    if(temp_wgt>nearzero)then
-       temp_in_C = temp_in_C/temp_wgt - tfrz
-    else
-       ! If there is no canopy area, we use the veg temperature
-       ! of the first patch, which is the forcing air temperature
-       ! as defined in CLM/ELM. The forcing air temperature
-       ! should be the same among all patches. (Although
-       ! it is unlikely there are more than 1 in this scenario)
-       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
-    end if
+    ! Retrieve average canopy temperature of the current day
+    temp_in_C = currentSite%vegtemp_memory(1)
+
 
     !-----------------Cold Phenology--------------------!
 
@@ -1045,10 +1013,6 @@ contains
     !GDD accumulation function, which also depends on chilling days.
     !  -68 + 638 * (-0.001 * ncd)
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-
-    !Accumulate temperature of last 10 days.
-    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
-    currentSite%vegtemp_memory(1) = temp_in_C
 
     !count number of days for leaves off
     ncolddays = 0
@@ -1186,53 +1150,6 @@ contains
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
        phen_doff_time         = prt_params%phen_doff_time        (ipft)
-
-
-       ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
-          currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
-          currentSite%smp_memory   (i_wmem,ipft) = currentSite%smp_memory   (i_wmem-1,ipft)
-       end do
-
-       ! Find the rooting depth distribution for PFT
-       call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-                               bc_in%max_rooting_depth_index_col )
-       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-
-       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using
-       ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we
-       ! ignore the top layer when calculating the memory.
-       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-       if ( rootfrac_notop <= nearzero ) then
-          ! Unlikely, but just in case all roots are in the first layer, we use the second
-          ! layer the second layer (to avoid FPE issues).
-          currentSite%rootfrac_scr(2) = 1.0_r8
-          rootfrac_notop              = 1.0_r8
-       end if
-
-       ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer (except the topmost one) as the weighting factor.
-
-       currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                                rootfrac_notop
-       currentSite%smp_memory   (1,ipft)  = 0._r8
-       do j = 2,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
-                  bc_in%smp_sl            (j) * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          else
-             ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
-                  smp_lwr_bound * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          end if
-       end do
 
        ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
        !    over the last 10 days
@@ -2252,6 +2169,7 @@ contains
     real(r8) ::  seedling_light_mort_rate    ! daily seedling mortality rate from light stress
     real(r8) ::  seedling_h2o_mort_rate      ! daily seedling mortality rate from moisture stress
     real(r8) ::  seedling_mdds               ! moisture deficit days accumulated in the seedling layer
+    real(r8) ::  total_seedling_mort_rate    ! summed seedling mortality rates
 
     !----------------------------------------------------------------------
 
@@ -2320,20 +2238,26 @@ contains
 
           ! Calculate seedling mortality as a function of moisture deficit days (mdd)
           ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
+          
           if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
              seedling_h2o_mort_rate = 0.0_r8
           else
              seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+             ! Cap h2o mortality rate at 1, quadratic can produce values >1 for large moisture
+             ! deficit days 
+             seedling_h2o_mort_rate = min(1.0_r8, seedling_h2o_mort_rate)
           end if ! mdd threshold check
 
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
           ! to litter
-          litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
-               (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
-               (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
-               * years_per_day)
+          ! Cap total mortality rate at 1 to prevent negative seedling pool
+          total_seedling_mort_rate = seedling_light_mort_rate + &
+                        seedling_h2o_mort_rate + &
+                        (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+          litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+            min(1.0_r8, total_seedling_mort_rate)
 
        else
 
@@ -2439,6 +2363,9 @@ contains
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
              seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                   wetness_index**EDPftvarcon_inst%b_emerg(pft)
+             ! Cap emergence rate at 1, rate can exceed 1 for some parameter combinations,
+             ! leading to negative seed bank
+             seedling_emerg_rate = min(1.0_r8, seedling_emerg_rate )
           else
 
              seedling_emerg_rate = 0.0_r8
@@ -2521,6 +2448,7 @@ contains
       real(r8)                          :: stem_drop_fraction !
       real(r8)                          :: fnrt_drop_fraction !
       real(r8)                          :: sdlng2sap_par      ! running mean of PAR at the seedling layer [MJ/m2/day]
+      real(r8)                          :: sdlng2sap_rate     ! seedling-to-sapling transition rate factor (unitless)
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
@@ -2666,10 +2594,14 @@ contains
                      sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean()*     &
                         sec_per_day*megajoules_per_joule
 
+                     sdlng2sap_rate = EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+
+                     ! If the seedling to sapling transition rate exceeds 1, 
+                     ! cap at 1 (prevent seed_germ from going negative)
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 &
-                        EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+                        min(1.0_r8, sdlng2sap_rate)
 
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the
                      ! recruitment does not occur.
@@ -2779,6 +2711,7 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) =                   &
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     
                   end if
 
                end do
