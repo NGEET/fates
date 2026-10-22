@@ -58,6 +58,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
+  use FatesSoilBGCFluxMod      , only : ZeroSoilLitterFluxes
   use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -174,6 +175,8 @@ contains
     end do
     call currentSite%flux_diags%ZeroFluxDiags()
 
+    call ZeroSoilLitterFluxes(bc_out)
+    
     ! Call a routine that will compute cumulative variables and "memory" averages for 
     ! a suite of variables. These variables are mostly used for leaf phenology, but they
     ! may be useful for other components (disturbances, mortality, management).
@@ -333,6 +336,15 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
+
+    ! This call can come earlier in the call sequence. We keep
+    ! it here temporarily to prevent issues with b4b-ness.
+    ! We lose some precision in litter fluxes during disturbance
+    ! since we have to re-scale litter fluxes when the areas
+    ! of patches change. 
+    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
+
+    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -430,8 +442,6 @@ contains
     !-----------------------------------------------------------------------
 
     current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
-
-    
 
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
@@ -654,8 +664,8 @@ contains
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
-          
-          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
+          ! Add efflux to the bc_out flux pools
+          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in, bc_out )
 
           if(element_pos(nitrogen_element)>0) then
              ! Mass balance for N uptake
@@ -788,14 +798,6 @@ contains
 
        currentPatch => currentPatch%older
     enddo
-
-
-    ! RGK: This call is unecessary for CLM coupling. I believe we
-    ! can remove it completely if/when this call is added in ELM to 
-    ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
-
-    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
-
 
     ! Update cohort number.
     ! This needs to happen after the CWD_input and seed_input calculations as they
