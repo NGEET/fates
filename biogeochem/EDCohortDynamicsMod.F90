@@ -336,6 +336,14 @@ contains
        struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
        repro_c  = currentCohort%prt%GetState(repro_organ, carbon12_element)
 
+       ! if this is level 4, we are killing all cohorts, probably because we are
+       ! dealing with a remnant patch and the amount of biomass
+       ! is insignficant
+       if(level==4) then
+          terminate = itrue
+          termination_type = i_term_mort_type_numdens
+       end if
+       
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
           terminate = itrue
