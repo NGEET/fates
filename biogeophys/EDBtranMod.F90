@@ -9,6 +9,7 @@ module EDBtranMod
   use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm 
   use FatesConstantsMod , only : itrue,ifalse,nearzero
   use FatesConstantsMod , only : nocomp_bareground
+  use FatesConstantsMod , only : rsnbl_math_prec
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod,      only : fates_patch_type
   use EDParamsMod,        only : maxpft
@@ -24,15 +25,17 @@ module EDBtranMod
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesPlantHydraulicsMod, only : BTranForHLMDiagnosticsFromCohortHydr
+  use FatesGlobals, only : FatesWarn,N2S,A2S,I2S
 
   !
   implicit none
   private
 
-
+  character(len=512) :: warn_msg  ! Message string for warnings and logging
   logical, parameter :: debug = .false.
   
-  public :: btran_ed
+  public :: RootUptakeFractions
+  public :: FatesInternalBtran
   public :: get_active_suction_layers
   public :: check_layer_water
 
@@ -87,11 +90,15 @@ contains
 
   ! =====================================================================================
 
-  subroutine btran_ed( nsites, sites, bc_in, bc_out)
+  subroutine FatesInternalBtran( nsites, sites, bc_in, bc_out)
 
 
     ! ---------------------------------------------------------------------------------
-    ! Calculate the transpiration wetness function (BTRAN) internal to FATES
+    ! Calculate the transpiration wetness function (BTRAN) internal to FATES,
+    ! currently this is specific to each patch and PFT. Although, patch%btran_ft
+    ! does NOT have any patch specific information used, it should be site. However,
+    ! with cohorts having different rooting depths, this ideally should be migrated
+    ! to a cohort specific variable.
     !
     ! Boundary conditions in: bc_in(s)%eff_porosity_sl(j)    unfrozen porosity
     !                         bc_in(s)%watsat_sl(j)          porosity
@@ -129,15 +136,18 @@ contains
        do while (associated(cpatch))
 
           ifp = cpatch%patchno
-          
+          cpatch%btran_ft(:) = 0._r8
           if_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then ! only for veg patches
 
+             ! PFT-averaged point level root fraction for extraction purposese.
+             ! The cohort's conductance g_sb_laweighted, contains a weighting factor
+             ! based on the cohort's leaf area. units: [m/s] * [m2]
+             
              do ft = 1,numpft
 
                 call set_root_fraction(sites(s)%rootfrac_scr, ft, sites(s)%zi_soil, &
                      bc_in(s)%max_rooting_depth_index_col ) 
 
-                cpatch%btran_ft(ft) = 0.0_r8
                 do j = 1,bc_in(s)%nlevsoil
 
                    ! Calculations are only relevant where liquid water exists
@@ -153,15 +163,12 @@ contains
                            (smp_node - smpsc(ft)) / (smpso(ft) - smpsc(ft)), 1._r8)
                       
                       ! root water uptake is not linearly proportional to root density,
-                      ! to allow proper deep root funciton. Replace with equations from SPA/Newman. FIX(RF,032414)
+                      ! to allow proper deep root function. Replace with equations from SPA/Newman. FIX(RF,032414)
                       
                       cpatch%btran_ft(ft) = cpatch%btran_ft(ft) + suction_lim * sites(s)%rootfrac_scr(j)
                    end if
-                   
-                end do !j
-
-             end do !PFT
-
+                end do
+             end do
           end if if_bare
 
           cpatch => cpatch%younger
@@ -169,11 +176,15 @@ contains
     end do
     end associate
   
-  end subroutine btran_ed
+  end subroutine FatesInternalBtran
 
+  ! ========================================================================
+  
   subroutine RootUptakeFractions(nsites, sites, bc_in, bc_out)
 
-    ! Calculate uptake fractions
+    ! Calculate uptake fractions that are used by the
+    ! land model so that we can identify the correct layers
+    ! to pull soil moisture from
     
     integer,intent(in)                      :: nsites
     type(ed_site_type),intent(inout),target :: sites(nsites)
@@ -191,11 +202,14 @@ contains
     real(r8) :: smp_node          ! matrix potential
     real(r8) :: suction_lim       ! suction limitation to transpiration independent
     ! of root density
-    real(r8) :: pftgs(maxpft)     ! pft weighted stomatal conductance m/s
+    real(r8) :: pftgs(numpft)     ! pft weighted stomatal conductance m/s
     real(r8) :: temprootr
     real(r8) :: sum_pftgs         ! sum of weighted conductances (for normalization)
-    real(r8), allocatable :: root_relcond(:,:)  ! relative root conductance in each pft x layer
+    real(r8) :: root_relcond(numpft,numlevsoil_max)  ! relative root conductance in each pft x layer
+    real(r8) :: num_present_pfts
+    real(r8) :: pfts_present(numpft)
 
+    
     associate(                                 &
          smpsc     => EDPftvarcon_inst%smpsc          , &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
          smpso     => EDPftvarcon_inst%smpso            &  ! INTERF-TODO: THESE SHOULD BE FATES PARAMETERS
@@ -203,8 +217,7 @@ contains
 
     do s = 1,nsites
 
-       allocate(root_relcond(numpft,bc_in(s)%nlevsoil))
-
+       root_relcond(:,:) = 0._r8
        bc_out(s)%rootr_pasl(:,:) = 0._r8
 
        cpatch => sites(s)%oldest_patch
@@ -212,7 +225,8 @@ contains
 
           ifp = cpatch%patchno
           
-          if_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then ! only for veg patches
+          if_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground .and. &
+                      cpatch%num_cohorts > 0 )then ! only for veg patches
 
              do ft = 1,numpft
 
@@ -250,62 +264,65 @@ contains
 
              end do
              
-             ! PFT-averaged point level root fraction for extraction purposese.
-             ! The cohort's conductance g_sb_laweighted, contains a weighting factor
-             ! based on the cohort's leaf area. units: [m/s] * [m2]
-             
-             pftgs(1:maxpft) = 0._r8
+             pfts_present(1:numpft) = 0._r8
+             pftgs(1:numpft)=0._r8
+             sum_pftgs = 0._r8
+             num_present_pfts = 0._r8
              ccohort => cpatch%tallest
              do while(associated(ccohort))
-                pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
+                if(cpatch%btran_ft(ccohort%pft) > nearzero)then
+                   if (ccohort%g_sb_laweight > 0._r8) then
+                      sum_pftgs = sum_pftgs + ccohort%g_sb_laweight
+                      pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
+                   end if
+                   pfts_present(ccohort%pft) = 1._r8
+                end if
                 ccohort => ccohort%shorter
-             enddo
+             end do
 
+             num_present_pfts = sum(pfts_present(1:numpft))
+             
              ! Process the boundary output, this is necessary for calculating the soil-moisture
              ! sink term across the different layers in driver/host.  Photosynthesis will
              ! pass the host a total transpiration for the patch.  This needs rootr to be
              ! distributed over the soil layers.
-             sum_pftgs = sum(pftgs(1:numpft))
-             pftgs(:) = pftgs(:)/sum_pftgs
+             
+             if (num_present_pfts > 0._r8) then
+                ! this is a bit arbitrary threshold but with tiny weight it
+                ! does not matter which pft has lower resistance.
+                if (sum_pftgs > rsnbl_math_prec) then  
+                   pftgs(1:numpft)=pftgs(1:numpft)/sum_pftgs
+                else
+                   pftgs(1:numpft)=pfts_present(1:numpft)/num_present_pfts
+                endif
+             else 
+                pftgs(1:numpft)=0._r8
+             endif
 
-             do j = 1, bc_in(s)%nlevsoil
-                bc_out(s)%rootr_pasl(ifp,j) = 0._r8
-                do ft = 1,numpft
-                   if( sum_pftgs > 0._r8) then
-                      bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                           root_relcond(ft,j) * pftgs(ft)
-                   else
-                      bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
-                           root_relcond(ft,j) * 1._r8/real(numpft,r8)
-                   end if
+             bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil) = 0._r8
+             bc_out(s)%btran_pa(ifp) = 0._r8
+             do  ft = 1,numpft
+                do j = 1, bc_in(s)%nlevsoil
+                   bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j) + &
+                        root_relcond(ft,j) * pftgs(ft)
                 enddo
+                ! Calculate the BTRAN that is passed back to the HLM
+                ! used only for diagnostics. If plant hydraulics is turned off
+                ! we are using the patchxpft level btran calculation
+                if (hlm_use_planthydro .eq. ifalse) then
+                   bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft)  * pftgs(ft)
+                end if
              enddo
-
-             ! Calculate the BTRAN that is passed back to the HLM
-             ! used only for diagnostics. If plant hydraulics is turned off
-             ! we are using the patchxpft level btran calculation
-
-             if(hlm_use_planthydro.eq.ifalse) then
-
-                ! For hydro == true, we call BTranForHLMDiagnosticsFromCohortHydr
-                ! which exclusively calculates and returns bc_out%btran_pa
-
-                !weight patch level output BTRAN for the
-                bc_out(s)%btran_pa(ifp) = 0.0_r8
-                do ft = 1,numpft
-                   if( sum_pftgs > 0._r8)then
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * pftgs(ft)
-                   else
-                      bc_out(s)%btran_pa(ifp)   = bc_out(s)%btran_pa(ifp) + cpatch%btran_ft(ft) * 1./numpft
-                   end if
-                enddo
-             end if
-
+                   
              temprootr = sum(bc_out(s)%rootr_pasl(ifp,1:bc_in(s)%nlevsoil))
 
-             if(abs(1.0_r8-temprootr) > 1.0e-10_r8 .and. temprootr > 1.0e-10_r8)then
-
-                if(debug) write(fates_log(),*) 'error with rootr in canopy fluxes',temprootr,sum_pftgs
+             if(abs(1.0_r8-temprootr) > rsnbl_math_prec .and. temprootr > rsnbl_math_prec)then
+                
+                warn_msg = 'Normalized root resistances dont sum to 1, s:'//trim(I2S(s))// &
+                     ' ifp: '//trim(I2S(ifp))// &
+                     ' temprootr: '//trim(N2S(temprootr)//' sum_pftgs: '//trim(N2S(sum_pftgs))// &
+                     ' num_present_pfts: '//trim(N2S(num_present_pfts))
+                call FatesWarn(warn_msg,index=5)
                 
                 do j = 1,bc_in(s)%nlevsoil
                    bc_out(s)%rootr_pasl(ifp,j) = bc_out(s)%rootr_pasl(ifp,j)/temprootr
@@ -316,16 +333,15 @@ contains
           cpatch => cpatch%younger
        end do
 
-       deallocate(root_resis)
-       
     end do
-    end associate
-
-    if(hlm_use_planthydro.eq.itrue) then
-       call BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
-    end if
-    
-  end subroutine RootUptakeFractions
+  end associate
+  
+  if(hlm_use_planthydro.eq.itrue) then
+     call BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
+  end if
+  
+  return
+end subroutine RootUptakeFractions
 
 
 end module EDBtranMod

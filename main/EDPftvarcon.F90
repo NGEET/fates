@@ -22,7 +22,7 @@ module EDPftvarcon
   use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-  use PRTGenericMod,  only : prt_cnp_flex_allom_hyp,prt_carbon_allom_hyp
+  use PRTGenericMod,  only : carbon_nitrogen_phosphorus,carbon_only
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
   use FatesConstantsMod   , only : ievergreen
@@ -60,8 +60,10 @@ module EDPftvarcon
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
-                                                     ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] 
+     real(r8), allocatable :: initdbh(:)             ! initial seedling dbh [cm]
+                                                     ! alternative to initd for nocomp
+                                                     ! used only when use_dbh_init and use_nocomp are both true
      real(r8), allocatable :: init_seed(:)           ! Initial seed bank [kg/m2]
                                                      ! For SP: this is unused
                                                      ! For Nocomp: This only applies the seed from the
@@ -144,7 +146,7 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
-
+     
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
      ! -------------------------------------------------------------------------------------------
@@ -286,6 +288,17 @@ module EDPftvarcon
      ! Grazing
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
+     ! dry deposition
+     real(r8), allocatable :: wesley_veg_index(:)  ! Wesley vegetation index for dry deposition calculation
+     real(r8), allocatable :: wesley_sum_thresh(:) ! LAI threshold to determine Wesley summer (m2/m2)
+     real(r8), allocatable :: wesley_aut_thresh(:) ! LAI threshold to determine Wesley early/late autmn (m2/m2)
+
+     ! MEGAN (used in NorESM)
+     integer,  allocatable :: voc_pftindex(:)      ! Index for MEGAN parameters 
+
+     ! Clearing mortality rate
+     real(r8), allocatable :: landuse_clearing_mortality(:) ! Fraction of cohort killed when patch is cleared during land use transitions
+     
   end type EDPftvarcon_type
 
   type(EDPftvarcon_type), public :: EDPftvarcon_inst
@@ -345,6 +358,10 @@ contains
     param_p => pstruct%GetParamFromName('fates_recruit_init_density')
     allocate(EDPftvarcon_inst%initd(numpft))
     EDPftvarcon_inst%initd(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_recruit_init_dbh')
+    allocate(EDPftvarcon_inst%initdbh(numpft))
+    EDPftvarcon_inst%initdbh(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_recruit_init_seed')
     allocate(EDPftvarcon_inst%init_seed(numpft))
@@ -710,6 +727,26 @@ contains
     allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
     EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
+    param_p => pstruct%GetParamFromName('fates_wesley_veg_index')
+    allocate(EDPftvarcon_inst%wesley_veg_index(numpft))
+    EDPftvarcon_inst%wesley_veg_index(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_sum_thresh')
+    allocate(EDPftvarcon_inst%wesley_sum_thresh(numpft))
+    EDPftvarcon_inst%wesley_sum_thresh(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_aut_thresh')
+    allocate(EDPftvarcon_inst%wesley_aut_thresh(numpft))
+    EDPftvarcon_inst%wesley_aut_thresh(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_voc_pftindex')
+    allocate(EDPftvarcon_inst%voc_pftindex(numpft))
+    EDPftvarcon_inst%voc_pftindex(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_landuse_clearing_mortality')
+    allocate(EDPftvarcon_inst%landuse_clearing_mortality(numpft))
+    EDPftvarcon_inst%landuse_clearing_mortality(:) = param_p%r_data_1d(:)
+    
     ! Section 2: 2D PFT x HLM-PFT dimension
     ! --------------------------------------------------------------------------
     param_p => pstruct%GetParamFromName('fates_hlm_pft_map')
@@ -844,6 +881,7 @@ contains
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
+        write(fates_log(),fmt0) 'initdbh = ',EDPftvarcon_inst%initdbh
         write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
@@ -854,7 +892,8 @@ contains
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
         write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
-        
+        write(fates_log(),fmt0) 'voc_pftindex = ',EDPftvarcon_inst%voc_pftindex        
+
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
@@ -917,6 +956,9 @@ contains
         write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
+        write(fates_log(),fmt0) 'wesley_veg_index = ', EDPftvarcon_inst%wesley_veg_index
+        write(fates_log(),fmt0) 'wesley_sum_thresh = ', EDPftvarcon_inst%wesley_sum_thresh
+        write(fates_log(),fmt0) 'wesley_aut_thresh = ', EDPftvarcon_inst%wesley_aut_thresh
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
@@ -950,6 +992,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
     use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use FatesInterfaceTypesMod, only : hlm_use_dbh_init
     use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
     use FatesConstantsMod  , only : n_landuse_cats
 
@@ -978,7 +1021,7 @@ contains
      if(.not.is_master) return
 
      select case (hlm_parteh_mode)
-     case (prt_cnp_flex_allom_hyp)
+     case (carbon_nitrogen_phosphorus)
 
         ! Check to see if either RD/ECA/MIC is turned on
 
@@ -1049,7 +1092,7 @@ contains
            end if
         end if
         
-     case (prt_carbon_allom_hyp)
+     case (carbon_only)
         ! No additional checks needed for now.
         continue
 
@@ -1252,30 +1295,56 @@ contains
         ! Check that in initial density is not equal to zero in a cold-start run
         !-----------------------------------------------------------------------------------
         
+        if ( EDPftvarcon_inst%initd(ipft) < -nearzero ) then
+           write(fates_log(),*) ' Option to use negative values for initial density'
+           write(fates_log(),*) ' has been depricated. Set use_fates_dbh_init to true'
+           write(fates_log(),*) ' to initialize with dbh in nocomp mode. The corresponding'
+           write(fates_log(),*) ' is called fates_recruit_init_dbh'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
         if ( hlm_use_inventory_init == ifalse .and. & 
-             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
+            EDPftvarcon_inst%initd(ipft) < nearzero ) then
           
-           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
-           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero'
+           write(fates_log(),*) ' without inventory initialization.'
            write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
-           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
-           write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
+           write(fates_log(),*) ' plants by setting use_fates_dbh_init to true'
+           write(fates_log(),*) ' so that initial dbh parameter is used instead of density. '
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
         
-        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%initd(ipft) < -nearzero ) then
-           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
-           write(fates_log(),*) ' know how to interpret a negative %initd (number density)'
-           write(fates_log(),*) ' on a cold-start. In nocomp with a negative, we assume the absolute'
-           write(fates_log(),*) ' value of the %inidt parameter is the initial plant size.'
-           write(fates_log(),*) ' And since the fractional area of each PFT is known from'
-           write(fates_log(),*) ' the surface file, we can derive a number density from this'
-           write(fates_log(),*) ' However, we do not have a hypothesis to do this in full FATES.'
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
+
+
+
+        if (hlm_use_dbh_init .eq. itrue) then
+           if (EDPftvarcon_inst%initdbh(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial dbh cannot be less or equal zero.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+           if (EDPftvarcon_inst%init_seed(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial seed cannot equal zero '
+              write(fates_log(),*) ' Otherwize mass-balance will not be conserved.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+        endif
+
+
+        if (hlm_use_dbh_init .eq. itrue) then
+           if (EDPftvarcon_inst%initdbh(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial dbh cannot be less or equal zero.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+        endif
 
         if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
@@ -1327,6 +1396,11 @@ contains
 
         end if
 
+        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 16 ) then
+           write(fates_log(),*) 'MEGAN indices must be between 1 and 16',ipft,EDPftvarcon_inst%voc_pftindex(ipft)
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+       endif
+        
         if( hlm_use_fixed_biogeog .eq. itrue ) then
            ! check that the host-fates PFT map adds to one along HLM dimension so that all the HLM area
            ! goes to a FATES PFT.  Each FATES PFT can get < or > 1 of an HLM PFT.

@@ -38,6 +38,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : TRS_regeneration
    use FatesConstantsMod         , only : g_per_kg
    use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : n_dist_types
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
@@ -88,8 +89,8 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
    use EDParamsMod               , only : eca_plant_escalar
-   use PRTGenericMod             , only : prt_carbon_allom_hyp
-   use PRTGenericMod             , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod             , only : carbon_only
+   use PRTGenericMod             , only : carbon_nitrogen_phosphorus
    use PRTGenericMod             , only : carbon12_element
    use PRTGenericMod             , only : nitrogen_element
    use PRTGenericMod             , only : phosphorus_element
@@ -100,15 +101,15 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
-   use FatesRunningMeanMod       , only : ema_24hr
-   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
-   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
-   use FatesRunningMeanMod       , only : fixed_24hr
-   use FatesRunningMeanMod       , only : ema_lpa
-   use FatesRunningMeanMod       , only : ema_longterm
-   use FatesRunningMeanMod       , only : ema_60day
-   use FatesRunningMeanMod       , only : moving_ema_window
-   use FatesRunningMeanMod       , only : fixed_window
+   use FatesRunningSummMod       , only : ema_24hr
+   use FatesRunningSummMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningSummMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
+   use FatesRunningSummMod       , only : fixed_24hr
+   use FatesRunningSummMod       , only : ema_lpa
+   use FatesRunningSummMod       , only : ema_longterm
+   use FatesRunningSummMod       , only : ema_60day
+   use FatesRunningSummMod       , only : moving_ema_window
+   use FatesRunningSummMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
@@ -188,7 +189,7 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
-
+   
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -249,6 +250,10 @@ contains
     allocate(bc_pconst%eca_alpha_ptase(numpft))
     allocate(bc_pconst%eca_lambda_ptase(numpft))
     allocate(bc_pconst%j_uptake(nlevdecomp))
+    allocate(bc_pconst%wesley_veg_index(numpft))
+    allocate(bc_pconst%wesley_sum_thresh(numpft))
+    allocate(bc_pconst%wesley_aut_thresh(numpft))
+    allocate(bc_pconst%voc_pftindex(numpft))
     
     return
   end subroutine allocate_bcpconst
@@ -273,6 +278,11 @@ contains
     bc_pconst%eca_alpha_ptase(1:numpft)  = EDPftvarcon_inst%eca_alpha_ptase(1:numpft) 
     bc_pconst%eca_lambda_ptase(1:numpft) = EDPftvarcon_inst%eca_lambda_ptase(1:numpft)
     bc_pconst%eca_plant_escalar          = eca_plant_escalar
+
+    bc_pconst%wesley_veg_index(1:numpft)  = EDPftvarcon_inst%wesley_veg_index(1:numpft)
+    bc_pconst%wesley_sum_thresh(1:numpft) = EDPftvarcon_inst%wesley_sum_thresh(1:numpft)
+    bc_pconst%wesley_aut_thresh(1:numpft) = EDPftvarcon_inst%wesley_aut_thresh(1:numpft)
+    bc_pconst%voc_pftindex(1:numpft)   = EDPftvarcon_inst%voc_pftindex(1:numpft)
     
     return
   end subroutine set_bcpconst
@@ -337,6 +347,7 @@ contains
     ! Output boundaries
     fates%bc_out(s)%active_suction_sl(:) = .false.
     fates%bc_out(s)%fsun_pa(:)      = 0.0_r8
+    fates%bc_out(s)%ci_pa(:)        = 0.0_r8    
     fates%bc_out(s)%laisun_pa(:)    = 0.0_r8
     fates%bc_out(s)%laisha_pa(:)    = 0.0_r8
     fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
@@ -348,7 +359,7 @@ contains
     
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
-    case(prt_carbon_allom_hyp)
+    case(carbon_only)
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
@@ -358,7 +369,7 @@ contains
        fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-    case(prt_cnp_flex_allom_hyp) 
+    case(carbon_nitrogen_phosphorus)
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        fates%bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -410,7 +421,6 @@ contains
     fates%bc_out(s)%z0m_pa(:)    = 0.0_r8
     fates%bc_out(s)%dleaf_pa(:)   = 0.0_r8
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
-    
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -423,6 +433,9 @@ contains
     ! Land Use realated
     fates%bc_out(s)%gpp_site = 0.0_r8
     fates%bc_out(s)%ar_site = 0.0_r8
+    fates%bc_out(s)%npp_site = 0.0_r8
+    fates%bc_out(s)%npp_acc_site = 0.0_r8
+    fates%bc_out(s)%fates_total_carbon_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 
@@ -497,7 +510,7 @@ contains
       ! uptake for each cohort, and don't need to allocate by layer
       ! Allocating differently could save a lot of memory and time
 
-      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
          allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
@@ -552,6 +565,7 @@ contains
       allocate(bc_in%t_veg_pa(maxpatch_total))
       allocate(bc_in%tgcm_pa(maxpatch_total))
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
+
 
       ! Canopy Radiation
       bc_in%coszen = nan
@@ -633,6 +647,7 @@ contains
       
       ! Radiation
       allocate(bc_out%fsun_pa(maxpatch_total))
+      allocate(bc_out%ci_pa(maxpatch_total))
       allocate(bc_out%laisun_pa(maxpatch_total))
       allocate(bc_out%laisha_pa(maxpatch_total))
       
@@ -702,7 +717,7 @@ contains
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
-      case(prt_carbon_allom_hyp)
+      case(carbon_only)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -712,7 +727,7 @@ contains
          allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
-      case(prt_cnp_flex_allom_hyp) 
+      case(carbon_nitrogen_phosphorus)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -748,6 +763,7 @@ contains
       allocate(bc_out%frac_veg_nosno_alb_pa(maxpatch_total))
 
       allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
+      allocate(bc_out%drydep_season_pa(maxpatch_total))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -940,18 +956,23 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          if(hlm_use_sp.eq.itrue) then
-            fates_maxElementsPerPatch = num_swb
+            fates_maxElementsPerPatch = max(num_swb, numpft, nclmax)
          else
             fates_maxElementsPerPatch = max(num_swb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
+              numWatermem*numpft, num_vegtemp_mem, num_elements*ncwd, num_elements*numpft, &
+              nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
          end if
-         
+
+         ! Need enough restart elements to accomodate sites(s)%disturbance_rates
+         fates_maxElementsPerSite = max(fates_maxElementsPerSite,n_landuse_cats*n_landuse_cats*n_dist_types)
+         fates_maxElementsPerSite = max(fates_maxElementsPerSite,n_landuse_cats*numpft)
+
          
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
@@ -968,19 +989,19 @@ contains
          if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
             p_uptake_mode = prescribed_p_uptake
          else
+            ! An error check in subroutine set_fates_ctrlparms stops the run earlier if
+            ! - hlm_name is CLM
+            ! - p_uptake_mode is coupled_p_uptake and
+            ! - hlm_parteh_mode is CNP
+            ! because CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == carbon_nitrogen_phosphorus.
+            ! To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10)
+            ! in the fates parameter file.
             p_uptake_mode = coupled_p_uptake
          end if
          
-         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
-
-            if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
-               max_comp_per_site = fates_maxElementsPerSite
-               fates_np_comp_scaling = coupled_np_comp_scaling
-            else
-               max_comp_per_site = 1
-               fates_np_comp_scaling = trivial_np_comp_scaling
-            end if
-
+         if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
+            max_comp_per_site = fates_maxElementsPerSite
+            fates_np_comp_scaling = coupled_np_comp_scaling
          else
             max_comp_per_site = 1
             fates_np_comp_scaling = trivial_np_comp_scaling
@@ -1148,8 +1169,8 @@ contains
       
       !allocate(ema_60day)
       !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
-      !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
-      !rmean_arr_type
+      !class(rsumm_arr_type), pointer :: ema_fnrt_tscale(:)
+      !rsumm_arr_type
       
       
       return
@@ -1168,7 +1189,7 @@ contains
      ! automatically.
      
      select case(hlm_parteh_mode)
-     case(prt_carbon_allom_hyp)
+     case(carbon_only)
 
         num_elements = 1
         allocate(element_list(num_elements))
@@ -1178,7 +1199,7 @@ contains
 
         call InitPRTGlobalAllometricCarbon()
 
-     case(prt_cnp_flex_allom_hyp)
+     case(carbon_nitrogen_phosphorus)
         
         num_elements = 3
         allocate(element_list(num_elements))
@@ -1556,6 +1577,7 @@ contains
          hlm_num_lu_harvest_cats   = unset_int
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
+         hlm_lu_transition_logic = unset_int
          hlm_use_cohort_age_tracking = unset_int
          lb_params%dayl_switch = unset_int
          lb_params%photo_tempsens_model = unset_int
@@ -1574,6 +1596,7 @@ contains
          hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
+         hlm_use_dbh_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
          hlm_hist_level_dynam = unset_int
          hlm_hist_level_hifrq = unset_int
@@ -1682,6 +1705,14 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if (  .not.((hlm_use_dbh_init.eq.itrue).or.(hlm_use_dbh_init.eq.ifalse))    ) then
+            write(fates_log(), *) 'The Fates dbh init flag must be 0 or 1, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif ((hlm_use_dbh_init .eq. itrue) .and. (hlm_use_nocomp .eq. ifalse)) then
+            write(fates_log(), *) 'The Fates dbh init can only be ON in NOCOMP mode, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_ivis .ne. ivis) then
             write(fates_log(), *) 'FATES assumption about the index of visible shortwave'
             write(fates_log(), *) 'radiation is different from the HLM, exiting'
@@ -1739,7 +1770,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          else
             if((hlm_use_tree_damage .eq. itrue) .and. &
-                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+                 (hlm_parteh_mode == carbon_nitrogen_phosphorus)) then
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1812,12 +1843,12 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
-            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
-                sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
-               write(fates_log(), *) 'PARTEH hypothesis 2 is only viable with forced'
-               write(fates_log(), *) 'boundary conditions for CLM (currently).'
-               write(fates_log(), *) 'prescribed_puptake or prescribed_nuptake must > 0'
+         if(trim(hlm_name) == 'CLM' .and. &
+              hlm_parteh_mode  == carbon_nitrogen_phosphorus) then
+            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:))) < nearzero ) then
+               write(fates_log(), *) 'PARTEH hypothesis 2 (i.e. CNP) is only viable with forced'
+               write(fates_log(), *) 'phosphorus boundary conditions for CLM (currently).'
+               write(fates_log(), *) 'prescribed_puptake must > 0 (recommended is 10)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
@@ -2081,7 +2112,13 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
                end if
-
+               
+            case('fates_lu_transition_logic')
+               hlm_lu_transition_logic = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_lu_transition_logic= ',ival,' to FATES'
+               end if
+               
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
@@ -2184,6 +2221,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('use_dbh_init')
+               hlm_use_dbh_init = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_dbh_init= ',ival,' to FATES'
+               end if
+
             case('hist_hifrq_dimlevel')
                hlm_hist_level_hifrq = ival
                if (fates_global_verbose()) then
@@ -2265,7 +2308,7 @@ contains
    subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
-     ! we calculate running means. It is assumed that this buffer is updated
+     ! we calculate running summaries. It is assumed that this buffer is updated
      ! on the model time-step.
 
      type(ed_site_type), intent(inout) :: sites(:)
@@ -2297,9 +2340,15 @@ contains
            
            nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg24%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+
+           ! Update btran
+           do pft = 1, numpft
+              call cpatch%btran24_ft(pft)%p%UpdateRSumm(cpatch%btran_ft(pft))
+           end do
+
 
            ! Update the seedling layer par running means
            if ( hlm_regeneration_model == TRS_regeneration ) then
@@ -2317,9 +2366,9 @@ contains
               
               new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
               
-              call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
-              call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
-              call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+              call cpatch%seedling_layer_par24%UpdateRSumm(new_seedling_layer_par)
+              call cpatch%sdlng_mort_par%UpdateRSumm(new_seedling_layer_par)
+              call cpatch%sdlng2sap_par%UpdateRSumm(new_seedling_layer_par)
 
               do pft = 1,numpft
 
@@ -2339,8 +2388,8 @@ contains
                  endif
 
                  ! Update the seedling layer smp and mdd running means
-                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
-                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
+                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRSumm(new_seedling_layer_smp)
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRSumm(new_seedling_mdd)
 
               enddo !end pft loop
               
@@ -2348,10 +2397,11 @@ contains
 
            ccohort => cpatch%tallest
            do while (associated(ccohort))
-              !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+              !   call ccohort%tveg_lpa%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
                  ! [kgC/plant/yr] -> [gC/m2/yr]
-                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * g_per_kg
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg
               end if
               ccohort => ccohort%shorter
            end do
@@ -2376,6 +2426,8 @@ contains
 end subroutine UpdateFatesRMeansTStep
 
 ! ========================================================================================
+
+! ========================================================================================                 
 
 subroutine SeedlingParPatch(cpatch, & 
      atm_par_dir,atm_par_dif, & 

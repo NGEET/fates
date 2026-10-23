@@ -15,8 +15,8 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : num_elements
   use PRTGenericMod     , only : element_list
   use PRTGenericMod     , only : element_pos
-  use PRTGenericMod     , only : prt_carbon_allom_hyp
-  use PRTGenericMod     , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod     , only : carbon_only
+  use PRTGenericMod     , only : carbon_nitrogen_phosphorus
   use PRTGenericMod     , only : prt_vartypes
   use PRTGenericMod     , only : leaf_organ
   use PRTGenericMod     , only : sapw_organ, struct_organ
@@ -153,7 +153,7 @@ contains
 
     ! We can exit if this is a c-only simulation
     select case (hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (carbon_only)
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -218,7 +218,7 @@ contains
                 pft = ccohort%pft
                 fnrt_c = ccohort%prt%GetState(fnrt_organ, carbon12_element)
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
-                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_nuptake(pft)
+                ccohort%daily_p_gain   = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day * EDPftvarcon_inst%prescribed_puptake(pft)
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -289,7 +289,7 @@ contains
     
 
     ! Exit if we need not communicate with the hlm's ch4 module
-   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
+   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==carbon_nitrogen_phosphorus) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -302,7 +302,7 @@ contains
     bc_out%ema_npp = 0._r8
 
     ! Process CH4 variables first
-    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
+    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==carbon_nitrogen_phosphorus) )
 
     cpatch => csite%oldest_patch
     do while (associated(cpatch))

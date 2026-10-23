@@ -47,6 +47,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : bc_out_type
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -99,15 +100,13 @@ module EDPatchDynamicsMod
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTBurnLosses
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp   
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
   use EDParamsMod,            only : maxpatches_by_landuse
-  use FatesRunningMeanMod,    only : ema_sdlng_mdd
-  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,    only : ema_sdlng_mdd
+  use FatesRunningSummMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
+  use FatesRunningSummMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRadiationMemMod,   only : num_swb
 
   ! CIME globals
@@ -558,6 +557,7 @@ contains
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
+    logical  :: clear_all
     !---------------------------------------------------------------------
 
     if (hlm_use_nocomp .eq. itrue) then
@@ -570,7 +570,6 @@ contains
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates(:,:,:) = 0._r8
-
     ! get rules for vegetation clearing during land use change
     call GetLanduseChangeRules(clearing_matrix)
     
@@ -633,7 +632,7 @@ contains
                 ! this variable site_areadis holds all the newly disturbed area from all patches for all disturbance being
                 ! resolved now.
                 site_areadis = 0.0_r8
-
+                 
                 ! loop over all patches to figure out the total patch area generated as a result of all disturbance being
                 ! resolved now.
                 patchloop_areadis: do while(associated(currentPatch))
@@ -756,7 +755,9 @@ contains
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
+
                             call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
+
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -776,9 +777,18 @@ contains
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
+                               ! If we are clearing to make crops, then kill everything
+                               if (i_landusechange_receiverpatchlabel .eq. cropland .or. &
+                                    i_landusechange_receiverpatchlabel .eq. pastureland) then
+                                  clear_all = .true.
+                               else ! otherwise kill a fraction of the cohort determined by the clearing mortality param
+                                  clear_all = .false.
+                               end if
+                               
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in, &
-                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
+                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel), &
+                                    clear_all)
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
                                newPatch%changed_landuse_this_ts = .true.
@@ -811,7 +821,7 @@ contains
                                !  (Keeping as an example)
                                ! Allocate running mean functions
                                !allocate(nc%tveg_lpa)
-                               !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
+                               !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
 
                                call nc%ZeroValues()
 
@@ -1304,8 +1314,16 @@ contains
 
                                   ! now apply survivorship based on the type of landuse transition
                                   if ( clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) ) then
-                                     ! kill everything
-                                     nc%n = 0._r8
+
+                                     ! If we are clearing for crops then kill everything 
+                                     if (i_landusechange_receiverpatchlabel == cropland .or. &
+                                          i_landusechange_receiverpatchlabel == pastureland) then
+                                        nc%n = 0._r8
+                                     else
+                                        ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
+                                        nc%n = nc%n * (1.0_r8 - EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft) )
+                                     end if
+
                                   end if
 
                                case default
@@ -1758,6 +1776,7 @@ contains
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
+
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
     ! -------------------------------------------------------------------------
@@ -1777,7 +1796,7 @@ contains
        !  (Keeping as an example)
        ! Allocate running mean functions
        !allocate(nc%tveg_lpa)
-       !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+       !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
        call nc%ZeroValues()
 
@@ -1890,8 +1909,7 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis, &
-                                 dist_type)
+                                 patch_site_areadis, dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -2625,12 +2643,15 @@ contains
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
        newPatch, patch_site_areadis, bc_in,  &
-       clearing_matrix_element)
+       clearing_matrix_element, clear_all)
     !
     ! !DESCRIPTION:
     !  CWD pool from land use change.
     !  Carbon going from felled trees into CWD pool
-    !  Either kill everything or nothing on disturbed land, depending on clearing matrix
+    !  Whether or not to clear PFTs during transition from one land use class
+    !  to another is based on the clearing logic matrix. 
+    !  If clearing occurs, the fraction of the PFT killed depends on the
+    !  pft-level clearing mortality parameter
     !
     ! !USES:
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
@@ -2642,7 +2663,8 @@ contains
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
-
+    logical                , intent(in)            :: clear_all ! should all vegetation be killed - applies to crops
+    
     !
     ! !LOCAL VARIABLES:
 
@@ -2689,7 +2711,13 @@ contains
        if (hlm_use_planthydro == itrue) then
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
-             num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft)
+             end if
              call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
              currentCohort => currentCohort%taller
           end do
@@ -2760,8 +2788,15 @@ contains
 
 
              ! Absolute number of dead trees being transfered in with the donated area
-             num_dead_trees = (currentCohort%n * &
-                  patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(pft)
+             end if
 
              ! Contribution of dead trees to leaf litter
              donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
@@ -2854,6 +2889,8 @@ contains
 
                    site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
                         site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
+
+
 
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
@@ -3251,21 +3288,26 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    ! Weighted mean of the running means
-    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
-    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
+    ! Weighted mean of the running summaries
+    call rp%tveg24%FuseRSumm(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRSumm(dp%tveg_lpa,rp%area*inv_sum_area)
+
+    do pft = 1,numpft
+       call rp%btran24_ft(pft)%p%FuseRSumm(dp%btran24_ft(pft)%p,rp%area*inv_sum_area)
+    enddo
+
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
-       call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
-       call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
-       call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
+       call rp%seedling_layer_par24%FuseRSumm(dp%seedling_layer_par24,rp%area*inv_sum_area)
+       call rp%sdlng_mort_par%FuseRSumm(dp%sdlng_mort_par,rp%area*inv_sum_area)
+       call rp%sdlng2sap_par%FuseRSumm(dp%sdlng2sap_par,rp%area*inv_sum_area)
        do pft = 1,numpft
-          call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
-          call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_emerg_smp(pft)%p%FuseRSumm(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_mdd(pft)%p%FuseRSumm(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
        enddo
     end if
     
-    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+    call rp%tveg_longterm%FuseRSumm(dp%tveg_longterm,rp%area*inv_sum_area)
 
     rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
@@ -3429,7 +3471,8 @@ contains
                            'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
                            'lu label: '//trim(I2S(currentPatch%land_use_label))// &
                            'area: '//trim(N2S(currentPatch%area))
-                call FatesWarn(warn_msg,index=5)
+                
+                call FatesWarn(warn_msg,index=5,active=.false.)
              endif
 
           else nocomp_if
@@ -3612,7 +3655,7 @@ contains
           else
              write(fates_log(),*) 'this isnt because the land use was less than allowed'
 
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             !call endrun(msg=errMsg(sourcefile, __LINE__))
           
              ! Note to user. If you DO decide to remove the end-run above this line
              ! Make sure that you keep the pointer below this line, or you will get
@@ -3879,6 +3922,10 @@ contains
     call rp%tveg24%CopyFromDonor(dp%tveg24)
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
+
+    do ipft = 1,numpft
+       call rp%btran24_ft(ipft)%p%CopyFromDonor(dp%btran24_ft(ipft)%p)
+    end do
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)

@@ -32,6 +32,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ha_per_m2
+  use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
@@ -115,8 +117,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
-  use PRTGenericMod, only : prt_carbon_allom_hyp
-  use PRTGenericMod, only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod, only : carbon_only
+  use PRTGenericMod, only : carbon_nitrogen_phosphorus
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : sapw_organ, struct_organ
@@ -195,10 +197,6 @@ module EDPhysiologyMod
                                                       !    a residual amount of leaves, which may create
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
-
-  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for
-                                                      !    frozen or excessively dry soils, used when
-                                                      !    computing water stress.
   ! ============================================================================
 
 contains
@@ -289,11 +287,18 @@ contains
 
     ccohort => cpatch%tallest
     do while (associated(ccohort))
-
+       
        ! Ignore damage to new plants and non-woody plants
-       if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
-       if(ccohort%isnew ) cycle
+       if(prt_params%woody(ccohort%pft)==ifalse  ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
 
+       if(ccohort%isnew ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
+       
        associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))
@@ -425,7 +430,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -447,6 +452,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
+    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -903,13 +909,11 @@ contains
     ! Phenology.
     !
     ! !USES:
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
     use EDParamsMod, only : ED_val_phen_chiltemp
     use EDParamsMod, only : ED_val_phen_mindayson
     use EDParamsMod, only : ED_val_phen_ncolddayslim
     use EDParamsMod, only : ED_val_phen_coldtemp
-    use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -918,25 +922,17 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(fates_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
-    integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
-    integer  :: j                 ! Soil layer index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
-    real(r8) :: leaf_c            ! leaf carbon [kg]
-    real(r8) :: fnrt_c            ! fineroot carbon [kg]
-    real(r8) :: sapw_c            ! sapwood carbon [kg]
-    real(r8) :: store_c           ! storage carbon [kg]
-    real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
-    real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
+    integer  :: nchill_threshold  ! how many days of below zero weather do we need to allow cold dec buburst 
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -978,38 +974,16 @@ contains
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
 
 
-    ! This is the integer model day. The first day of the simulation is 1, and it
-    ! continues monotonically, indefinitely
-    ! Advance it. (this should be a global, no reason
-    ! for site level, but we don't have global scalars in the
-    ! restart file)
-    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    ! This is the elapsed number of days since the very beginning of the simulation time
     model_day_int = currentSite%phen_model_date
 
 
-    ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414)
-    ! - this is arbitrary and poorly understood. Needs work. ED_
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = 0._r8
-    temp_wgt = 0._r8
-    cpatch => CurrentSite%oldest_patch
-    do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
-       temp_wgt = temp_wgt + cpatch%total_canopy_area
-       cpatch => cpatch%younger
-    end do
-    if(temp_wgt>nearzero)then
-       temp_in_C = temp_in_C/temp_wgt - tfrz
-    else
-       ! If there is no canopy area, we use the veg temperature
-       ! of the first patch, which is the forcing air temperature
-       ! as defined in CLM/ELM. The forcing air temperature
-       ! should be the same among all patches. (Although
-       ! it is unlikely there are more than 1 in this scenario)
-       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
-    end if
+    ! Retrieve average canopy temperature of the current day
+    temp_in_C = currentSite%vegtemp_memory(1)
+
 
     !-----------------Cold Phenology--------------------!
 
@@ -1038,10 +1012,6 @@ contains
     !GDD accumulation function, which also depends on chilling days.
     !  -68 + 638 * (-0.001 * ncd)
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-
-    !Accumulate temperature of last 10 days.
-    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
-    currentSite%vegtemp_memory(1) = temp_in_C
 
     !count number of days for leaves off
     ncolddays = 0
@@ -1109,11 +1079,19 @@ contains
     !   this prevents tropical or warm climate plants that are "cold-deciduous"
     !   from ever re-flushing after they have reached their maximum age (thus
     !   preventing them from competing
-
+    
+    ! if fixed biogeography is on, we don't have an nchill threshold logic, because
+    ! we are only growing cold deciduous trees where they are in real life
+    if(hlm_use_fixed_biogeog .eq. ifalse)then
+       nchill_threshold=1
+    else
+       nchill_threshold=0
+    endif
+    
     if ( any(currentSite%cstatus == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
          (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
-         (currentSite%nchilldays >= 1)) then
+         (currentSite%nchilldays >= nchill_threshold)) then
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int
        currentSite%cndaysleafon = 0
@@ -1160,7 +1138,7 @@ contains
                                                   ! when there is no 'off' period.
        currentSite%grow_deg_days  = 0._r8
 
-       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
+       currentSite%cstatus = phen_cstat_iscold  ! alter status of site to imply that this
        ! site is never really cold enough
        ! for cold deciduous
        currentSite%cleafoffdate = model_day_int    ! record leaf off date
@@ -1179,53 +1157,6 @@ contains
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
        phen_doff_time         = prt_params%phen_doff_time        (ipft)
-
-
-       ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
-          currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
-          currentSite%smp_memory   (i_wmem,ipft) = currentSite%smp_memory   (i_wmem-1,ipft)
-       end do
-
-       ! Find the rooting depth distribution for PFT
-       call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-                               bc_in%max_rooting_depth_index_col )
-       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-
-       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using
-       ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we
-       ! ignore the top layer when calculating the memory.
-       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-       if ( rootfrac_notop <= nearzero ) then
-          ! Unlikely, but just in case all roots are in the first layer, we use the second
-          ! layer the second layer (to avoid FPE issues).
-          currentSite%rootfrac_scr(2) = 1.0_r8
-          rootfrac_notop              = 1.0_r8
-       end if
-
-       ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer (except the topmost one) as the weighting factor.
-
-       currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                                rootfrac_notop
-       currentSite%smp_memory   (1,ipft)  = 0._r8
-       do j = 2,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
-                  bc_in%smp_sl            (j) * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          else
-             ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
-                  smp_lwr_bound * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          end if
-       end do
 
        ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
        !    over the last 10 days
@@ -2046,6 +1977,8 @@ contains
     use EDTypesMod, only : area
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
+    use FatesConstantsMod     , only : rsnbl_math_prec
+    use EDTypesMod           , only : dump_site
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -2070,7 +2003,15 @@ contains
     logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
     real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
     real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
-    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT (0 to numpft to have bareground patch too)
+    real(r8) :: seed_bio_removed       ! debug: C removed from plant pools into the seed pathway [kg/site/day]
+    real(r8) :: seed_local_deliv       ! debug: C delivered to local seed pools this element [kg/site/day]
+    real(r8) :: seed_exported          ! debug: C exported off-site as seed_out [kg/site/day]
+    real(r8) :: seed_litter_deliv      ! debug: orphaned seed routed to fine litter [kg/site/day]
+    logical  :: is_orphan(1:numpft)     ! PFT has no valid destination seed pool this timestep
+    real(r8) :: orphan_seed_local      ! non-dispersed seed of an orphaned PFT [kg/site/day]
+    integer  :: dcmpy                  ! decomposability pool index
+    real(r8) :: dcmpy_frac             ! fraction of mass sent to each decomposability pool
 
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
@@ -2093,7 +2034,7 @@ contains
           currentPatch => currentSite%oldest_patch
           nocomp_patch_loop: do while (associated(currentPatch))
              nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
-                  + currentPatch%area
+                                                                 + currentPatch%area
              currentPatch => currentPatch%younger
           end do nocomp_patch_loop
        endif
@@ -2139,6 +2080,8 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
 
+        seed_local_deliv = 0.0_r8
+
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
        ! Loop over all patches and sum up the seed input for each PFT
@@ -2169,7 +2112,10 @@ contains
                 ! internal seed rain is sent out to neighboring gridcells.
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
                      (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
-
+                if (debug .and. element_id == carbon12_element) then
+                   seed_local_deliv = seed_local_deliv + currentPatch%area * nocomp_seed_scaling * &
+                                     (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/AREA)
+                endif
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
@@ -2211,12 +2157,83 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_in_loop
 
+       ! Orphaned seed: a PFT can shed reproductive mass (via PRTReproRelease) even
+       ! after it was fused/removed last timestep, leaving no valid destination seed
+       ! pool. Route its non-dispersed portion to fine litter so mass is conserved.
+       seed_litter_deliv = 0.0_r8
+       is_orphan(1:numpft) = .false.
+       do pft = 1,numpft
+          if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue) then
+             is_orphan(pft) = (nocomp_patch_areas(pft) < rsnbl_math_prec)
+          end if
+          if (is_orphan(pft) .and. site_seed_rain(pft) > rsnbl_math_prec) then
+             orphan_seed_local = site_seed_rain(pft) * (1.0_r8 - site_disp_frac(pft)) ! [kg/site/day]
+
+             currentPatch => currentSite%oldest_patch
+             do while (associated(currentPatch))
+                litt => currentPatch%litter(el)
+                do dcmpy = 1,ndcmpy
+                   dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                   ! [kg/site/day] -> [kg/m2/day]; area-weighted so summed input equals orphan_seed_local
+                   litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+                        orphan_seed_local * dcmpy_frac / AREA
+                end do
+                currentPatch => currentPatch%younger
+             end do
+             if (debug .and. element_id == carbon12_element) then
+                seed_litter_deliv = seed_litter_deliv + orphan_seed_local
+             endif
+          end if
+       end do
+
        ! Determine the total site-level seed output for the current element and update the seed_out mass
        ! for each element loop since the site_seed_rain is resent and updated for each element loop iteration
        do pft = 1,numpft
           site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
           currentSite%seed_out(pft) = currentSite%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
        end do
+
+       ! Seed-pathway closure. C removed from plant pools into seed should
+       ! equal C delivered to local seed pools plus C exported (seed_out). A nonzero
+       ! residual indicates the AREA vs sum(patch_area) normalization leak.
+       if(debug .and. element_id==carbon12_element) then
+          ! Total C removed from plant pools into the seed pathway, and the
+          ! summed patch area used to expose the AREA-normalization assumption below.
+          seed_bio_removed = sum(site_seed_rain(1:numpft))
+          seed_exported = 0._r8
+          do pft = 1,numpft
+             seed_exported = seed_exported + site_seed_rain(pft)*site_disp_frac(pft)
+          end do
+          ! Print on masterproc, or on any rank when the closure actually drifts
+          ! (so the offending site, which may be off-master, gets reported). + seed_litter_deliv 
+          if(abs(seed_bio_removed - (seed_local_deliv  + seed_litter_deliv + seed_exported)) > rsnbl_math_prec) then
+             write(fates_log(),*) 'WARNING: error in the seed balance'
+             write(fates_log(),*) '-------------------------'
+             write(fates_log(),*) 'seed bio removed   [kgC/day]: ', seed_bio_removed
+             write(fates_log(),*) 'seed local deliv   [kgC/day]: ', seed_local_deliv
+             write(fates_log(),*) 'seed to litter     [kgC/day]: ', seed_litter_deliv
+             write(fates_log(),*) 'seed exported      [kgC/day]: ', seed_exported
+             write(fates_log(),*) 'seed closure resid [kgC/day]: ', &
+                  seed_bio_removed - (seed_local_deliv + seed_litter_deliv + seed_exported)
+
+             ! In nocomp, seed produced by a pft with no home patch
+             ! (nocomp_patch_areas==0) or a disabled pft is stripped from biomass;
+             ! its non-dispersed portion is now routed to fine litter above. Flag the
+             ! offending pft so the source (e.g. a fused/removed pft) can be tracked.
+             if (hlm_use_nocomp .eq. itrue .and.  any(is_orphan(1:numpft)) ) then
+                do pft = 1,numpft
+                   if(site_seed_rain(pft) > rsnbl_math_prec .and. &
+                        nocomp_patch_areas(pft) < rsnbl_math_prec) then
+                      write(fates_log(),*) 'WARNING: pft with almmost no area produced seeds in nocomp mode'
+                      write(fates_log(),*) 'nocomp orphaned seed->litter pft/bio[kgC]/homearea[m2]: ', &
+                           pft, site_seed_rain(pft), nocomp_patch_areas(pft)
+                   end if
+                end do
+             end if
+            call dump_site(currentSite)
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
 
     end do el_loop
 
@@ -2732,7 +2749,7 @@ contains
 
 
                   select case(hlm_parteh_mode)
-                  case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
+                  case (carbon_only,carbon_nitrogen_phosphorus)
 
                      ! put all of the leaf mass into the first bin
                      call SetState(prt, leaf_organ, element_id, m_leaf, 1)
@@ -2971,6 +2988,7 @@ contains
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
@@ -3330,7 +3348,7 @@ contains
 
     ! Difference in dbh (cm) to consider a plant was recruited fairly recently
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     rec_n(1:numpft,1:nclmax) = 0._r8
     rec_l2fr0(1:numpft,1:nclmax) = 0._r8
@@ -3392,7 +3410,7 @@ contains
     ! Update the total plant stoichiometry of a new recruit, based on the updated
     ! L2FR values
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
@@ -3430,7 +3448,7 @@ contains
     type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     cpatch => csite%youngest_patch
     do while(associated(cpatch))

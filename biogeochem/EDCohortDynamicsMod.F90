@@ -15,6 +15,7 @@ Module EDCohortDynamicsMod
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
+  use FatesConstantsMod     , only : ievergreen
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -68,8 +69,8 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod    , only : set_root_fraction
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : carbon_only
+  use PRTGenericMod,          only : carbon_nitrogen_phosphorus
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
@@ -174,7 +175,7 @@ contains
 
     !  (Keeping as an example)
     !! allocate(newCohort%tveg_lpa)
-    !! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+    !! call newCohort%tveg_lpa%InitRSumm(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
     if (hlm_use_planthydro .eq. itrue) then
 
@@ -251,12 +252,12 @@ contains
 
 
     select case(hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (carbon_only)
 
         allocate(c_allom_prt)
         prt => c_allom_prt
 
-    case (prt_cnp_flex_allom_hyp)
+    case (carbon_nitrogen_phosphorus)
 
        allocate(cnp_allom_prt)
        prt => cnp_allom_prt
@@ -384,6 +385,20 @@ contains
             endif
 
          endif
+
+         ! live biomass pools are terminally depleted by grazing in grasses. 
+         if(prt_params%phen_leaf_habit(currentCohort%pft) == ievergreen .and. &
+              prt_params%woody(currentCohort%pft) .eq. ifalse) then
+            if ( ( leaf_c + fnrt_c ) < 1e-10_r8) then
+               terminate = itrue
+               termination_type = i_term_mort_type_cstarv
+               if ( debug ) then
+                  write(fates_log(),*) 'terminating cohorts 5', &
+                       sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
+               endif
+            endif
+         endif
+
 
       end if if_level_2
       
@@ -1039,7 +1054,7 @@ contains
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                       ! Nutrients
-                                      if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+                                      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
 
                                          currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
                                               + nextc%n*nextc%l2fr)/newn

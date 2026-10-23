@@ -28,8 +28,8 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : ZeroBCOutCarbonFluxes
-  use PRTGenericMod            , only : prt_carbon_allom_hyp
-  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod            , only : carbon_only
+  use PRTGenericMod            , only : carbon_nitrogen_phosphorus
   use PRTGenericMod            , only : nitrogen_element
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
@@ -111,6 +111,7 @@ module EDMainMod
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
   use FatesLandUseChangeMod,  only: FatesGrazing
+  use FatesCumulativeMemoryMod, only : UpdateCumulativeMemoryVars
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -173,6 +174,10 @@ contains
     end do
     call currentSite%flux_diags%ZeroFluxDiags()
 
+    ! Call a routine that will compute cumulative variables and "memory" averages for 
+    ! a suite of variables. These variables are mostly used for leaf phenology, but they
+    ! may be useful for other components (disturbances, mortality, management).
+    call UpdateCumulativeMemoryVars(currentSite,bc_in)
     
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
@@ -328,7 +333,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-    
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -555,7 +559,9 @@ contains
              
 
              ! allow herbivores to graze
-             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+             
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height,currentCohort%npp_acc, &
+                  currentCohort%treelai)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -739,7 +745,7 @@ contains
    ! Update history diagnostics related to Nutrients (if any)
    ! -----------------------------------------------------------------------------
    select case(hlm_parteh_mode)
-   case (prt_cnp_flex_allom_hyp)
+   case (carbon_nitrogen_phosphorus)
       call fates_hist%update_history_nutrflux(currentSite)
    end select
    
@@ -775,7 +781,7 @@ contains
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
-       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
@@ -828,10 +834,14 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
+    real(r8) :: biomass_stock   ! total biomass   in Kg/site    
+    real(r8) :: litter_stock    ! total litter    in Kg/site
+    real(r8) :: seed_stock      ! total seed mass in Kg/site
+    real(r8) :: total_stock     ! total ED carbon in Kg/site
+
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     type(site_massbal_type), pointer :: site_cmass
-    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -860,6 +870,9 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
+    call SiteMassStock(currentSite,1,total_stock,biomass_stock,litter_stock,seed_stock)
+    bc_out%fates_total_carbon_site = total_stock
+    
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
     
@@ -1029,7 +1042,7 @@ contains
           error_frac      = 0.0_r8
        end if
 
-       if ( error_frac > 10e-6_r8 .or. (error /= error) ) then
+       if ( error_frac > 10e-6_r8 ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac

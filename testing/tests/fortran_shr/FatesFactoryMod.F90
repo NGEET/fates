@@ -23,8 +23,8 @@ module FatesFactoryMod
   use EDParamsMod,                 only : nclmax
   use EDParamsMod,                 only : photo_temp_acclim_timescale
   use EDParamsMod,                 only : photo_temp_acclim_thome_time
-  use FatesRunningMeanMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  use FatesRunningMeanMod,         only : moving_ema_window, fixed_window
+  use FatesRunningSummMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,         only : moving_ema_window, fixed_window
   use EDCohortDynamicsMod,         only : InitPRTObject
   use PRTParametersMod,            only : prt_params
   use PRTGenericMod,               only : element_pos
@@ -41,8 +41,8 @@ module FatesFactoryMod
   use PRTGenericMod,               only : carbon12_element
   use PRTGenericMod,               only : nitrogen_element
   use PRTGenericMod,               only : phosphorus_element
-  use PRTGenericMod,               only : prt_carbon_allom_hyp
-  use PRTGenericMod,               only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,               only : carbon_only
+  use PRTGenericMod,               only : carbon_nitrogen_phosphorus
   use PRTGenericMod,               only : StorageNutrientTarget
   use PRTAllometricCarbonMod,      only : InitPRTGlobalAllometricCarbon
   use FatesAllometryMod,           only : h_allom
@@ -82,7 +82,7 @@ module FatesFactoryMod
     integer :: i ! looping index
     
     ! initialize some values
-    hlm_parteh_mode = prt_carbon_allom_hyp
+    hlm_parteh_mode = carbon_only
     num_elements = 1
     allocate(element_list(num_elements))
     element_list(1) = carbon12_element
@@ -112,7 +112,7 @@ module FatesFactoryMod
     do i = 2,nlevleaf
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-        
+    
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------
@@ -180,7 +180,7 @@ module FatesFactoryMod
 
       select case(hlm_parteh_mode)
         
-        case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
+        case (carbon_only,carbon_nitrogen_phosphorus)
           ! Put all of the leaf mass into the first bin
           call SetState(prt, leaf_organ, element_id, m_leaf, 1)
           do iage = 2, nleafage

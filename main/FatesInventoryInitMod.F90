@@ -58,8 +58,8 @@ module FatesInventoryInitMod
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceTypesMod, only : hlm_parteh_mode
    use EDCohortDynamicsMod, only : InitPRTObject
-   use PRTGenericMod,       only : prt_carbon_allom_hyp
-   use PRTGenericMod,       only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod,       only : carbon_only
+   use PRTGenericMod,       only : carbon_nitrogen_phosphorus
    use PRTGenericMod,       only : prt_vartypes
    use PRTGenericMod,       only : leaf_organ
    use PRTGenericMod,       only : fnrt_organ
@@ -72,7 +72,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,       only : phosphorus_element
    use PRTGenericMod,       only : SetState
    use FatesConstantsMod,   only : primaryland
-   use FatesRunningMeanMod, only : ema_lpa
+   use FatesRunningSummMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
    use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
@@ -1058,7 +1058,7 @@ contains
          !  (Keeping as an example)
          ! Allocate running mean functions
          !allocate(temp_cohort%tveg_lpa)
-         !call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
+         !call temp_cohort%tveg_lpa%InitRSumm(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
          
          do el = 1,num_elements
 
@@ -1116,7 +1116,7 @@ contains
             end select
 
             select case(hlm_parteh_mode)
-            case (prt_carbon_allom_hyp,prt_cnp_flex_allom_hyp )
+            case (carbon_only,carbon_nitrogen_phosphorus)
 
                ! Equally distribute leaf mass into available age-bins
                do iage = 1,nleafage
