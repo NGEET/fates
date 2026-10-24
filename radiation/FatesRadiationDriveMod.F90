@@ -182,9 +182,13 @@ contains
                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
                              bc_out(s)%ftii_parb(ifp,ib))
 
-                        if(debug) then
-                           currentPatch%twostr%band(ib)%Rbeam_atm = 1._r8
-                           currentPatch%twostr%band(ib)%Rdiff_atm = 1._r8
+
+                        ! Set upper boundary conditions to unit normalized
+                        ! which allows for normalized diagnostics
+                        currentPatch%twostr%band(ib)%Rbeam_atm = 1._r8
+                        currentPatch%twostr%band(ib)%Rdiff_atm = 1._r8
+                        
+                        if(debug)then
                            call CheckPatchRadiationBalance(currentPatch, sites(s)%snow_depth, & 
                                 ib, bc_out(s)%fabd_parb(ifp,ib),bc_out(s)%fabi_parb(ifp,ib))
                            currentPatch%twostr%band(ib)%Rbeam_atm = fates_unset_r8
