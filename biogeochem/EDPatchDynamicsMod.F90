@@ -3423,7 +3423,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: cpatch        ! current patch
-    type(faers_patch_type), pointer :: npatch        ! next patch
+    type(fates_patch_type), pointer :: npatch        ! next patch
     type(fates_patch_type), pointer :: opatch        ! older patch
     type(fates_patch_type), pointer :: ypatch        ! younger patch
 
@@ -3444,6 +3444,7 @@ contains
     ! Start at the youngest patch in the list and assume that the largest patch is this patch
     cpatch => csite%youngest_patch
     outer_patch_loop: do while(associated(cpatch))
+       npatch => cpatch%older
 
        if_small: if(cpatch%area <= min_patch_area_forced)then
 
@@ -3459,15 +3460,14 @@ contains
 
              icycles = 0
              do while(icycles<max_cycles .and. cpatch%area <= min_patch_area_forced )
-                patchpointer => csite%youngest_patch
-                do while(associated(patchpointer))
-                   if ( .not.associated(cpatch,patchpointer) .and. &
-                        patchpointer%nocomp_pft_label .eq. cpatch%nocomp_pft_label .and. &
-                        patchpointer%land_use_label .eq. cpatch%land_use_label .and. &
-                        .not. gotfused) then
-                      call fuse_2_patches(csite, patchpointer, cpatch)
+                opatch => csite%youngest_patch
+                do while(associated(opatch))
+                   if ( .not.associated(cpatch,opatch) .and. &
+                        opatch%nocomp_pft_label .eq. cpatch%nocomp_pft_label .and. &
+                        opatch%land_use_label .eq. cpatch%land_use_label) then
+                      call fuse_2_patches(csite, opatch, cpatch)
                    else
-                      patchpointer => patchpointer%older
+                      opatch => opatch%older
                    endif
                 end do
                 icycles=icycles+1
@@ -3479,33 +3479,35 @@ contains
              do while(icycles<max_cycles .and. cpatch%area <= min_patch_area_forced )
                 gotfused = .false.
                 opatch => cpatch%older
-                if(associated(cpatch%older) .and. cpatch%land_use_label .eq. opatch%land_use_label) then
-                   ! (site, donor, recipient)
-                   ! donor patch should be null
-                   call fuse_2_patches(csite, cpatch%older, cpatch)
-                   gotfused = .true.
-                else 
-                   if (icycles .gt. 0) then
-                      cpatch%land_use_label = opatch%land_use_label
-                      cpatch%age_since_anthro_disturbance = opatch%age_since_anthro_disturbance
-                      call fuse_2_patches(csite, opatch, cpatch)
+                if(associated(opatch)) then
+                   if(cpatch%land_use_label .eq. opatch%land_use_label) then
+                      ! (site, donor, recipient)
+                      ! donor patch should be null
+                      call fuse_2_patches(csite, cpatch%older, cpatch)
                       gotfused = .true.
-                   end if
-                endif
+                   else 
+                      if (icycles .gt. 0) then
+                         cpatch%land_use_label = opatch%land_use_label
+                         cpatch%age_since_anthro_disturbance = opatch%age_since_anthro_disturbance
+                         call fuse_2_patches(csite, opatch, cpatch)
+                         gotfused = .true.
+                      end if
+                   endif
+                end if
                 if( .not. gotfused .and. associated(cpatch%younger) ) then
-                   youngerPatch => cpatch%younger
-                   if (cpatch%land_use_label .eq. youngerPatch%land_use_label) then
-                      call fuse_2_patches(csite, youngerPatch, cpatch)
+                   ypatch => cpatch%younger
+                   if (cpatch%land_use_label .eq. ypatch%land_use_label) then
+                      call fuse_2_patches(csite, ypatch, cpatch)
                       gotfused=.true.
-                   else distlabel_2_if
+                   else
                       if (icycles .gt. 0) then
                          ! if we're having an incredibly hard time fusing patches because of
                          ! their differing anthropogenic disturbance labels,
                          ! since the size is so small, let's sweep the problem under the
                          ! rug and change the tiny patch's label to that of its younger sibling
-                         cpatch%land_use_label = youngerPatch%land_use_label
-                         cpatch%age_since_anthro_disturbance = youngerPatch%age_since_anthro_disturbance
-                         call fuse_2_patches(csite, youngerPatch, cpatch)
+                         cpatch%land_use_label = ypatch%land_use_label
+                         cpatch%age_since_anthro_disturbance = ypatch%age_since_anthro_disturbance
+                         call fuse_2_patches(csite, ypatch, cpatch)
                          gotfused=.true.
                       endif ! count cycles
                    endif
@@ -3522,16 +3524,16 @@ contains
           ! If the patch is still too small, take last resort measures
           ! This may include culling all vegetation and sending to litter
           ! particularly if its no-comp and no same pft patches exist
+          ! Note that cpatch will be deallocated and dereffed, so
+          ! we must point to the next patch before we do that
+          npatch => cpatch%older
           if(cpatch%area <= min_patch_area_forced)then
-             call FuseIntoLargestLastResort(csite,cpatch)
+             call FuseIntoLargestLastResort(csite,cpatch,bc_in)
           end if
           
        end if if_small
 
-       ! Since we always fuse into the current patch,
-       ! it should stay defined, and fuse_2_patches does update
-       ! the pointer to older
-       cpatch => cpatch%older
+       cpatch => npatch
     end do outer_patch_loop
     
     !check area is not exceeded
@@ -3544,7 +3546,7 @@ contains
 
   ! ==============================================================
   
-  subroutine FuseIntoLargestLastResort(currentSite,smallPatch)
+  subroutine FuseIntoLargestLastResort(currentSite,smallPatch,bc_in)
 
     ! The currentPatch is very small, and we weren't able
     ! to fuse it with a good candidate. However, if we keep
@@ -3555,9 +3557,9 @@ contains
     ! and the current patch are the same pft, but probably not
     ! so transport cohorts to litter in that case.
 
-    type(ed_site_type) :: currentSite
-    type(fates_patch_type) :: smallPatch
-    type(bc_in_type), intent(in) :: bc_in
+    type(ed_site_type),intent(inout) :: currentSite
+    type(bc_in_type),intent(in)   :: bc_in
+    type(fates_patch_type), pointer :: smallPatch
     type(fates_patch_type), pointer :: largestPatch
     type(fates_patch_type), pointer :: currentPatch
     real(r8) :: max_area  ! area of the largest patch [m2]
@@ -3580,19 +3582,24 @@ contains
     ! It might be a good idea to at least remove the cohorts from
     ! the patch so we don't run into problems with radiation.
     ! Since its the largest, there is no point in fusing or ditching
-    if(associated(smallestPatch,largestPatch))then
-       call terminate_cohorts(currentSite, smallPatch, level=4, 41, bc_in)
-       currentSite%landuse_vector_gt_min(currentPatch%land_use_label) = .false.
+    if(associated(smallPatch,largestPatch))then
+       call terminate_cohorts(currentSite, smallPatch, 4, 41, bc_in)
+       currentSite%landuse_vector_gt_min(smallPatch%land_use_label) = .false.
        return
     end if
     
     if(associated(largestPatch))then
        ! Ff these are not the same pft label, send cohorts to litter
        if(smallPatch%nocomp_pft_label .ne. largestPatch%nocomp_pft_label) then
-          call terminate_cohorts(currentSite, smallPatch, level=4, 42, bc_in)
+          call terminate_cohorts(currentSite, smallPatch, 4, 42, bc_in)
        end if
+       ! fuse_2_patches enforces pft label matching
+       smallPatch%nocomp_pft_label = largestPatch%nocomp_pft_label
+       ! flag that the small-patch's landuse classification is no longer
+       ! present now, set it before we chnage the landuse-label before fusion
+       currentSite%landuse_vector_gt_min(smallPatch%land_use_label) = .false.
+       smallPatch%land_use_label = largestPatch%land_use_label
        call fuse_2_patches(currentSite, smallPatch, largestPatch)
-       currentSite%landuse_vector_gt_min(currentPatch%land_use_label) = .false.
     end if
     
     return
