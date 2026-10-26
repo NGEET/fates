@@ -26,6 +26,7 @@ module EDBtranMod
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesPlantHydraulicsMod, only : BTranForHLMDiagnosticsFromCohortHydr
   use FatesGlobals, only : FatesWarn,N2S,A2S,I2S
+  use EDTypesMod, only : numlevsoil_max
 
   !
   implicit none
@@ -320,7 +321,7 @@ contains
                 
                 warn_msg = 'Normalized root resistances dont sum to 1, s:'//trim(I2S(s))// &
                      ' ifp: '//trim(I2S(ifp))// &
-                     ' temprootr: '//trim(N2S(temprootr)//' sum_pftgs: '//trim(N2S(sum_pftgs))// &
+                     ' temprootr: '//trim(N2S(temprootr))//' sum_pftgs: '//trim(N2S(sum_pftgs))// &
                      ' num_present_pfts: '//trim(N2S(num_present_pfts))
                 call FatesWarn(warn_msg,index=5)
                 
