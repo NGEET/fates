@@ -1558,6 +1558,7 @@ contains
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
          hlm_use_managed_fire = unset_int
+         hlm_use_crown_fire = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
@@ -1829,6 +1830,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_crown_fire .eq. unset_int) then
+            write(fates_log(), *) 'switch for crown fire mode unset: hlm_use_crown_fire, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(trim(hlm_name) == 'CLM' .and. &
               hlm_parteh_mode  == carbon_nitrogen_phosphorus) then
             if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:))) < nearzero ) then
@@ -2036,6 +2042,12 @@ contains
                hlm_use_managed_fire = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_managed_fire =',ival,' to FATES'
+              end if
+              
+            case('use_crown_fire')
+               hlm_use_crown_fire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_crown_fire =',ival,' to FATES'
               end if
               
                
