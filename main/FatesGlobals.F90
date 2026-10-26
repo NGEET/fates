@@ -106,12 +106,14 @@ contains
 
   ! =====================================================================================
 
-  subroutine FatesWarn(msg,index)
+  subroutine FatesWarn(msg,index,active)
 
     character(len=*), intent(in) :: msg      ! string to be printed
     integer,optional,intent(in)  :: index    ! warning index
+    logical,optional,intent(in)  :: active   ! flag if active for some calls
 
     integer :: ind
+    logical :: lactive
 
     if(warning_override) return  ! Exit early if we are turning off warnings
     
@@ -121,11 +123,17 @@ contains
        ind = 0
     end if
 
+    if(present(active))then
+       lactive = active
+    else
+       lactive = .true.
+    end if
+
     ! Don't check if the index is within bounds, this routine could already
     ! be too expensive if this is in cohort loops
     warn_counts(ind) = warn_counts(ind) + 1
 
-    if(warn_active(ind))then
+    if(warn_active(ind) .and. lactive)then
        write(fates_log(),*) 'FATESWARN: '//trim(ADJUSTL(I2S(ind)))//' m: '//trim(msg)
        if(warn_counts(ind)> max_warnings) then
           warn_active(ind) = .false.
