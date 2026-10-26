@@ -88,6 +88,7 @@ module FatesSoilBGCFluxMod
   public :: PrepCH4Bcs
   public :: PrepNutrientAquisitionBCs
   public :: UnPackNutrientAquisitionBCs
+  public :: ZeroSoilLitterFluxes
   public :: FluxIntoLitterPools
   public :: EffluxIntoLitterPools
   
@@ -541,13 +542,13 @@ contains
 
   ! =====================================================================================
 
-  subroutine EffluxIntoLitterPools(csite, cpatch, ccohort, bc_in )
+  subroutine EffluxIntoLitterPools(csite, cpatch, ccohort, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine just handles the transfer of exudation/efflux from plants
-    ! to the HLM.  We "root_fines_frag" array to save memory, and because it has
-    ! a labile component, soil discretization, and already has routines
-    ! in place for restarting and mass balancing through disturbance.
+    ! to the HLM.  There is no need to handle the accounting here, we
+    ! track mass balancing following this call in EDMain() with this mass diagnostic:
+    ! site%mass_balance()%net_root_uptake
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
@@ -555,12 +556,14 @@ contains
     type(fates_patch_type), intent(inout) :: cpatch
     type(fates_cohort_type), intent(inout),target :: ccohort
     type(bc_in_type), intent(in) :: bc_in
+    type(bc_out_type),intent(inout),target :: bc_out
 
     ! locals
     integer :: el                           ! element loop index
     integer :: j                            ! soil layer loop index
+    integer :: id
     real(r8), pointer :: efflux_ptr         ! pointer to cohort efflux
-    type(litter_type), pointer     :: litt
+    real(r8), pointer :: flux_lab_si(:)
     
     call set_root_fraction(csite%rootfrac_scr, &
          ccohort%pft, csite%zi_soil, &
@@ -568,41 +571,67 @@ contains
     
     ! Loop over the different elements. 
     do el = 1, num_elements
-       
+
        select case (element_list(el))
        case (carbon12_element)
-
           efflux_ptr => ccohort%daily_c_efflux
-          
+          flux_lab_si => bc_out%litt_flux_lab_c_si(:)
        case (nitrogen_element) 
-          
           efflux_ptr => ccohort%daily_n_efflux
-          
+          flux_lab_si => bc_out%litt_flux_lab_n_si(:)
        case (phosphorus_element)
-
           efflux_ptr => ccohort%daily_p_efflux
-          
+          flux_lab_si => bc_out%litt_flux_lab_p_si(:)
        end select
 
-       litt => cpatch%litter(el)
-       
        do j = 1,csite%nlevsoil
 
-          ! kg/m2/day
-          litt%root_fines_frag(ilabile,j) = litt%root_fines_frag(ilabile,j) + &
+          ! convert kg/day/plant -> kg/day/m2
+          ! following this call, during FluxIntoLitterPools()
+          ! we will further convert to the HLM units
+          ! kg/day/m2 -> g/s/m3
+          
+          id = bc_in%decomp_id(j)
+          flux_lab_si(id) = flux_lab_si(id) + &
                efflux_ptr * ccohort%n * AREA_INV * csite%rootfrac_scr(j)
 
-          ! Note: we do not increment the site-level mass flux checking
-          ! variable site_mass%frag_out  This will be incremented later
-          ! in the call sequence, and we don't want to double count.
-          
        end do
-
+       
     end do
 
     return
   end subroutine EffluxIntoLitterPools
+
+  ! ============================================================================
   
+  subroutine ZeroSoilLitterFluxes(bc_out)
+
+    type(bc_out_type),intent(inout) :: bc_out
+    integer :: el
+
+    do el = 1, num_elements
+
+       ! Zero out the boundary flux arrays
+       ! Make a pointer to the cellulose, labile and lignin
+       ! flux partitions.
+
+       select case (element_list(el))
+       case (carbon12_element)
+          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
+       case (nitrogen_element)
+          bc_out%litt_flux_cel_n_si(:) = 0._r8
+          bc_out%litt_flux_lig_n_si(:) = 0._r8
+          bc_out%litt_flux_lab_n_si(:) = 0._r8
+       case(phosphorus_element)
+          bc_out%litt_flux_cel_p_si(:) = 0._r8
+          bc_out%litt_flux_lig_p_si(:) = 0._r8
+          bc_out%litt_flux_lab_p_si(:) = 0._r8
+       end select
+    end do
+    
+  end subroutine ZeroSoilLitterFluxes
   
   ! =====================================================================================
 
@@ -634,13 +663,10 @@ contains
     ! for the CWD pools occurs at different timescales. 
     ! -----------------------------------------------------------------------------------
 
-    
     use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
-   
-    
 
     implicit none   
 
@@ -729,23 +755,14 @@ contains
        
        select case (element_list(el))
        case (carbon12_element)
-          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
           flux_cel_si => bc_out%litt_flux_cel_c_si(:)
           flux_lab_si => bc_out%litt_flux_lab_c_si(:)
           flux_lig_si => bc_out%litt_flux_lig_c_si(:)
        case (nitrogen_element)
-          bc_out%litt_flux_cel_n_si(:) = 0._r8
-          bc_out%litt_flux_lig_n_si(:) = 0._r8
-          bc_out%litt_flux_lab_n_si(:) = 0._r8
           flux_cel_si => bc_out%litt_flux_cel_n_si(:)
           flux_lab_si => bc_out%litt_flux_lab_n_si(:)
           flux_lig_si => bc_out%litt_flux_lig_n_si(:)
        case (phosphorus_element)
-          bc_out%litt_flux_cel_p_si(:) = 0._r8
-          bc_out%litt_flux_lig_p_si(:) = 0._r8
-          bc_out%litt_flux_lab_p_si(:) = 0._r8
           flux_cel_si => bc_out%litt_flux_cel_p_si(:)
           flux_lab_si => bc_out%litt_flux_lab_p_si(:)
           flux_lig_si => bc_out%litt_flux_lig_p_si(:)
@@ -940,9 +957,6 @@ contains
 
     end if
 
-
-
-    
     return
   end subroutine FluxIntoLitterPools
 
