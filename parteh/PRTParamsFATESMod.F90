@@ -308,6 +308,26 @@ contains
     allocate(prt_params%allom_agb4(num_pft))
     prt_params%allom_agb4(:) = param_p%r_data_1d(:)
 
+    param_p => pstruct%GetParamFromName('fates_allom_branch_mode')
+    allocate(prt_params%branch_mode(num_pft))
+    prt_params%branch_mode(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_branch_param_a')
+    allocate(prt_params%branch_param_a(num_pft))
+    prt_params%branch_param_a(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_branch_param_b')
+    allocate(prt_params%branch_param_b(num_pft))
+    prt_params%branch_param_b(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_branch_param_c')
+    allocate(prt_params%branch_param_c(num_pft))
+    prt_params%branch_param_c(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_branch_param_d')
+    allocate(prt_params%branch_param_d(num_pft))
+    prt_params%branch_param_d(:) = param_p%r_data_1d(:)
+
     param_p => pstruct%GetParamFromName('fates_allom_h2cd1')
     allocate(prt_params%allom_h2cd1(num_pft))
     prt_params%allom_h2cd1(:) = param_p%r_data_1d(:)
@@ -456,6 +476,11 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',prt_params%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',prt_params%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',prt_params%allom_agb4
+        write(fates_log(),fmti) 'branch_mode = ',prt_params%branch_mode
+        write(fates_log(),fmt0) 'branch_param_a = ',prt_params%branch_param_a
+        write(fates_log(),fmt0) 'branch_param_b = ',prt_params%branch_param_b
+        write(fates_log(),fmt0) 'branch_param_c = ',prt_params%branch_param_c
+        write(fates_log(),fmt0) 'branch_param_d = ',prt_params%branch_param_d
         write(fates_log(),fmt0) 'allom_h2cd1 = ',prt_params%allom_h2cd1
         write(fates_log(),fmt0) 'allom_h2cd2 = ',prt_params%allom_h2cd2
 
@@ -745,6 +770,24 @@ contains
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
            write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
+
+        end if
+
+        ! Check that woody plants use a valid branch biomass allometry mode
+        ! ----------------------------------------------------------------------------------
+        if ( ( prt_params%woody(ipft) .eq. 1 ) .and. &
+             ( ( prt_params%branch_mode(ipft) < 1 ) .or. &
+               ( prt_params%branch_mode(ipft) > 3 ) ) ) then
+
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) 'Woody plants must use a valid branch allometry mode'
+           write(fates_log(),*) ' (fates_allom_branch_mode = 1, 2 or 3)'
+           write(fates_log(),*) ' PFT#: ',ipft
+           write(fates_log(),*) ' branch_mode: ',prt_params%branch_mode(ipft)
            write(fates_log(),*) '---~---'
            write(fates_log(),*) ''
            write(fates_log(),*) ''
