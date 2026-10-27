@@ -27,7 +27,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : elem_diag_type
-  use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
   use FatesInterfaceTypesMod, only : numpft
@@ -3458,22 +3457,23 @@ contains
 
           nocomp_if: if (hlm_use_nocomp .eq. itrue) then
 
-             icycles = 0
-             do while(icycles<max_cycles .and. cpatch%area <= min_patch_area_forced )
-                opatch => csite%youngest_patch
-                do while(associated(opatch))
-                   if ( .not.associated(cpatch,opatch) .and. &
-                        opatch%nocomp_pft_label .eq. cpatch%nocomp_pft_label .and. &
-                        opatch%land_use_label .eq. cpatch%land_use_label) then
-                      call fuse_2_patches(csite, opatch, cpatch)
-                   else
-                      opatch => opatch%older
-                   endif
-                end do
-                icycles=icycles+1
+             ! Only go through the list once, no point it
+             ! doing it more than once since we fuse
+             ! into the patch in question
+             opatch => csite%youngest_patch
+             do while(associated(opatch) .and. cpatch%area <= min_patch_area_forced)
+                if ( .not.associated(cpatch,opatch) .and. &
+                     opatch%nocomp_pft_label .eq. cpatch%nocomp_pft_label .and. &
+                     opatch%land_use_label .eq. cpatch%land_use_label) then
+                   call fuse_2_patches(csite, opatch, cpatch)
+                endif
+                opatch=>cpatch%older
              end do
-                
-          else
+             
+             ! if the patch is still really small, we let
+             ! the last resort fusion to figure it out
+
+          else nocomp_if
 
              icycles = 0
              do while(icycles<max_cycles .and. cpatch%area <= min_patch_area_forced )
