@@ -141,6 +141,16 @@ module FatesRestartInterfaceMod
   integer :: ir_nh4uptakeflux_co
   integer :: ir_no3uptakeflux_co
   integer :: ir_po4uptakeflux_co
+
+  integer :: ir_flux_lab_c
+  integer :: ir_flux_cel_c
+  integer :: ir_flux_lig_c
+  integer :: ir_flux_lab_n
+  integer :: ir_flux_cel_n
+  integer :: ir_flux_lig_n
+  integer :: ir_flux_lab_p
+  integer :: ir_flux_cel_p
+  integer :: ir_flux_lig_p
   
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
@@ -906,6 +916,36 @@ contains
             long_name='po4 uptake flux for bc_in structure', &
             units='kgP/plant/s', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_po4uptakeflux_co)       
+
+       call this%set_restart_var(vname='fates_flux_lab_n', vtype=cohort_r8, &
+            long_name='output labile nitrogen flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lab_n)
+       
+       call this%set_restart_var(vname='fates_flux_cel_n', vtype=cohort_r8, &
+            long_name='output cellulose nitrogen flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_cel_n)
+       
+       call this%set_restart_var(vname='fates_flux_lig_n', vtype=cohort_r8, &
+            long_name='output lignin nitrogen flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lig_n)
+
+       call this%set_restart_var(vname='fates_flux_lab_p', vtype=cohort_r8, &
+            long_name='output labile phos flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lab_p)
+       
+       call this%set_restart_var(vname='fates_flux_cel_p', vtype=cohort_r8, &
+            long_name='output cellulose phos flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_cel_p)
+       
+       call this%set_restart_var(vname='fates_flux_lig_p', vtype=cohort_r8, &
+            long_name='output lignin phos flux', &
+            units='kg/site/day', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lig_p)
        
     end if
        
@@ -1535,6 +1575,21 @@ contains
          units='indiv/ha/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_growflx_fusion_siscpf)
 
+    call this%set_restart_var(vname='fates_flux_lab_c', vtype=cohort_r8, &
+         long_name='output labile carbon flux', &
+         units='kg/site/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lab_c)
+
+    call this%set_restart_var(vname='fates_flux_cel_c', vtype=cohort_r8, &
+         long_name='output cellulose carbon flux', &
+         units='kg/site/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_cel_c)
+
+    call this%set_restart_var(vname='fates_flux_lig_c', vtype=cohort_r8, &
+         long_name='output lignin carbon flux', &
+         units='kg/site/day', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_flux_lig_c)
+    
     call this%set_restart_var(vname='fates_demorate', vtype=cohort_r8, &
          long_name='fates diagnoatic rate of indivs demoted', &
          units='indiv/ha/day', flushval = flushzero, &
@@ -2262,7 +2317,7 @@ contains
 
  ! =====================================================================================
 
- subroutine set_restart_vectors(this,nc,nsites,sites,bc_in)
+ subroutine set_restart_vectors(this,nc,nsites,sites,bc_in,bc_out)
 
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
@@ -2280,6 +2335,7 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)                                :: bc_in(nsites)
+    type(bc_out_type)                               :: bc_out(nsites)
 
     ! Locals
     integer  :: s                         ! The local site index
@@ -2307,6 +2363,7 @@ contains
     integer  :: io_idx_si_lyr_shell ! site - layer x shell index
     integer  :: io_idx_si_scpf ! each size-class x pft index within site
     integer  :: io_idx_si_sc   ! each size-class index within site
+    integer  :: io_idx_si_dc ! decomp levels for site
     integer  :: io_idx_si_capf ! each cohort age-class x pft index within site
     integer  :: io_idx_si_cacls ! each cohort age class index within site
     integer  :: io_idx_si_cdsc ! each damage-class x size class within site
@@ -2532,6 +2589,7 @@ contains
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
           io_idx_si_sc   = io_idx_co_1st
+          io_idx_si_dc   = io_idx_co_1st
           io_idx_si_capf = io_idx_co_1st
           io_idx_si_cacls= io_idx_co_1st
           io_idx_si_cdsc = io_idx_co_1st
@@ -3003,6 +3061,23 @@ contains
 
              io_idx_si_sc = io_idx_si_sc + 1
           end do
+
+          ! Output fluxes to the host model
+          do i = 1,bc_in(s)%nlevdecomp
+             this%rvars(ir_flux_lig_c)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lig_c_si(i)
+             this%rvars(ir_flux_lab_c)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lab_c_si(i)
+             this%rvars(ir_flux_cel_c)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_cel_c_si(i)
+             if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
+                this%rvars(ir_flux_lig_n)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lig_n_si(i)
+                this%rvars(ir_flux_lab_n)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lab_n_si(i)
+                this%rvars(ir_flux_cel_n)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_cel_n_si(i)
+                this%rvars(ir_flux_lig_p)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lig_p_si(i)
+                this%rvars(ir_flux_lab_p)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_lab_p_si(i)
+                this%rvars(ir_flux_cel_p)%r81d(io_idx_si_dc) = bc_out(s)%litt_flux_cel_p_si(i)
+             end if
+             io_idx_si_dc = io_idx_si_dc + 1
+          end do
+
           
           rio_termcarea_cano_si(io_idx_si)  = sites(s)%term_crownarea_canopy
           rio_termcarea_usto_si(io_idx_si)  = sites(s)%term_crownarea_ustory
@@ -3340,7 +3415,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine get_restart_vectors(this, nc, nsites, sites, bc_in)
+   subroutine get_restart_vectors(this, nc, nsites, sites, bc_in, bc_out)
 
      use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
@@ -3357,8 +3432,8 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
-     type(bc_in_type)                                   :: bc_in(nsites)
-     
+     type(bc_in_type)                                    :: bc_in(nsites)
+     type(bc_out_type)                                   :: bc_out(nsites)
 
      ! locals
      ! ----------------------------------------------------------------------------------
@@ -3392,6 +3467,7 @@ contains
      integer  :: io_idx_si_lyr_shell ! site - layer x shell index
      integer  :: io_idx_si_scpf ! each size-class x pft index within site
      integer  :: io_idx_si_sc   ! each size-class index within site
+     integer  :: io_idx_si_dc
      integer  :: io_idx_si_cacls ! each coage class index within site
      integer  :: io_idx_si_capf ! each cohort age class x pft index within site
      integer  :: io_idx_si_cwd
@@ -3592,6 +3668,7 @@ contains
           io_idx_si_pfcl = io_idx_co_1st
           io_idx_si_vtmem = io_idx_co_1st
           io_idx_pa_ncl = io_idx_co_1st
+          io_idx_si_dc = io_idx_co_1st
 
           ! Hydraulics counters  lyr = hydraulic layer, shell = rhizosphere shell
           io_idx_si_lyr_shell = io_idx_co_1st
@@ -3999,7 +4076,7 @@ contains
                    do i = 1,ndcmpy
                       litt%leaf_fines(i) = this%rvars(ir_leaf_litt+el)%r81d(io_idx_pa_dc)
                       litt%leaf_fines_frag(i) = this%rvars(ir_lfines_frag_litt+el)%r81d(io_idx_pa_dc)
-                      io_idx_pa_dc       = io_idx_pa_dc + 1
+                      io_idx_pa_dc = io_idx_pa_dc + 1
                       do ilyr=1,nlevsoil
                          litt%root_fines(i,ilyr)      = this%rvars(ir_fnrt_litt+el)%r81d(io_idx_pa_dcsl)
                          litt%root_fines_frag(i,ilyr) = this%rvars(ir_rfines_frag_litt+el)%r81d(io_idx_pa_dcsl)
@@ -4037,6 +4114,11 @@ contains
                end do
              end if
 
+             
+     
+
+
+             
              ! Now increment the position of the first cohort to that of the next
              ! patch
 
@@ -4110,7 +4192,6 @@ contains
 
           end if
 
-
           ! Fill the site level diagnostics arrays
           ! -----------------------------------------------------------------------------
           do i_scls = 1,nlevsclass
@@ -4119,6 +4200,22 @@ contains
              sites(s)%promotion_rate(i_scls) = rio_promrate_sisc(io_idx_si_sc)
              
              io_idx_si_sc = io_idx_si_sc + 1
+          end do
+
+          ! Output fluxes to the host model
+          do i = 1,bc_in(s)%nlevdecomp
+             bc_out(s)%litt_flux_lig_c_si(i) = this%rvars(ir_flux_lig_c)%r81d(io_idx_si_dc)
+             bc_out(s)%litt_flux_lab_c_si(i) = this%rvars(ir_flux_lab_c)%r81d(io_idx_si_dc)
+             bc_out(s)%litt_flux_cel_c_si(i) = this%rvars(ir_flux_cel_c)%r81d(io_idx_si_dc)
+             if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
+                bc_out(s)%litt_flux_lig_n_si(i) = this%rvars(ir_flux_lig_n)%r81d(io_idx_si_dc)
+                bc_out(s)%litt_flux_lab_n_si(i) = this%rvars(ir_flux_lab_n)%r81d(io_idx_si_dc)
+                bc_out(s)%litt_flux_cel_n_si(i) = this%rvars(ir_flux_cel_n)%r81d(io_idx_si_dc)
+                bc_out(s)%litt_flux_lig_p_si(i) = this%rvars(ir_flux_lig_p)%r81d(io_idx_si_dc)
+                bc_out(s)%litt_flux_lab_p_si(i) = this%rvars(ir_flux_lab_p)%r81d(io_idx_si_dc)
+                bc_out(s)%litt_flux_cel_p_si(i) = this%rvars(ir_flux_cel_p)%r81d(io_idx_si_dc)
+             end if
+             io_idx_si_dc = io_idx_si_dc + 1
           end do
           
           if (hlm_use_tree_damage .eq. itrue) then
