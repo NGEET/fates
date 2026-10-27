@@ -108,7 +108,8 @@ module EDPatchDynamicsMod
   use FatesRunningSummMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
   use FatesRunningSummMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRadiationMemMod,   only : num_swb
-
+  use EDCohortDynamicsMod,    only : terminate_cohorts
+  
   ! CIME globals
   use shr_infnan_mod       , only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod          , only : errMsg => shr_log_errMsg
@@ -504,7 +505,6 @@ contains
     ! !USES:
 
     use EDParamsMod          , only : ED_val_understorey_death, logging_coll_under_frac
-    use EDCohortDynamicsMod  , only : terminate_cohorts
     use FatesConstantsMod    , only : rsnbl_math_prec
     use FatesLandUseChangeMod, only : GetLanduseChangeRules
     !
@@ -3408,7 +3408,7 @@ contains
 
   ! ============================================================================
 
-  subroutine terminate_patches(csite, bc_in, min_area)
+  subroutine terminate_patches(csite, bc_in)
     
     !
     ! !DESCRIPTION:
@@ -3419,7 +3419,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: csite
     type(bc_in_type), intent(in)              :: bc_in
-    real(r8),intent(in)                       :: min_area ! minimum allowable patch area [m2]
+
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: cpatch        ! current patch
@@ -3618,7 +3618,7 @@ contains
     type(fates_patch_type),pointer :: patchpointer
     real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
-    integer :: i_landuse_cats
+    integer :: i_landuse
     
     write(fates_log(),*) 'FATES is having difficulties fusing very small patches.'
     write(fates_log(),*) 'It is possible that a either a secondary or primary'
