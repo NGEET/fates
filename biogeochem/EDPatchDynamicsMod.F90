@@ -22,7 +22,6 @@ module EDPatchDynamicsMod
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : ed_site_type
   use FatesPatchMod        , only : fates_patch_type
-  use EDTypesMod           , only : set_patchno 
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
@@ -498,7 +497,7 @@ contains
     ! 7) For fire, burned plants are killed, and unburned plants are added to new patch. 
     ! 8) New cohorts are added to new patch and sorted. 
     ! 9) New patch is added into linked list
-    ! 10) Area checked, and patchno recalculated. 
+    ! 10) Area checked
     !
     ! !USES:
 
@@ -1414,7 +1413,6 @@ contains
 
 
                 call check_patch_area(currentSite)
-                call set_patchno(currentSite,.false.,0)
 
              end do landusechange_receiverpatchlabel_loop
           end do landuse_donortype_loop
@@ -3045,7 +3043,7 @@ contains
                       !--------------------------------------------------------------------------------------------
 
                       fuse_flag = 1
-                      different_patches_if: if(currentPatch%patchno /= tpp%patchno) then   !these should be the same patch
+                      different_patches_if: if( .not.associated(currentPatch,tpp) ) then 
 
                          !-----------------------------------------------------------------------------------
                          ! check to see if both patches are older than the age at which we force them to fuse
@@ -3664,8 +3662,6 @@ contains
     
     !check area is not exceeded
     call check_patch_area( currentSite )
-
-    call set_patchno( currentSite, .false., 0)
     
     return
   end subroutine terminate_patches

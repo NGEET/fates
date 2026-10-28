@@ -625,9 +625,38 @@ module EDTypesMod
   public :: dump_site
   public :: CalculateTreeGrassAreaSite
   public :: set_patchno
+  public :: unset_patchno
   
 contains
+  
+  subroutine unset_patchno(currentSite)
 
+    !
+    ! DESCRIPTION:
+    ! Set all patch numbers to a nominal negative value
+    ! so that if we try to use them before they are
+    ! appropriately set, we trigger a clear fail
+    
+    type(ed_site_type),intent(inout) :: currentSite
+    type(fates_patch_type), pointer :: currentPatch
+    integer patchno
+    
+    !---------------------------------------------------------------------
+
+    ! Flush the patch pointers
+    do patchno = 1,maxpatch_total
+       currentSite%pa_vec(patchno)%p => null()
+    end do
+    
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+       currentPatch%patchno = -999
+       currentPatch => currentPatch%younger
+    enddo
+    
+    return
+  end subroutine unset_patchno
+  
   ! ============================================================================
 
   subroutine set_patchno( currentSite, check , call_id)

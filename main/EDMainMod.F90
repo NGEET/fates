@@ -65,6 +65,7 @@ module EDMainMod
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
   use EDTypesMod               , only : set_patchno
+  use EDTypesMod               , only : unset_patchno
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -307,6 +308,11 @@ contains
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
 
+       ! set patch id numbers to bogus values
+       ! to protect them from use until patches
+       ! have been fused and culled again.
+       call unset_patchno(currentSite)
+       
        call spawn_patches(currentSite, bc_in)
 
        call TotalBalanceCheck(currentSite,3)
@@ -328,6 +334,9 @@ contains
 
        ! kill patches that are too small
        call terminate_patches(currentSite, bc_in)
+
+       ! set the patch index numbers and associate the patch vector pointers
+       call set_patchno(currentSite,.false.,0)
     end if
 
     ! Final instantaneous mass balance check
