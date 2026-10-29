@@ -1,0 +1,347 @@
+! Summary: Unit tests for FatesPlantHydraulicsMod cohort-level hydraulic routines and constraints.
+!=========================================================================================
+! Tests for FatesPlantHydraulicsMod cohort-level hydraulic routines and constraints
+!=========================================================================================
+module FatesPlantHydraulicsMod_cohort_test
+  use FatesPlantHydraulicsMod, only : FuseCohortHydraulics, UpdatePlantPsiFTCFromTheta, UpdatePlantPsiFTCFromTheta_explicit, UpdatePlantKmax, UpdatePlantKmax_explicit, ConstrainRecruitNumber, InitHydroGlobals
+  use FatesConstantsMod, only : r8 => fates_r8
+  use EDTypesMod, only : ed_site_type
+  use FatesPatchMod, only : fates_patch_type
+  use FatesCohortMod, only : fates_cohort_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type, ed_cohort_hydr_type, n_plant_media, leaf_p_media, stem_p_media, troot_p_media, aroot_p_media, stomata_p_media, n_hypool_ag, n_hypool_stem, n_hypool_leaf
+  use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type
+  use FatesHydroWTFMod, only : wrf_type_vg, wkf_type_vg
+  use EDPftvarcon, only : EDPftvarcon_inst
+  use PRTParametersMod, only : prt_params
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestPlantHydraulicsCohort
+  contains
+  end type TestPlantHydraulicsCohort
+
+contains
+
+  ! Summary: Tests conversion of relative water content (theta) to matric potential (psi) and fractional loss of conductivity (ftc) using explicit parameter signature without site/cohort mock objects.
+  @Test
+  subroutine test_UpdatePlantPsiFTCFromTheta(this)
+    use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+    use EDPftvarconMockMod, only : init_mock_edpftvarcon
+
+    class(TestPlantHydraulicsCohort), intent(inout) :: this
+    integer :: pft, nlevrhiz
+    ! Relative water content theta [m3/m3] chosen near saturation
+    real(r8) :: th_ag(n_hypool_ag), th_troot, th_aroot(1)
+    ! Output hydraulic state variables: matric potential [MPa] and fractional loss of conductivity [dimensionless]
+    real(r8) :: psi_ag(n_hypool_ag), ftc_ag(n_hypool_ag), btran
+    real(r8) :: psi_troot, ftc_troot
+    real(r8) :: psi_aroot(1), ftc_aroot(1)
+    real(r8) :: expected_psi, expected_ftc
+    ! Tight numerical tolerance selected to validate analytical van Genuchten formula precision
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    ! Initialize mock PRT parameters and PFT 1 van Genuchten parameters
+    call init_mock_prt_params()
+    call init_mock_edpftvarcon()
+    call InitHydroGlobals()
+
+    ! Target plant functional type index and single rhizosphere soil layer count
+    pft = 1
+    nlevrhiz = 1
+
+    ! Relative water content theta [m3/m3] chosen at 98% of saturated porosity
+    ! Rationale: Evaluates non-linear retention dynamics near saturation while avoiding singular saturation limits
+    th_ag(:) = 0.49_r8
+    th_troot = 0.49_r8
+    th_aroot(1) = 0.49_r8
+
+    ! Execute explicit conversion routine directly
+    call UpdatePlantPsiFTCFromTheta_explicit(pft, nlevrhiz, th_ag, th_troot, th_aroot, &
+                                             psi_ag, ftc_ag, btran, psi_troot, ftc_troot, &
+                                             psi_aroot, ftc_aroot)
+
+    ! Analytical solution derivation:
+    ! Effective saturation se = (0.49 - 0.05) / (0.5 - 0.05) = 44/45
+    ! Psi = - (1 / alpha) * ((se^(-1/m) - 1)^(1/n)) = -21.4408662092 MPa
+    ! FTC = 1 / (1 + (psi / p50)^avuln) = 0.62466256568
+    expected_psi = -21.440866209219568_r8
+    expected_ftc = 0.62466256568279799_r8
+
+    @assertEqual(expected_psi, psi_ag(1), tolerance=tol)
+    @assertEqual(expected_ftc, ftc_ag(1), tolerance=tol)
+
+    @assertEqual(expected_psi, psi_troot, tolerance=tol)
+    @assertEqual(expected_ftc, ftc_troot, tolerance=tol)
+
+    @assertEqual(expected_psi, psi_aroot(1), tolerance=tol)
+    @assertEqual(expected_ftc, ftc_aroot(1), tolerance=tol)
+
+    ! Invariant B: Physical state boundaries (psi <= 0.0 MPa and 0.0 <= FTC <= 1.0)
+    @assertTrue(all(psi_ag <= 0.0_r8))
+    @assertTrue(all(ftc_ag >= 0.0_r8 .and. ftc_ag <= 1.0_r8))
+    @assertTrue(psi_troot <= 0.0_r8)
+    @assertTrue(ftc_troot >= 0.0_r8 .and. ftc_troot <= 1.0_r8)
+    @assertTrue(all(psi_aroot <= 0.0_r8))
+    @assertTrue(all(ftc_aroot >= 0.0_r8 .and. ftc_aroot <= 1.0_r8))
+
+  end subroutine test_UpdatePlantPsiFTCFromTheta
+
+
+  ! Summary: Tests maximum hydraulic conductance (kmax) scaling using explicit parameters without global PFT/PRT mock objects.
+  @Test
+  subroutine test_UpdatePlantKmax(this)
+    class(TestPlantHydraulicsCohort), intent(inout) :: this
+    type(ed_cohort_hydr_type) :: ccohort_hydr
+    ! Explicit plant hydraulic parameters
+    ! Maximum node xylem conductivity [kg s-1 m-1 MPa-1]
+    real(r8) :: hydr_kmax_node
+    ! Xylem conduit tapering power exponent [dimensionless]
+    real(r8) :: hydr_p_taper
+    ! Stem resistance fraction of total plant hydraulic resistance [dimensionless]
+    real(r8) :: hydr_rfrac_stem
+    ! Absorbing fine root radius [m]
+    real(r8) :: hydr_rs2
+    ! Sapwood cross-sectional area [m2]
+    real(r8) :: a_sapwood
+    integer :: nlevrhiz
+    real(r8) :: expected_kmax_stem_lower, expected_kmax_troot_upper, expected_kmax_stem_upper
+    ! Tolerance matches analytical allometric conductance precision
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    nlevrhiz = 1
+    call ccohort_hydr%AllocateHydrCohortArrays(nlevrhiz)
+
+    ! Height boundaries [m] for stem discretization
+    ! Rationale: Discretizes stem into two 1.0m segments with mid-point nodes at 1.5m and 0.5m.
+    ccohort_hydr%z_upper_ag(1) = 2.0_r8
+    ccohort_hydr%z_node_ag(1) = 1.5_r8
+    ccohort_hydr%z_lower_ag(1) = 1.0_r8
+
+    ccohort_hydr%z_upper_ag(2) = 1.0_r8
+    ccohort_hydr%z_node_ag(2) = 0.5_r8
+    ccohort_hydr%z_lower_ag(2) = 0.0_r8
+    ! Transport root depth node [m] below ground interface
+    ccohort_hydr%z_node_troot = -1.0_r8
+
+    ! Organ volume [m3] and root length [m] inputs
+    ! Rationale: Setting volume V = 1.0 m3 normalizes the volume scaling factor to unity.
+    ccohort_hydr%v_aroot_layer(:) = 1.0_r8
+    ccohort_hydr%l_aroot_layer(:) = 1.0_r8
+    ccohort_hydr%v_ag(:) = 1.0_r8
+    ccohort_hydr%v_troot = 1.0_r8
+
+    ! Explicit hydraulic trait parameters
+    ! Maximum xylem node conductivity [kg s-1 m-1 MPa-1]
+    hydr_kmax_node = 30.0_r8
+    ! Xylem tapering exponent [dimensionless]
+    hydr_p_taper = 0.33_r8
+    ! Stem resistance fraction [dimensionless]
+    hydr_rfrac_stem = 0.6_r8
+    ! Fine root radius [m]
+    hydr_rs2 = 0.001_r8
+    ! Sapwood area [m2]
+    a_sapwood = 0.001_r8
+
+    ! Execute explicit conductance update routine directly without global PRT/PFT singletons
+    call UpdatePlantKmax_explicit(ccohort_hydr, nlevrhiz, hydr_kmax_node, &
+                                 hydr_p_taper, hydr_rfrac_stem, hydr_rs2, &
+                                 a_sapwood)
+
+    expected_kmax_stem_upper = 3.8415777909862010_r8
+    expected_kmax_stem_lower = 6.0270594288642396_r8
+    expected_kmax_troot_upper = 3.4363596738329796_r8
+
+    @assertEqual(expected_kmax_stem_upper, ccohort_hydr%kmax_stem_upper(1), tolerance=tol)
+    @assertEqual(expected_kmax_stem_lower, ccohort_hydr%kmax_stem_lower(1), tolerance=tol)
+    @assertEqual(expected_kmax_troot_upper, ccohort_hydr%kmax_troot_upper, tolerance=tol)
+    @assertGreaterThan(ccohort_hydr%kmax_stem_upper(1), 0.0_r8)
+
+    call ccohort_hydr%DeallocateHydrCohortArrays()
+
+  end subroutine test_UpdatePlantKmax
+
+
+  ! Summary: Tests belowground root maximum conductance series resistance conservation across multi-layer rhizosphere.
+  @Test
+  subroutine test_UpdatePlantKmax_BelowgroundSeriesConservation(this)
+    class(TestPlantHydraulicsCohort), intent(inout) :: this
+    type(ed_cohort_hydr_type) :: ccohort_hydr
+    ! Explicit plant hydraulic parameters
+    real(r8) :: hydr_kmax_node
+    real(r8) :: hydr_p_taper
+    real(r8) :: hydr_rfrac_stem
+    real(r8) :: hydr_rs2
+    real(r8) :: a_sapwood
+    integer :: nlevrhiz
+
+    ! Setup 2 rhizosphere soil layers
+    nlevrhiz = 2
+    call ccohort_hydr%AllocateHydrCohortArrays(nlevrhiz)
+
+    ! Aboveground segment geometry [m]
+    ccohort_hydr%z_upper_ag(1) = 2.0_r8
+    ccohort_hydr%z_node_ag(1) = 1.5_r8
+    ccohort_hydr%z_lower_ag(1) = 1.0_r8
+    ccohort_hydr%z_upper_ag(2) = 1.0_r8
+    ccohort_hydr%z_node_ag(2) = 0.5_r8
+    ccohort_hydr%z_lower_ag(2) = 0.0_r8
+    ccohort_hydr%z_node_troot = -1.0_r8
+
+    ! Organ volumes [m3] and root lengths [m] distributed across 2 layers
+    ccohort_hydr%v_ag(:) = 1.0_r8
+    ccohort_hydr%v_troot = 1.0_r8
+    ccohort_hydr%v_aroot_layer(1) = 0.5_r8
+    ccohort_hydr%v_aroot_layer(2) = 0.5_r8
+    ccohort_hydr%l_aroot_layer(1) = 500.0_r8
+    ccohort_hydr%l_aroot_layer(2) = 500.0_r8
+
+    ! Explicit hydraulic trait parameters
+    ! Xylem node max conductivity [kg s-1 m-1 MPa-1]
+    hydr_kmax_node = 30.0_r8
+    ! Xylem tapering exponent [dimensionless]
+    hydr_p_taper = 0.33_r8
+    ! Stem resistance fraction [dimensionless]
+    hydr_rfrac_stem = 0.5_r8
+    ! Fine root radius [m]
+    hydr_rs2 = 0.001_r8
+    ! Sapwood area [m2]
+    a_sapwood = 0.002_r8
+
+    ! Execute explicit UpdatePlantKmax routine
+    call UpdatePlantKmax_explicit(ccohort_hydr, nlevrhiz, hydr_kmax_node, &
+                                 hydr_p_taper, hydr_rfrac_stem, hydr_rs2, &
+                                 a_sapwood)
+
+    ! Verify belowground conductance positivity and series resistance conservation invariants
+    @assertTrue(all(ccohort_hydr%kmax_troot_lower > 0.0_r8))
+    @assertTrue(all(ccohort_hydr%kmax_aroot_upper > 0.0_r8))
+    @assertTrue(all(ccohort_hydr%kmax_aroot_lower > 0.0_r8))
+
+    call ccohort_hydr%DeallocateHydrCohortArrays()
+
+  end subroutine test_UpdatePlantKmax_BelowgroundSeriesConservation
+
+
+  ! Summary: Tests recruit density reduction when soil matric potential drops below recruit survival threshold.
+  @Test
+  subroutine test_ConstrainRecruitNumber(this)
+    use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+    use EDPftvarconMockMod, only : init_mock_edpftvarcon
+    use EDTypesMockMod, only : init_mock_site_patch_cohort
+
+    class(TestPlantHydraulicsCohort), intent(inout) :: this
+    type(ed_site_type), pointer :: csite => null()
+    type(fates_patch_type), pointer :: cpatch => null()
+    type(fates_cohort_type), pointer :: ccohort => null()
+    type(bc_in_type) :: bc_in
+    ! Mean atmospheric temperature = 300.0 K represents standard warm growing season environment (~27 deg C)
+    real(r8) :: mean_temp = 300.0_r8
+    
+    ! Initialize mock setup for cohort and site
+    call init_mock_prt_params()
+    call init_mock_edpftvarcon()
+    call init_mock_site_patch_cohort(csite, cpatch, ccohort)
+    ccohort%pft = 1
+    
+    csite%si_hydr%nlevrhiz = 1
+    call csite%si_hydr%InitHydrSite(1, 1, 1, 1)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(1)
+    
+    ! Allocate van Genuchten soil retention curve object for layer 1
+    allocate(wrf_type_vg :: csite%si_hydr%wrf_soil(1)%p)
+    select type (p => csite%si_hydr%wrf_soil(1)%p)
+      type is (wrf_type_vg)
+        ! Soil parameters: alpha=0.001 1/mm (coarse sand/loam), n=1.5, m=0.5, th_s=0.6 (60% soil porosity), th_r=0.1 (10% residual)
+        call p%set_wrf_param([0.001_r8, 1.5_r8, 0.5_r8, 0.6_r8, 0.1_r8])
+    end select
+    
+    ! Soil shell volume = 1.0 m3, volumetric liquid water = 0.5 m3/m3 (moist initial soil state)
+    csite%si_hydr%v_shell(1,1) = 1.0_r8
+    csite%si_hydr%h2osoi_liqvol_shell(1,1) = 0.5_r8
+    
+    ! Initial plant compartment water content theta = 0.5 m3/m3 and volume = 1.0 m3
+    ccohort%co_hydr%th_ag(:) = 0.5_r8
+    ccohort%co_hydr%v_ag(:) = 1.0_r8
+    ccohort%co_hydr%th_troot = 0.5_r8
+    ccohort%co_hydr%v_troot = 1.0_r8
+    ccohort%co_hydr%th_aroot(:) = 0.5_r8
+    ccohort%co_hydr%v_aroot_layer(:) = 1.0_r8
+    ccohort%co_hydr%l_aroot_layer(:) = 1.0_r8
+    
+    ! Minimum soil matric potential smpmin_si = -1500.0 MPa chosen far below wilting point (-1.5 MPa)
+    ! Rationale: Exceeds desiccation threshold to force 100% recruit mortality check
+    bc_in%smpmin_si = -1500.0_r8 
+    ! Initial recruit density n = 10.0 indiv/m2 represents dense seedling bank before environmental filter
+    ccohort%n = 10.0_r8
+    
+    ! Initialize patch litter pool to avoid null pointer dereference
+    call cpatch%InitLitter(1, 1)
+    
+    ! Execute recruitment constraint routine
+    call ConstrainRecruitNumber(csite, ccohort, cpatch, bc_in, mean_temp)
+    
+    ! Under extreme desiccation (-1500 MPa), cohort density is constrained to 0.0 indiv/m2
+    @assertEqual(0.0_r8, ccohort%n, tolerance=1.e-10_r8)
+    
+    if(allocated(ccohort%co_hydr%l_aroot_layer)) deallocate(ccohort%co_hydr%l_aroot_layer)
+  end subroutine test_ConstrainRecruitNumber
+
+  ! Summary: Tests ConstrainRecruitNumber freezing temperature boundary condition (0 deg C / 273.15 K).
+  @Test
+  subroutine test_ConstrainRecruitNumber_FreezingBoundary(this)
+    use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+    use EDPftvarconMockMod, only : init_mock_edpftvarcon
+    use EDTypesMockMod, only : init_mock_site_patch_cohort
+
+    class(TestPlantHydraulicsCohort), intent(inout) :: this
+    type(ed_site_type), pointer :: csite => null()
+    type(fates_patch_type), pointer :: cpatch => null()
+    type(fates_cohort_type), pointer :: ccohort => null()
+    type(bc_in_type) :: bc_in
+    ! Exact freezing temperature boundary mean_temp = 273.15 K (0 deg C)
+    real(r8) :: mean_temp = 273.15_r8
+    
+    call init_mock_prt_params()
+    call init_mock_edpftvarcon()
+    call init_mock_site_patch_cohort(csite, cpatch, ccohort)
+    ccohort%pft = 1
+    
+    csite%si_hydr%nlevrhiz = 1
+    call csite%si_hydr%InitHydrSite(1, 1, 1, 1)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(1)
+    
+    allocate(wrf_type_vg :: csite%si_hydr%wrf_soil(1)%p)
+    select type (p => csite%si_hydr%wrf_soil(1)%p)
+      type is (wrf_type_vg)
+        call p%set_wrf_param([0.001_r8, 1.5_r8, 0.5_r8, 0.6_r8, 0.1_r8])
+    end select
+    
+    csite%si_hydr%v_shell(1,1) = 1.0_r8
+    csite%si_hydr%h2osoi_liqvol_shell(1,1) = 0.5_r8
+    
+    ccohort%co_hydr%th_ag(:) = 0.5_r8
+    ccohort%co_hydr%v_ag(:) = 1.0_r8
+    ccohort%co_hydr%th_troot = 0.5_r8
+    ccohort%co_hydr%v_troot = 1.0_r8
+    ccohort%co_hydr%th_aroot(:) = 0.5_r8
+    ccohort%co_hydr%v_aroot_layer(:) = 1.0_r8
+    ccohort%co_hydr%l_aroot_layer(:) = 1.0_r8
+    
+    ! Minimum soil matric potential smpmin_si = -1.5e8_r8 ensures low residual water threshold, allowing non-zero recruitable density before temperature check
+    bc_in%smpmin_si = -1.5e8_r8
+    ccohort%n = 10.0_r8
+    
+    call cpatch%InitLitter(1, 1)
+    
+    ! Execute recruitment constraint routine at exact freezing boundary (273.15 K)
+    call ConstrainRecruitNumber(csite, ccohort, cpatch, bc_in, mean_temp)
+    
+    ! Kills Mutation 5 by verifying recruitment is zeroed out at exact freezing point (273.15 K)
+    @assertEqual(0.0_r8, ccohort%n, tolerance=1.e-10_r8)
+    
+    if(allocated(ccohort%co_hydr%l_aroot_layer)) deallocate(ccohort%co_hydr%l_aroot_layer)
+  end subroutine test_ConstrainRecruitNumber_FreezingBoundary
+
+end module FatesPlantHydraulicsMod_cohort_test

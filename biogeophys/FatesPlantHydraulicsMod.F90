@@ -116,6 +116,8 @@ module FatesPlantHydraulicsMod
 
   implicit none
 
+  private
+
 
   ! 1=leaf, 2=stem, 3=troot, 4=aroot
   ! Several of these may be better transferred to the parameter file in due time (RGK)
@@ -260,9 +262,15 @@ module FatesPlantHydraulicsMod
   public :: UpdateSizeDepRhizHydProps
   public :: RestartHydrStates
   public :: SavePreviousCompartmentVolumes
-  public :: SavePreviousRhizVolumes
+  public :: SumBetweenDepths ! only public for unit tests
+
   public :: UpdatePlantHydrNodes
   public :: UpdatePlantHydrLenVol
+
+  interface UpdatePlantHydrLenVol
+     module procedure UpdatePlantHydrLenVol_cohort
+     module procedure UpdatePlantHydrLenVol_masses
+  end interface UpdatePlantHydrLenVol
   public :: UpdatePlantKmax
   public :: ConstrainRecruitNumber
   public :: InitHydroGlobals
@@ -885,7 +893,25 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdatePlantHydrLenVol(ccohort,csite_hydr)
+  subroutine UpdatePlantHydrLenVol_cohort(ccohort, csite_hydr)
+    type(fates_cohort_type),intent(inout)  :: ccohort
+    type(ed_site_hydr_type),intent(in)  :: csite_hydr
+
+    call UpdatePlantHydrLenVol_masses(ccohort%co_hydr, csite_hydr, &
+         ccohort%pft, ccohort%dbh, ccohort%height, &
+         ccohort%crowndamage, ccohort%canopy_trim, ccohort%efstem_coh, &
+         ccohort%size_class, &
+         ccohort%prt%GetState(leaf_organ, carbon12_element), &
+         ccohort%prt%GetState(sapw_organ, carbon12_element), &
+         ccohort%prt%GetState(fnrt_organ, carbon12_element), &
+         ccohort%prt%GetState(struct_organ, carbon12_element))
+
+  end subroutine UpdatePlantHydrLenVol_cohort
+
+
+  subroutine UpdatePlantHydrLenVol_masses(ccohort_hydr,csite_hydr,pft,dbh,height, &
+                                          crowndamage,canopy_trim,efstem_coh,size_class, &
+                                          leaf_c,sapw_c,fnrt_c,struct_c)
 
     ! -----------------------------------------------------------------------------------
     ! This subroutine calculates two attributes of a plant:
@@ -900,19 +926,25 @@ contains
     ! -----------------------------------------------------------------------------------
 
     ! Arguments
-    type(fates_cohort_type),intent(inout)  :: ccohort
+    type(ed_cohort_hydr_type),intent(inout) :: ccohort_hydr
     type(ed_site_hydr_type),intent(in)  :: csite_hydr
+    integer, intent(in) :: pft
+    real(r8), intent(in) :: dbh
+    real(r8), intent(in) :: height
+    integer, intent(in) :: crowndamage
+    real(r8), intent(in) :: canopy_trim
+    real(r8), intent(in) :: efstem_coh
+    integer, intent(in) :: size_class
+    real(r8), intent(in) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
+    real(r8), intent(in) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
+    real(r8), intent(in) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
+    real(r8), intent(in) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
 
-    type(ed_cohort_hydr_type),pointer :: ccohort_hydr     ! Plant hydraulics structure
     integer  :: j,k
     integer  :: ft                           ! Plant functional type index
     real(r8) :: roota                        ! root profile parameter a zeng2001_crootfr
     real(r8) :: rootb                        ! root profile parameter b zeng2001_crootfr
-    real(r8) :: leaf_c                       ! Current amount of leaf carbon in the plant                            [kg]
     real(r8) :: leaf_c_target                ! Target leaf carbon (with some conditions) [kgC]
-    real(r8) :: fnrt_c                       ! Current amount of fine-root carbon in the plant                       [kg]
-    real(r8) :: sapw_c                       ! Current amount of sapwood carbon in the plant                         [kg]
-    real(r8) :: struct_c                     ! Current amount of structural carbon in the plant                      [kg]
     real(r8) :: woody_bg_c                   ! belowground woody biomass in carbon units                             [kgC/indiv]
     real(r8) :: z_stem                       ! the height of the plants stem below crown [m]
     real(r8) :: sla                          ! specific leaf area                                                    [cm2/g]
@@ -928,7 +960,6 @@ contains
     real(r8) :: crown_depth                  ! Depth of the plant's crown [m]
     real(r8) :: norm                         ! total root fraction used <1
     integer  :: nlevrhiz                     ! number of rhizosphere levels
-    real(r8) :: dbh                          ! the dbh of current cohort                                             [cm]   
     real(r8) :: z_fr                         ! rooting depth of a cohort                                             [cm]
     real(r8) :: v_leaf_donate(1:n_hypool_leaf)   ! the volume that leaf will donate to xylem     
 
@@ -945,13 +976,8 @@ contains
     ! to estimate maximum leaf carbon
 
 
-    ccohort_hydr => ccohort%co_hydr
-    ft           = ccohort%pft
+    ft           = pft
     nlevrhiz     = csite_hydr%nlevrhiz
-    leaf_c       = ccohort%prt%GetState(leaf_organ, carbon12_element)
-    sapw_c       = ccohort%prt%GetState(sapw_organ, carbon12_element)
-    fnrt_c       = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-    struct_c     = ccohort%prt%GetState(struct_organ, carbon12_element)
     roota        = prt_params%fnrt_prof_a(ft)
     rootb        = prt_params%fnrt_prof_b(ft)
 
@@ -989,8 +1015,8 @@ contains
     ! Lets also avoid super-low targets that have very low trimming functions
 
     ! efleaf_coh hard-coded to 1 in the call below to avoid zero leaf volume
-    call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         max(ccohort%canopy_trim,min_trim),1.0_r8, leaf_c_target)
+    call bleaf(dbh,ft,crowndamage, &
+         max(canopy_trim,min_trim),1.0_r8, leaf_c_target)
 
     ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
          prt_params%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
@@ -1004,19 +1030,19 @@ contains
     ! v_stem       = c_stem_biom / (prt_params%wood_density(ft) * kg_per_g * cm3_per_m3 )
 
     ! calculate the sapwood cross-sectional area
-    call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         ccohort%canopy_trim, ccohort%efstem_coh, a_sapwood_target,sapw_c_target)
+    call bsap_allom(dbh,ft,crowndamage, &
+         canopy_trim, efstem_coh, a_sapwood_target,sapw_c_target)
 
     ! uncomment this if you want to use
     ! the actual sapwood, which may be lower than target due to branchfall.
     a_sapwood = a_sapwood_target  ! * sapw_c / sapw_c_target
 
     ! alternative cross section calculation
-    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
+    ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * height ) * 1.e-4_r8
 
-    !call CrownDepth(ccohort%height,ft,crown_depth)
-    crown_depth  = min(ccohort%height,0.1_r8)
-    z_stem       = ccohort%height - crown_depth
+    !call CrownDepth(height,ft,crown_depth)
+    crown_depth  = min(height,0.1_r8)
+    z_stem       = height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
 
     ! Junyan changed the following code to calculate the above ground node volume
@@ -1065,7 +1091,7 @@ contains
     ! calculations.
 
 
-    call MaximumRootingDepth(ccohort%dbh,ft,csite_hydr%zi_rhiz(nlevrhiz),z_fr)
+    call MaximumRootingDepth(dbh,ft,csite_hydr%zi_rhiz(nlevrhiz),z_fr)
     
     do j=1,nlevrhiz
        
@@ -1074,7 +1100,7 @@ contains
 
        if(debug)then
           write(fates_log(),*) 'check rooting depth of cohort '
-          write(fates_log(),*) 'dbh: ',ccohort%dbh,' sice class: ',ccohort%size_class
+          write(fates_log(),*) 'dbh: ',dbh,' sice class: ',size_class
           write(fates_log(),*) 'csite_hydr%dz_rhiz(j) is: ', csite_hydr%dz_rhiz(j)
           write(fates_log(),*) 'z_max cohort: ',z_fr
           write(fates_log(),*) 'layer:  ',j,' bottom depth (m): ',csite_hydr%zi_rhiz(j),' rooting fraction:',rootfr
@@ -1090,7 +1116,7 @@ contains
     end do
 
     return
-  end subroutine UpdatePlantHydrLenVol
+  end subroutine UpdatePlantHydrLenVol_masses
 
   ! =====================================================================================
 
@@ -5603,16 +5629,26 @@ function SumBetweenDepths(csite_hydr,depth_t,depth_b,array_in) result(depth_sum)
    depth_sum = depth_sum + sum(array_in(i_rhiz_t:i_rhiz_b))
    end if
 
-   ! Find fraction contribution from top partial layer (if any)
-   if(i_rhiz_t>1) then
-   frac = (csite_hydr%zi_rhiz(i_rhiz_t-1)-depth_t)/csite_hydr%dz_rhiz(i_rhiz_t-1)
-   depth_sum = depth_sum + frac*array_in(i_rhiz_t-1)
-   end if
+   if (i_rhiz_t - 1 == i_rhiz_b + 1) then
+       ! Top and bottom depths fall within the same layer
+       frac = (depth_b - depth_t) / csite_hydr%dz_rhiz(i_rhiz_t-1)
+       depth_sum = depth_sum + frac*array_in(i_rhiz_t-1)
+   else
+       ! Find fraction contribution from top partial layer (if any)
+       if(i_rhiz_t>1) then
+           frac = (csite_hydr%zi_rhiz(i_rhiz_t-1)-depth_t)/csite_hydr%dz_rhiz(i_rhiz_t-1)
+           depth_sum = depth_sum + frac*array_in(i_rhiz_t-1)
+       end if
 
-   ! Find fraction contribution from bottom partial layer (if any)
-   if(i_rhiz_b<nlevrhiz) then
-   frac = (depth_b-csite_hydr%zi_rhiz(i_rhiz_b))/csite_hydr%dz_rhiz(i_rhiz_b+1)
-   depth_sum = depth_sum + frac*array_in(i_rhiz_b+1)
+       ! Find fraction contribution from bottom partial layer (if any)
+       if(i_rhiz_b<nlevrhiz) then
+           if(i_rhiz_b == 0) then
+               frac = depth_b / csite_hydr%dz_rhiz(1)
+           else
+               frac = (depth_b-csite_hydr%zi_rhiz(i_rhiz_b))/csite_hydr%dz_rhiz(i_rhiz_b+1)
+           end if
+           depth_sum = depth_sum + frac*array_in(i_rhiz_b+1)
+       end if
    end if
 
    depth_sum = depth_sum/(min(depth_b,csite_hydr%zi_rhiz(nlevrhiz))-depth_t)

@@ -1,0 +1,497 @@
+! Summary: Unit tests for FatesPlantHydraulicsMod timestep driver routines, diagnostics, and vegetation water storage balance.
+!=========================================================================================
+! Tests for FatesPlantHydraulicsMod timestep-level driver routines and update functions
+!=========================================================================================
+module FatesPlantHydraulicsMod_drive_test
+  use FatesPlantHydraulicsMod, only : hydraulics_drive, BTranForHLMDiagnosticsFromCohortHydr, &
+                                      BTranForHLMDiagnostics_explicit, AccumulateMortalityWaterStorage, &
+                                      AccumulateMortalityWater_explicit, RecruitWaterStorage, UpdateH2OVeg, &
+                                      use_ed_planthydraulics, InitHydroGlobals
+  use EDTypesMod, only : ed_site_type
+  use FatesPatchMod, only : fates_patch_type
+  use FatesCohortMod, only : fates_cohort_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type, ed_cohort_hydr_type
+  use FatesInterfaceTypesMod, only : bc_in_type, bc_out_type, hlm_use_planthydro
+  use FatesConstantsMod, only : r8 => fates_r8
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestPlantHydraulicsDrive
+  contains
+  end type TestPlantHydraulicsDrive
+
+contains
+
+  ! Summary: Driver test for hydraulics_drive step integration using full non-linear implicit plant-soil hydraulic solver.
+  @Test
+  subroutine test_hydraulics_drive(this)
+    use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+    use EDPftvarconMockMod, only : init_mock_edpftvarcon
+    use EDTypesMockMod, only : init_mock_site_patch_cohort
+    use FatesHydroWTFMod, only : wrf_type_vg, wkf_type_vg
+    
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: sites(1)
+    type(ed_site_type), pointer :: csite => null()
+    type(fates_patch_type), pointer :: cpatch => null()
+    type(fates_cohort_type), pointer :: ccohort => null()
+    type(bc_in_type) :: bc_in(1)
+    type(bc_out_type) :: bc_out(1)
+    ! Solver output for non-linear system under 1800s timestep integration
+    real(r8) :: expected_psi_ag
+    real(r8), parameter :: tol = 1.e-4_r8
+    
+    ! Initialize mock global structures and hydraulics options
+    call init_mock_prt_params()
+    call init_mock_edpftvarcon()
+    call InitHydroGlobals()
+    
+    csite => sites(1)
+    call init_mock_site_patch_cohort(csite, cpatch, ccohort)
+    ccohort%pft = 1
+
+    ! Global hydraulic execution flags: enable plant hydraulics model
+    use_ed_planthydraulics = 1
+    hlm_use_planthydro = 1
+    
+    ! Single rhizosphere soil layer setup (nlevrhiz = 1)
+    csite%si_hydr%nlevrhiz = 1
+    call csite%si_hydr%InitHydrSite(1, 1, 1, 1)
+    
+    ! Allocate van Genuchten soil water retention and hydraulic conductivity models
+    allocate(csite%si_hydr%wrf_soil(1))
+    allocate(csite%si_hydr%wkf_soil(1))
+    allocate(wrf_type_vg :: csite%si_hydr%wrf_soil(1)%p)
+    select type (p => csite%si_hydr%wrf_soil(1)%p)
+      type is (wrf_type_vg)
+        ! Soil parameters: alpha=0.001 1/mm, n=1.5, m=0.5, th_s=0.6, th_r=0.1
+        call p%set_wrf_param([0.001_r8, 1.5_r8, 0.5_r8, 0.6_r8, 0.1_r8])
+    end select
+    
+    allocate(wkf_type_vg :: csite%si_hydr%wkf_soil(1)%p)
+    select type (k => csite%si_hydr%wkf_soil(1)%p)
+      type is (wkf_type_vg)
+        ! Soil conductivity parameters: ksat=0.001 kg/m2/s, n=1.5, m=0.5, th_s=0.6, th_r=0.1, l=0.5
+        call k%set_wkf_param([0.001_r8, 1.5_r8, 0.5_r8, 0.6_r8, 0.1_r8, 0.5_r8])
+    end select
+
+    ! Soil shell moisture state initialization:
+    ! h2osoi_liqvol_shell [m3/m3] (moist soil condition), v_shell [m3], r_node_shell [m], r_out_shell [m]
+    csite%si_hydr%h2osoi_liqvol_shell(1,:) = 0.5_r8
+    csite%si_hydr%v_shell(1,:) = 0.25_r8
+    csite%si_hydr%r_node_shell(1,:) = 0.1_r8
+    csite%si_hydr%r_out_shell(1,:) = 0.2_r8
+    csite%si_hydr%l_aroot_layer(1) = 1.0_r8
+    csite%si_hydr%map_r2s(1,1) = 1
+    csite%si_hydr%map_r2s(1,2) = 1
+    
+    ! Rhizosphere layer geometry: thickness dz [m], interface depth zi [m]
+    csite%si_hydr%zi_rhiz(1) = 0.4_r8
+    csite%si_hydr%dz_rhiz(1) = 0.4_r8
+    
+    ! Host Land Model (HLM) input boundaries: liquid water [m3/m3], layer thickness [m]
+    allocate(bc_in(1)%h2o_liq_sisl(1))
+    bc_in(1)%h2o_liq_sisl(1) = 0.5_r8
+    bc_in(1)%nlevsoil = 1
+    allocate(bc_in(1)%zi_sisl(1))
+    bc_in(1)%zi_sisl(1) = 0.5_r8
+    allocate(bc_in(1)%dz_sisl(1))
+    bc_in(1)%dz_sisl(1) = 0.5_r8
+    
+    ! Transpiration flux qflx_transp_pa [kg/m2/s] set to zero (pure equilibration step)
+    allocate(bc_in(1)%qflx_transp_pa(1))
+    bc_in(1)%qflx_transp_pa(1) = 0.0_r8
+    
+    ! Output boundary array for soil-to-root flux [kg/m2/s]
+    allocate(bc_out(1)%qflx_soil2root_sisl(1))
+    bc_out(1)%qflx_soil2root_sisl(1) = 0.0_r8
+    
+    ! Cohort hydraulic state initialization: relative water content theta [m3/m3]
+    call ccohort%co_hydr%AllocateHydrCohortArrays(1)
+    ccohort%co_hydr%th_ag(:) = 0.5_r8
+    ccohort%co_hydr%th_troot = 0.5_r8
+    ccohort%co_hydr%th_aroot(:) = 0.5_r8
+    ccohort%co_hydr%v_aroot_layer(:) = 0.25_r8
+    ccohort%co_hydr%v_aroot_layer_init(:) = 0.25_r8
+    ccohort%co_hydr%l_aroot_layer(1) = 1.0_r8
+    bc_in(1)%smpmin_si = -1500.0_r8
+    
+    call cpatch%InitLitter(1, 1)
+
+    ! Complex-to-mock driver execution: call full non-linear implicit hydraulic solver over timestep dt [s]
+    ! [COMPLEX-TO-MOCK]: System solves non-linear matrix equation for plant-soil water potentials
+    call hydraulics_drive(1, sites, bc_in, bc_out, 1800.0_r8)
+    
+    ! Expected converged aboveground water potential psi_ag [MPa]
+    expected_psi_ag = -3.1574220023403204_r8
+    @assertEqual(expected_psi_ag, ccohort%co_hydr%psi_ag(1), tolerance=tol)
+
+    ! Clean up allocated structures
+    deallocate(bc_in(1)%h2o_liq_sisl)
+    deallocate(bc_in(1)%qflx_transp_pa)
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+  end subroutine test_hydraulics_drive
+
+
+  ! Summary: Tests BTran transpiration reduction factor calculation for host land model diagnostics.
+  @Test
+  subroutine test_BTranForHLMDiagnosticsFromCohortHydr(this)
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: sites(1)
+    type(fates_patch_type), target :: cpatch
+    type(bc_out_type) :: bc_out(1)
+    
+    ! Site and patch topology setup
+    sites(1)%oldest_patch => cpatch
+    cpatch%younger => null()
+    cpatch%tallest => null()
+    cpatch%patchno = 1
+    
+    ! Diagnostic output array allocation
+    allocate(bc_out(1)%btran_pa(1))
+    ! 999.0_r8 used as a distinct sentinel mock value to ensure function overwrites output
+    bc_out(1)%btran_pa(1) = 999.0_r8
+    
+    ! Execute diagnostic computation routine with zero cohorts present
+    call BTranForHLMDiagnosticsFromCohortHydr(1, sites, bc_out)
+    
+    ! Expected diagnostic btran factor = 0.0 for empty patch
+    @assertEqual(0.0_r8, bc_out(1)%btran_pa(1))
+    
+    deallocate(bc_out(1)%btran_pa)
+  end subroutine test_BTranForHLMDiagnosticsFromCohortHydr
+
+  ! Summary: Tests BTran transpiration reduction factor biomass-weighted aggregation across multiple cohorts.
+  @Test
+  subroutine test_BTranForHLMDiagnostics_MultiCohortWeighted(this)
+    use EDTypesMockMod, only : init_mock_site_patch_cohort, InitPRTObject
+    use PRTGenericMod, only : carbon12_element, leaf_organ, sapw_organ, fnrt_organ, prt_global
+
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), pointer :: csite => null()
+    type(fates_patch_type), pointer :: cpatch => null()
+    type(fates_cohort_type), pointer :: ccohort1 => null()
+    type(fates_cohort_type), pointer :: ccohort2 => null()
+    type(ed_site_type), target :: sites(1)
+    type(bc_out_type) :: bc_out(1)
+    integer :: i_leaf, i_sapw, i_fnrt
+    real(r8) :: expected_btran_pa
+    real(r8), parameter :: tol = 1.e-6_r8
+    
+    call init_mock_site_patch_cohort(csite, cpatch, ccohort1)
+    
+    allocate(ccohort2)
+    allocate(ccohort2%co_hydr)
+    call InitPRTObject(ccohort2%prt)
+    
+    sites(1) = csite
+    sites(1)%oldest_patch => cpatch
+    cpatch%tallest => ccohort1
+    ccohort1%shorter => ccohort2
+    ccohort2%shorter => null()
+    
+    i_leaf = prt_global%sp_organ_map(leaf_organ, carbon12_element)
+    i_sapw = prt_global%sp_organ_map(sapw_organ, carbon12_element)
+    i_fnrt = prt_global%sp_organ_map(fnrt_organ, carbon12_element)
+
+    ! Cohort 1: btran = 0.8, n = 1.0, leaf = 2.0, sapw = 3.0, fnrt = 5.0 (total organ mass = 10.0 kg/indiv)
+    ccohort1%co_hydr%btran = 0.8_r8
+    ccohort1%n = 1.0_r8
+    ccohort1%prt%variables(i_leaf)%val(1) = 2.0_r8
+    ccohort1%prt%variables(i_sapw)%val(1) = 3.0_r8
+    ccohort1%prt%variables(i_fnrt)%val(1) = 5.0_r8
+
+    ! Cohort 2: btran = 0.2, n = 2.0, leaf = 1.0, sapw = 2.0, fnrt = 2.0 (total organ mass = 5.0 kg/indiv)
+    ccohort2%co_hydr%btran = 0.2_r8
+    ccohort2%n = 2.0_r8
+    ccohort2%prt%variables(i_leaf)%val(1) = 1.0_r8
+    ccohort2%prt%variables(i_sapw)%val(1) = 2.0_r8
+    ccohort2%prt%variables(i_fnrt)%val(1) = 2.0_r8
+
+    allocate(bc_out(1)%btran_pa(1))
+    bc_out(1)%btran_pa(1) = 0.0_r8
+    
+    ! Execute diagnostic computation routine with two active cohorts
+    call BTranForHLMDiagnosticsFromCohortHydr(1, sites, bc_out)
+    
+    ! Analytical solution including fine-root carbon (fnrt):
+    ! Cohort 1 biomass = 10.0 kg, weighted btran = 0.8 * 10.0 * 1.0 = 8.0
+    ! Cohort 2 biomass = 5.0 kg, weighted btran = 0.2 * 5.0 * 2.0 = 2.0
+    ! Total live patch biomass = 10.0*1.0 + 5.0*2.0 = 20.0 kg/m2
+    ! Expected btran_pa = (8.0 + 2.0) / 20.0 = 0.50
+    expected_btran_pa = 0.50_r8
+    @assertEqual(expected_btran_pa, bc_out(1)%btran_pa(1), tolerance=tol)
+    
+    deallocate(bc_out(1)%btran_pa)
+    deallocate(ccohort2%co_hydr)
+    deallocate(ccohort2)
+  end subroutine test_BTranForHLMDiagnostics_MultiCohortWeighted
+
+  ! Summary: Tests BTranForHLMDiagnostics_explicit pure calculation function with explicit array inputs.
+  @Test
+  subroutine test_BTranForHLMDiagnostics_explicit(this)
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    real(r8) :: btran_cohort(2)
+    real(r8) :: balive_cohort(2)
+    real(r8) :: n_indiv(2)
+    real(r8) :: result_btran
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    ! Cohort 1: btran = 0.8, balive = 10.0, n = 1.0 => weighted btran = 8.0
+    btran_cohort(1)  = 0.8_r8
+    balive_cohort(1) = 10.0_r8
+    n_indiv(1)       = 1.0_r8
+
+    ! Cohort 2: btran = 0.2, balive = 5.0, n = 2.0 => weighted btran = 2.0
+    btran_cohort(2)  = 0.2_r8
+    balive_cohort(2) = 5.0_r8
+    n_indiv(2)       = 2.0_r8
+
+    ! Execute explicit subroutine (total biomass = 10*1 + 5*2 = 20, expected btran = (8 + 2)/20 = 0.50)
+    call BTranForHLMDiagnostics_explicit(2, btran_cohort, balive_cohort, n_indiv, result_btran)
+    @assertEqual(0.50_r8, result_btran, tolerance=tol)
+
+    ! Zero biomass edge case returns 0.0
+    balive_cohort(:) = 0.0_r8
+    call BTranForHLMDiagnostics_explicit(2, btran_cohort, balive_cohort, n_indiv, result_btran)
+    @assertEqual(0.0_r8, result_btran, tolerance=tol)
+  end subroutine test_BTranForHLMDiagnostics_explicit
+
+  ! Summary: Tests water mass balance conservation when accumulating water storage from cohort mortality.
+  @Test
+  subroutine test_AccumulateMortalityWaterStorage(this)
+    use FatesConstantsMod, only: denh2o => dens_fresh_liquid_water
+    use EDTypesMod, only: AREA_INV
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: csite
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type), target :: csite_hydr
+    type(ed_cohort_hydr_type), target :: co_hydr
+    ! Cohort mortality density delta_n = 1.0 indiv/m2
+    real(r8) :: delta_n = 1.0_r8
+    real(r8) :: expected_delta_w
+    
+    csite%si_hydr => csite_hydr
+    ccohort%co_hydr => co_hydr
+    
+    ! Compartment volumes: v_ag = 1.0 m3, v_troot = 2.0 m3, v_aroot = 3.0 m3
+    ! Compartment water contents: theta_ag = 0.5, theta_troot = 0.5, theta_aroot = 0.5 m3/m3
+    allocate(co_hydr%th_aroot(1), co_hydr%v_aroot_layer(1))
+    co_hydr%th_ag(:) = 0.5_r8
+    co_hydr%v_ag(:) = 1.0_r8
+    co_hydr%th_troot = 0.5_r8
+    co_hydr%v_troot = 2.0_r8
+    co_hydr%th_aroot(1) = 0.5_r8
+    co_hydr%v_aroot_layer(1) = 3.0_r8
+    
+    ! Initial dead vegetation water pool = 0.0 kg/m2, initial live vegetation water pool = 100.0 kg/m2
+    csite_hydr%h2oveg_dead = 0.0_r8
+    csite_hydr%h2oveg = 100.0_r8
+    
+    ! Execute mortality water accumulation routine
+    call AccumulateMortalityWaterStorage(csite, ccohort, delta_n)
+    
+    ! Mass conservation analytical calculation:
+    ! delta_w = sum(theta_i * V_i) * denh2o * delta_n * AREA_INV
+    ! delta_w = (0.5*1.0 + 0.5*2.0 + 0.5*3.0) * 1000.0 * 1.0 * 1.0 = 3.0 * 1000.0 = 3000.0 kg/m2
+    expected_delta_w = (sum(co_hydr%th_ag(:)*co_hydr%v_ag(:)) + &
+                        co_hydr%th_troot*co_hydr%v_troot + &
+                        sum(co_hydr%th_aroot(:)*co_hydr%v_aroot_layer(:))) * &
+                        denh2o * delta_n * AREA_INV
+    
+    ! Verify exact mass balance transfer from live to dead pool
+    @assertEqual(expected_delta_w, csite_hydr%h2oveg_dead)
+    @assertEqual(100.0_r8 - expected_delta_w, csite_hydr%h2oveg)
+    
+    ! Invariant A: Total water mass conservation during mortality transfer (initial_total == final_total)
+    @assertEqual(100.0_r8, csite_hydr%h2oveg + csite_hydr%h2oveg_dead, tolerance=1.e-8_r8)
+    
+    deallocate(co_hydr%th_aroot, co_hydr%v_aroot_layer)
+  end subroutine test_AccumulateMortalityWaterStorage
+
+  ! Summary: Tests AccumulateMortalityWaterStorage absorbing root vector dot product across multiple soil layers.
+  @Test
+  subroutine test_AccumulateMortalityWaterStorage_MultiLayer(this)
+    use FatesConstantsMod, only: denh2o => dens_fresh_liquid_water
+    use EDTypesMod, only: AREA_INV
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: csite
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type), target :: csite_hydr
+    type(ed_cohort_hydr_type), target :: co_hydr
+    real(r8) :: delta_n = 1.0_r8
+    real(r8) :: expected_delta_w
+    real(r8), parameter :: tol = 1.e-6_r8
+    
+    csite%si_hydr => csite_hydr
+    ccohort%co_hydr => co_hydr
+    
+    ! Multi-layer soil setup (nlevrhiz = 2):
+    ! th_aroot = [0.2, 0.8] m3/m3, v_aroot_layer = [3.0, 1.0] m3
+    ! Dot product = 0.2*3.0 + 0.8*1.0 = 1.4 m3
+    ! Product of sums = (1.0)*(4.0) = 4.0 m3 (Mutation 7 fails)
+    allocate(co_hydr%th_aroot(2), co_hydr%v_aroot_layer(2))
+    co_hydr%th_ag(:) = 0.5_r8
+    co_hydr%v_ag(:) = 1.0_r8
+    co_hydr%th_troot = 0.5_r8
+    co_hydr%v_troot = 2.0_r8
+    
+    co_hydr%th_aroot(1) = 0.2_r8
+    co_hydr%th_aroot(2) = 0.8_r8
+    co_hydr%v_aroot_layer(1) = 3.0_r8
+    co_hydr%v_aroot_layer(2) = 1.0_r8
+    
+    csite_hydr%h2oveg_dead = 0.0_r8
+    csite_hydr%h2oveg = 10000.0_r8
+    
+    call AccumulateMortalityWaterStorage(csite, ccohort, delta_n)
+    
+    ! Analytical expected delta_w:
+    ! (0.5*1.0 + 0.5*2.0 + (0.2*3.0 + 0.8*1.0)) * 1000.0 * 1.0 * 0.0001 = 3.4 * 0.1 = 0.34 kg/m2
+    expected_delta_w = 0.34_r8
+    @assertEqual(expected_delta_w, csite_hydr%h2oveg_dead, tolerance=tol)
+    
+    deallocate(co_hydr%th_aroot, co_hydr%v_aroot_layer)
+  end subroutine test_AccumulateMortalityWaterStorage_MultiLayer
+
+  ! Summary: Tests AccumulateMortalityWater_explicit pure calculation function with explicit array inputs.
+  @Test
+  subroutine test_AccumulateMortalityWater_explicit(this)
+    use FatesConstantsMod, only: denh2o => dens_fresh_liquid_water
+    use EDTypesMod, only: AREA_INV
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    real(r8) :: delta_n
+    real(r8) :: th_ag(1), v_ag(1)
+    real(r8) :: th_troot, v_troot
+    real(r8) :: th_aroot(2), v_aroot_layer(2)
+    real(r8) :: delta_w
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    delta_n = 1.0_r8
+    th_ag(1) = 0.5_r8
+    v_ag(1)  = 1.0_r8
+    th_troot = 0.5_r8
+    v_troot  = 2.0_r8
+    th_aroot(1) = 0.2_r8; v_aroot_layer(1) = 3.0_r8
+    th_aroot(2) = 0.8_r8; v_aroot_layer(2) = 1.0_r8
+
+    call AccumulateMortalityWater_explicit(delta_n, th_ag, v_ag, th_troot, v_troot, &
+                                            th_aroot, v_aroot_layer, delta_w)
+    ! Analytical expected delta_w:
+    ! (0.5*1.0 + 0.5*2.0 + (0.2*3.0 + 0.8*1.0)) * 1000.0 * 1.0 * 0.0001 = 2.9 * 0.1 = 0.29 kg/m2
+    @assertEqual(0.29_r8, delta_w, tolerance=tol)
+  end subroutine test_AccumulateMortalityWater_explicit
+
+
+  ! Summary: Tests recruit water storage pool initialization during recruitment events.
+  @Test
+  subroutine test_RecruitWaterStorage(this)
+    use FatesConstantsMod, only: denh2o => dens_fresh_liquid_water
+    use EDTypesMod, only: AREA_INV
+    use FatesInterfaceTypesMod, only: hlm_use_planthydro
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: sites(1)
+    type(fates_patch_type), target :: cpatch
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type), target :: csite_hydr
+    type(ed_cohort_hydr_type), target :: co_hydr
+    real(r8) :: expected_recruit_w
+    
+    hlm_use_planthydro = 1
+    sites(1)%si_hydr => csite_hydr
+    sites(1)%oldest_patch => cpatch
+    cpatch%tallest => ccohort
+    cpatch%younger => null()
+    ccohort%shorter => null()
+    ccohort%co_hydr => co_hydr
+    
+    ! Cohort recruited status = true, recruit density n = 2.0 indiv/m2
+    co_hydr%is_newly_recruited = .true.
+    ccohort%n = 2.0_r8
+    
+    ! Compartment volumes: v_ag = 1.0 m3, v_troot = 2.0 m3, v_aroot = 3.0 m3
+    allocate(co_hydr%th_aroot(1), co_hydr%v_aroot_layer(1))
+    co_hydr%th_ag(:) = 0.5_r8
+    co_hydr%v_ag(:) = 1.0_r8
+    co_hydr%th_troot = 0.5_r8
+    co_hydr%v_troot = 2.0_r8
+    co_hydr%th_aroot(1) = 0.5_r8
+    co_hydr%v_aroot_layer(1) = 3.0_r8
+    
+    csite_hydr%h2oveg_recruit = 0.0_r8
+    
+    ! Execute recruit water storage update
+    call RecruitWaterStorage(1, sites)
+    
+    ! Analytical solution: recruit_w = (0.5*1 + 0.5*2 + 0.5*3) * 1000 * 2.0 * 1.0 = 6000.0 kg/m2
+    expected_recruit_w = (sum(co_hydr%th_ag(:)*co_hydr%v_ag(:)) + &
+                          co_hydr%th_troot*co_hydr%v_troot + &
+                          sum(co_hydr%th_aroot(:)*co_hydr%v_aroot_layer(:))) * &
+                          denh2o * ccohort%n * AREA_INV
+                          
+    ! Verify exact recruit water storage value
+    @assertEqual(expected_recruit_w, csite_hydr%h2oveg_recruit)
+    
+    deallocate(co_hydr%th_aroot, co_hydr%v_aroot_layer)
+  end subroutine test_RecruitWaterStorage
+
+  ! Summary: Tests total vegetation water storage summation across all live plant cohorts.
+  @Test
+  subroutine test_UpdateH2OVeg(this)
+    use FatesConstantsMod, only: denh2o => dens_fresh_liquid_water
+    use EDTypesMod, only: AREA_INV
+    use FatesInterfaceTypesMod, only: hlm_use_planthydro
+    class(TestPlantHydraulicsDrive), intent(inout) :: this
+    type(ed_site_type), target :: csite
+    type(fates_patch_type), target :: cpatch
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type), target :: csite_hydr
+    type(ed_cohort_hydr_type), target :: co_hydr
+    type(bc_out_type) :: bc_out
+    real(r8) :: expected_h2oveg
+    
+    hlm_use_planthydro = 1
+    csite%si_hydr => csite_hydr
+    csite%oldest_patch => cpatch
+    cpatch%tallest => ccohort
+    cpatch%younger => null()
+    ccohort%shorter => null()
+    ccohort%co_hydr => co_hydr
+    
+    ! Cohort properties: density n = 10.0 indiv/m2
+    co_hydr%is_newly_recruited = .false.
+    allocate(co_hydr%th_aroot(1), co_hydr%v_aroot_layer(1))
+    co_hydr%th_ag(:) = 0.5_r8
+    co_hydr%v_ag(:) = 1.0_r8
+    co_hydr%th_troot = 0.5_r8
+    co_hydr%v_troot = 2.0_r8
+    co_hydr%th_aroot(1) = 0.5_r8
+    co_hydr%v_aroot_layer(1) = 3.0_r8
+    ccohort%n = 10.0_r8
+    
+    ! Zero error terms before diagnostic summation
+    csite_hydr%h2oveg_dead = 0.0_r8
+    csite_hydr%h2oveg_growturn_err = 0.0_r8
+    csite_hydr%h2oveg_hydro_err = 0.0_r8
+    csite_hydr%trans_err = 0.0_r8
+    csite_hydr%h2oveg = 0.0_r8
+    
+    ! Execute vegetation water diagnostic update
+    call UpdateH2OVeg(csite, bc_out)
+    
+    ! Analytical expected total water storage = 30,000 kg/m2
+    expected_h2oveg = (sum(co_hydr%th_ag(:)*co_hydr%v_ag(:)) + &
+                       co_hydr%th_troot*co_hydr%v_troot + &
+                       sum(co_hydr%th_aroot(:)*co_hydr%v_aroot_layer(:))) * &
+                       denh2o * ccohort%n * AREA_INV
+                       
+    ! Verify calculated plant stored water matches analytical total
+    @assertEqual(expected_h2oveg, bc_out%plant_stored_h2o_si)
+    
+    deallocate(co_hydr%th_aroot, co_hydr%v_aroot_layer)
+  end subroutine test_UpdateH2OVeg
+
+end module FatesPlantHydraulicsMod_drive_test
+

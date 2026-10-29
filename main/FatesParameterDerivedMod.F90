@@ -96,8 +96,10 @@ contains
 
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
-      call this%InitAllocate(numpft)
-      call this%InitDamageTransitions(numpft)
+      if (.not. allocated(this%jmax25top)) then
+         call this%InitAllocate(numpft)
+         call this%InitDamageTransitions(numpft)
+      end if
       
       do ft = 1,numpft
          

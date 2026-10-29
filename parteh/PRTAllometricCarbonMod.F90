@@ -199,6 +199,8 @@ module PRTAllometricCarbonMod
 
      integer :: nleafage
 
+     if (allocated(prt_global_ac)) return
+
      allocate(prt_global_ac)
      
      ! The "state descriptor" object holds things like the names, the symbols, the units
