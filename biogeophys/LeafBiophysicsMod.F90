@@ -1083,7 +1083,7 @@ contains
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
        gs0,gs1,gs2,ci_tol, &
-       anet,agross,gs,ci,solve_iter)
+       anet,agross,gs,ci,solve_iter,ierr)
 
     ! -----------------------------------------------------------------------------------
     !
@@ -1115,6 +1115,10 @@ contains
     real(r8), intent(out)  :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out)  :: ci             ! Input (trial) intracellular leaf CO2 (Pa)
     integer, intent(inout) :: solve_iter     ! number of bisections required
+    ! Optional error flag: if present, the max-iterations failure sets ierr=1
+    ! and returns instead of calling endrun().  Existing callers that omit ierr
+    ! retain the original abort behaviour.  Intended for unit tests only.
+    integer, optional, intent(out) :: ierr
 
     ! With bisection, we need to keep track of three different ci values at any given time
     ! The high, the low and the bisection.
@@ -1127,6 +1131,8 @@ contains
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 200
+
+    if (present(ierr)) ierr = 0   ! initialise to success
 
     ! Find the starting points (end-points) for bisection
     ! We dont need stomatal slope because we just want the two extremes
@@ -1201,6 +1207,12 @@ contains
        end if
        
        if( solve_iter == max_iters) then
+          if (present(ierr)) then
+             ! Graceful return for unit tests: signal failure via ierr
+             ! rather than crashing.  See optional ierr declaration above.
+             ierr = 1
+             return
+          end if
           write (fates_log(),*) 'Ci bisection during photosynthesis failed'
           write (fates_log(),*) 'try increasing tolerance or widening the starting points'
           call endrun(msg=errMsg(sourcefile, __LINE__))
