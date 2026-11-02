@@ -375,7 +375,7 @@ contains
     logical                         :: fi_check  ! is (potential) fire intensity high enough for fire to actually happen?
     logical                         :: has_ignition                    ! is ignition greater than zero?
     
-    currentPatch => currentSite%oldest_patch 
+    currentPatch => currentSite%oldest_patch
     do while (associated(currentPatch))
       
       currentPatch%fuel%frac_burnt(:) = 0.0_r8

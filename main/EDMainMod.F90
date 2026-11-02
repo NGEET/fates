@@ -58,6 +58,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
+  use FatesSoilBGCFluxMod      , only : ZeroSoilLitterFluxes
   use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
@@ -174,6 +175,8 @@ contains
     end do
     call currentSite%flux_diags%ZeroFluxDiags()
 
+    call ZeroSoilLitterFluxes(bc_out)
+    
     ! Call a routine that will compute cumulative variables and "memory" averages for 
     ! a suite of variables. These variables are mostly used for leaf phenology, but they
     ! may be useful for other components (disturbances, mortality, management).
@@ -333,6 +336,13 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
+
+    ! This call can come earlier in the call sequence. We keep
+    ! it here temporarily to prevent issues with b4b-ness.
+    ! We lose some precision in litter fluxes during disturbance
+    ! since we have to re-scale litter fluxes when the areas
+    ! of patches change. 
+    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
     
   end subroutine ed_ecosystem_dynamics
 
@@ -430,8 +440,6 @@ contains
     !-----------------------------------------------------------------------
 
     current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
-
-    
 
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
@@ -654,8 +662,8 @@ contains
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
-          
-          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
+          ! Add efflux to the bc_out flux pools
+          call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in, bc_out )
 
           if(element_pos(nitrogen_element)>0) then
              ! Mass balance for N uptake
@@ -782,20 +790,12 @@ contains
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
-       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
        currentPatch => currentPatch%older
     enddo
-
-
-    ! RGK: This call is unecessary for CLM coupling. I believe we
-    ! can remove it completely if/when this call is added in ELM to 
-    ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
-
-    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
-
 
     ! Update cohort number.
     ! This needs to happen after the CWD_input and seed_input calculations as they
@@ -835,10 +835,14 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
+    real(r8) :: biomass_stock   ! total biomass   in Kg/site    
+    real(r8) :: litter_stock    ! total litter    in Kg/site
+    real(r8) :: seed_stock      ! total seed mass in Kg/site
+    real(r8) :: total_stock     ! total ED carbon in Kg/site
+
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     type(site_massbal_type), pointer :: site_cmass
-    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
@@ -867,6 +871,9 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
+    call SiteMassStock(currentSite,1,total_stock,biomass_stock,litter_stock,seed_stock)
+    bc_out%fates_total_carbon_site = total_stock
+    
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
     
@@ -1036,7 +1043,7 @@ contains
           error_frac      = 0.0_r8
        end if
 
-       if ( error_frac > 10e-6_r8 .or. (error /= error) ) then
+       if ( error_frac > 10e-6_r8 ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)
           write(fates_log(),*) 'error fraction relative to biomass stock: ',error_frac

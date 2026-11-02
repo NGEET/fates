@@ -32,6 +32,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ha_per_m2
+  use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
@@ -428,7 +430,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -450,6 +452,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
+    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -538,6 +541,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: net_seed_available  ! Available seed after inputs and decay
 
     do el = 1, num_elements
 
@@ -547,15 +551,20 @@ contains
        ! -----------------------------------------------------------------------------------
 
        do pft = 1,numpft
-          litt%seed(pft) = litt%seed(pft) + &
-               litt%seed_in_local(pft) +   &
-               litt%seed_in_extern(pft) -  &
-               litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
 
-          ! Note that the recruitment scheme will use seed_germ
-          ! for its construction costs.
-          litt%seed_germ(pft) = litt%seed_germ(pft) + &
+         ! Calculate net available seed after inputs and decay
+         net_seed_available = litt%seed(pft) + litt%seed_in_local(pft) + &
+            litt%seed_in_extern(pft) - litt%seed_decay(pft)
+
+         ! Cap germination at available seed to prevent negative seed pool
+         litt%seed_germ_in(pft) = min(litt%seed_germ_in(pft), net_seed_available)
+
+         ! Update pools 
+         litt%seed(pft) = net_seed_available - litt%seed_germ_in(pft)
+
+         ! Note that the recruitment scheme will use seed_germ
+         ! for its construction costs.
+         litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
@@ -928,6 +937,8 @@ contains
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
+    integer  :: nlevroot          ! Number of rooting levels to consider
+    integer  :: nchill_threshold  ! how many days of below zero weather do we need to allow cold dec buburst 
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -1074,11 +1085,19 @@ contains
     !   this prevents tropical or warm climate plants that are "cold-deciduous"
     !   from ever re-flushing after they have reached their maximum age (thus
     !   preventing them from competing
-
+    
+    ! if fixed biogeography is on, we don't have an nchill threshold logic, because
+    ! we are only growing cold deciduous trees where they are in real life
+    if(hlm_use_fixed_biogeog .eq. ifalse)then
+       nchill_threshold=1
+    else
+       nchill_threshold=0
+    endif
+    
     if ( any(currentSite%cstatus == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
          (currentSite%grow_deg_days > gdd_threshold) .and. &
          (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
-         (currentSite%nchilldays >= 1)) then
+         (currentSite%nchilldays >= nchill_threshold)) then
        currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
        currentSite%cleafondate = model_day_int
        currentSite%cndaysleafon = 0
@@ -1125,7 +1144,7 @@ contains
                                                   ! when there is no 'off' period.
        currentSite%grow_deg_days  = 0._r8
 
-       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
+       currentSite%cstatus = phen_cstat_iscold  ! alter status of site to imply that this
        ! site is never really cold enough
        ! for cold deciduous
        currentSite%cleafoffdate = model_day_int    ! record leaf off date
@@ -1964,6 +1983,8 @@ contains
     use EDTypesMod, only : area
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
+    use FatesConstantsMod     , only : rsnbl_math_prec
+    use EDTypesMod           , only : dump_site
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target  :: currentSite
@@ -1988,7 +2009,11 @@ contains
     logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
     real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
     real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
-    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT (0 to numpft to have bareground patch too)
+    logical  :: is_orphan(1:numpft)     ! PFT has no valid destination seed pool this timestep
+    real(r8) :: orphan_seed_local      ! non-dispersed seed of an orphaned PFT [kg/site/day]
+    integer  :: dcmpy                  ! decomposability pool index
+    real(r8) :: dcmpy_frac             ! fraction of mass sent to each decomposability pool
 
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
@@ -2011,7 +2036,7 @@ contains
           currentPatch => currentSite%oldest_patch
           nocomp_patch_loop: do while (associated(currentPatch))
              nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
-                  + currentPatch%area
+                                                                 + currentPatch%area
              currentPatch => currentPatch%younger
           end do nocomp_patch_loop
        endif
@@ -2087,7 +2112,7 @@ contains
                 ! internal seed rain is sent out to neighboring gridcells.
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
                      (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
-
+                !
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
@@ -2129,6 +2154,31 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_in_loop
 
+       ! Orphaned seed: a PFT can shed reproductive mass (via PRTReproRelease) even
+       ! after it was fused/removed last timestep, leaving no valid destination seed
+       ! pool. Route its non-dispersed portion to fine litter so mass is conserved.
+       is_orphan(1:numpft) = .false.
+       do pft = 1,numpft
+          if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue) then
+             is_orphan(pft) = (nocomp_patch_areas(pft) < rsnbl_math_prec)
+          end if
+          if (is_orphan(pft) .and. site_seed_rain(pft) > rsnbl_math_prec) then
+             orphan_seed_local = site_seed_rain(pft) * (1.0_r8 - site_disp_frac(pft)) ! [kg/site/day]
+
+             currentPatch => currentSite%oldest_patch
+             do while (associated(currentPatch))
+                litt => currentPatch%litter(el)
+                do dcmpy = 1,ndcmpy
+                   dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
+                   ! [kg/site/day] -> [kg/m2/day]; area-weighted so summed input equals orphan_seed_local
+                   litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
+                        orphan_seed_local * dcmpy_frac / AREA
+                end do
+                currentPatch => currentPatch%younger
+             end do
+          end if
+       end do
+
        ! Determine the total site-level seed output for the current element and update the seed_out mass
        ! for each element loop since the site_seed_rain is resent and updated for each element loop iteration
        do pft = 1,numpft
@@ -2163,6 +2213,7 @@ contains
     real(r8) ::  seedling_light_mort_rate    ! daily seedling mortality rate from light stress
     real(r8) ::  seedling_h2o_mort_rate      ! daily seedling mortality rate from moisture stress
     real(r8) ::  seedling_mdds               ! moisture deficit days accumulated in the seedling layer
+    real(r8) ::  total_seedling_mort_rate    ! summed seedling mortality rates
 
     !----------------------------------------------------------------------
 
@@ -2231,20 +2282,26 @@ contains
 
           ! Calculate seedling mortality as a function of moisture deficit days (mdd)
           ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
+          
           if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
              seedling_h2o_mort_rate = 0.0_r8
           else
              seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+             ! Cap h2o mortality rate at 1, quadratic can produce values >1 for large moisture
+             ! deficit days 
+             seedling_h2o_mort_rate = min(1.0_r8, seedling_h2o_mort_rate)
           end if ! mdd threshold check
 
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
           ! to litter
-          litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
-               (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
-               (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
-               * years_per_day)
+          ! Cap total mortality rate at 1 to prevent negative seedling pool
+          total_seedling_mort_rate = seedling_light_mort_rate + &
+                        seedling_h2o_mort_rate + &
+                        (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+          litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+            min(1.0_r8, total_seedling_mort_rate)
 
        else
 
@@ -2350,6 +2407,9 @@ contains
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
              seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                   wetness_index**EDPftvarcon_inst%b_emerg(pft)
+             ! Cap emergence rate at 1, rate can exceed 1 for some parameter combinations,
+             ! leading to negative seed bank
+             seedling_emerg_rate = min(1.0_r8, seedling_emerg_rate )
           else
 
              seedling_emerg_rate = 0.0_r8
@@ -2432,6 +2492,7 @@ contains
       real(r8)                          :: stem_drop_fraction !
       real(r8)                          :: fnrt_drop_fraction !
       real(r8)                          :: sdlng2sap_par      ! running mean of PAR at the seedling layer [MJ/m2/day]
+      real(r8)                          :: sdlng2sap_rate     ! seedling-to-sapling transition rate factor (unitless)
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
@@ -2577,10 +2638,14 @@ contains
                      sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean()*     &
                         sec_per_day*megajoules_per_joule
 
+                     sdlng2sap_rate = EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+
+                     ! If the seedling to sapling transition rate exceeds 1, 
+                     ! cap at 1 (prevent seed_germ from going negative)
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 &
-                        EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
+                        min(1.0_r8, sdlng2sap_rate)
 
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the
                      ! recruitment does not occur.
@@ -2690,6 +2755,7 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) =                   &
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     
                   end if
 
                end do
@@ -2889,6 +2955,7 @@ contains
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
