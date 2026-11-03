@@ -3430,14 +3430,6 @@ contains
     ! You should had fused
     integer                      :: icycles          ! cycle counter index
     logical                      :: gotfused
-    logical                      :: c_patch_is_youngest_lutype
-    integer                      :: i_landuse, i_pft
-    integer                      :: land_use_type_to_remove
-
-    real(r8) areatot ! variable for checking whether the total patch area is wrong.
-    real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
-    real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
-    character(len=1024) :: warn_msg   ! for defining a warning message
     !---------------------------------------------------------------------
 
     ! Start at the youngest patch in the list and assume that the largest patch is this patch
@@ -3606,54 +3598,6 @@ contains
   end subroutine FuseIntoLargestLastResort
     
   ! ====================================================================
-  
-  subroutine ReportFusionWarning(currentSite, currentPatch, bc_in)
-
-    ! This is an optional debug routine that writes to log
-    ! when there are difficulties fusing patches in no-comp
-    
-    type(ed_site_type) :: currentSite
-    type(fates_patch_type) :: currentPatch
-    type(bc_in_type), intent(in) :: bc_in
-    type(fates_patch_type),pointer :: patchpointer
-    real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
-    real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
-    integer :: i_landuse
-    
-    write(fates_log(),*) 'FATES is having difficulties fusing very small patches.'
-    write(fates_log(),*) 'It is possible that a either a secondary or primary'
-    write(fates_log(),*) 'patch has become the only patch of its kind, and it is'
-    write(fates_log(),*) 'very very small. You can test your luck by'
-    write(fates_log(),*) 'disabling the endrun statement following this message.'
-    write(fates_log(),*) 'FATES may or may not continue to operate within error'
-    write(fates_log(),*) 'tolerances, but will generate another fail if it does not.'
-    write(fates_log(),*) 'otherwise, dumping some diagnostics.'
-    write(fates_log(),*) currentPatch%area, currentPatch%nocomp_pft_label, currentPatch%land_use_label
-    call dump_site(currentSite)
-    
-    write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
-    write(fates_log(),*) 'currentSite%area_pft(:,:)', currentSite%area_pft(:,:)
-    patchpointer => currentSite%youngest_patch
-    do while(associated(patchpointer))
-       write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
-       patchpointer => patchpointer%older
-    end do
-    state_vector_internal = currentSite%get_current_landuse_statevector()
-    write(fates_log(),*) 'current landuse state vector: ', state_vector_internal
-    write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', &
-         state_vector_internal/(1._r8-currentSite%area_bareground)
-    call GetLUHStatedata(bc_in, state_vector_driver)
-    write(fates_log(),*) 'driver data landuse state vector: ', state_vector_driver
-    write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
-    write(fates_log(),*) 'landuse_vector_gt_min: ', currentSite%landuse_vector_gt_min
-    do i_landuse = 1, n_landuse_cats
-       write(fates_log(),*) 'trans matrix from: ', i_landuse, currentSite%landuse_transition_matrix(i_landuse,:)
-    end do
-    
-    return
-  end subroutine ReportFusionWarning
-  
-  ! =====================================================================================
 
   subroutine DistributeSeeds(currentSite,seed_mass,el,pft)
 
