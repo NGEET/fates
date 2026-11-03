@@ -164,8 +164,6 @@ contains
     !
     ! !USES:
 
-    use EDTypesMod , only : min_patch_area
-
     !
     ! !ARGUMENTS
     type(ed_site_type) , intent(inout), target   :: currentSite
