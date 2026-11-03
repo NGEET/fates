@@ -95,24 +95,23 @@ contains
                    ! Convert from kgC/ind to gC/m2
                    if(.not.ccohort%isnew)then
                       bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + &
-                     (ccohort%gpp_acc - ccohort%resp_m_acc) &
-                      * ind_per_m2 * g_per_kg &
-                      -(ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * & 
+                      (ccohort%gpp_acc - ccohort%resp_m_acc) * &
+                      ind_per_m2 * g_per_kg - &
+                      (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
                       ind_per_m2 * g_per_kg * dt_time/(days_per_year*sec_per_day)
                       ! gresp is converted from kgC/indiv/year to gC/m2/timestep. 
-                   endif 
 
-               ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
-               ! This is taken from the NEP history variable calculation.
-               ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
-               ! then smooth out yesterdays's calculated growth respiration and
-               ! convert units from kgC/indiv/year  to gC/m2/s. 
-                  if(.not.ccohort%isnew)then
-                    bc_out(s)%npp_site = bc_out(s)%npp_site + (ccohort%gpp_tstep-ccohort%resp_m_tstep) &
-                        * ind_per_m2 * g_per_kg / dt_time - &
-                        (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
-                        ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)
-                  endif
+                      ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
+                      ! This is taken from the NEP history variable calculation.
+                      ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
+                      ! then smooth out yesterdays's calculated growth respiration and
+                      ! convert units from kgC/indiv/year  to gC/m2/s.
+                      bc_out(s)%npp_site = bc_out(s)%npp_site + (ccohort%gpp_tstep-ccohort%resp_m_tstep) * &
+                         ind_per_m2 * g_per_kg / dt_time - &
+                         (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
+                         ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)
+                    endif
+
                    ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
                    
                    ! weighted mean of D13C by gpp

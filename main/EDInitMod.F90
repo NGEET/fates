@@ -1216,7 +1216,6 @@ contains
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
       real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
-      real(r8), dimension(numpft)      :: l_initd              ! local copy of init_density parameter
       !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()
