@@ -3435,7 +3435,6 @@ contains
     ! Start at the youngest patch in the list and assume that the largest patch is this patch
     cpatch => csite%youngest_patch
     outer_patch_loop: do while(associated(cpatch))
-       npatch => cpatch%older
 
        if_small: if(cpatch%area <= min_patch_area_forced)then
 
