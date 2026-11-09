@@ -3422,8 +3422,9 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: cpatch        ! current patch
-    type(fates_patch_type), pointer :: npatch        ! next patch
+    type(fates_patch_type), pointer :: ncpatch       ! next current patch
     type(fates_patch_type), pointer :: opatch        ! older patch
+    type(fates_patch_type), pointer :: nopatch       ! next older patch
     type(fates_patch_type), pointer :: ypatch        ! younger patch
 
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
@@ -3436,6 +3437,10 @@ contains
     cpatch => csite%youngest_patch
     outer_patch_loop: do while(associated(cpatch))
 
+       ! we may end up dereferencing the current patch if its too problematic
+       ! so we save the pointer to the next older to prevent its loss
+       ncpatch => cpatch%older
+       
        if_small: if(cpatch%area <= min_patch_area_forced)then
 
           ! For both no-comp and non-no-comp, we attempt to fuse
@@ -3453,12 +3458,13 @@ contains
              ! into the patch in question
              opatch => csite%youngest_patch
              do while(associated(opatch) .and. cpatch%area <= min_patch_area_forced)
+                nopatch => opatch%older
                 if ( .not.associated(cpatch,opatch) .and. &
                      opatch%nocomp_pft_label .eq. cpatch%nocomp_pft_label .and. &
                      opatch%land_use_label .eq. cpatch%land_use_label) then
                    call fuse_2_patches(csite, opatch, cpatch)
                 endif
-                opatch=>cpatch%older
+                opatch => nopatch
              end do
              
              ! if the patch is still really small, we let
@@ -3515,16 +3521,16 @@ contains
           ! If the patch is still too small, take last resort measures
           ! This may include culling all vegetation and sending to litter
           ! particularly if its no-comp and no same pft patches exist
-          ! Note that cpatch will be deallocated and dereffed, so
-          ! we must point to the next patch before we do that
-          npatch => cpatch%older
           if(cpatch%area <= min_patch_area_forced)then
              call FuseIntoLargestLastResort(csite,cpatch,bc_in)
           end if
           
        end if if_small
 
-       cpatch => npatch
+       ! ncpatch holds the next older patch, its possible cpatch
+       ! was deallocated and referenced in lastresort
+
+       cpatch => ncpatch
     end do outer_patch_loop
     
     !check area is not exceeded
