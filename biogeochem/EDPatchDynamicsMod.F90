@@ -3581,7 +3581,7 @@ contains
     end if
     
     if(associated(largestPatch))then
-       ! Ff these are not the same pft label, send cohorts to litter
+       ! If these are not the same pft label, send cohorts to litter
        if(smallPatch%nocomp_pft_label .ne. largestPatch%nocomp_pft_label) then
           call terminate_cohorts(currentSite, smallPatch, 4, 42, bc_in)
        end if
