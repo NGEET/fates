@@ -3439,7 +3439,7 @@ contains
 
        ! we may end up dereferencing the current patch if its too problematic
        ! so we save the pointer to the next older to prevent its loss
-       ncpatch => cpatch%older
+       !ncpatch => cpatch%older
        
        if_small: if(cpatch%area <= min_patch_area_forced)then
 
@@ -3530,7 +3530,7 @@ contains
        ! ncpatch holds the next older patch, its possible cpatch
        ! was deallocated and referenced in lastresort
 
-       cpatch => ncpatch
+       cpatch => cpatch%older
     end do outer_patch_loop
     
     !check area is not exceeded
@@ -3596,7 +3596,7 @@ contains
        ! present now, set it before we chnage the landuse-label before fusion
        currentSite%landuse_vector_gt_min(smallPatch%land_use_label) = .false.
        smallPatch%land_use_label = largestPatch%land_use_label
-       call fuse_2_patches(currentSite, smallPatch, largestPatch)
+       call fuse_2_patches(currentSite, largestPatch, smallPatch)
     end if
     
     return
