@@ -115,13 +115,11 @@ module EDTypesMod
   ! COHORT TERMINATION
 
   real(r8), parameter, public :: min_npm2       = 1.0E-7_r8               ! minimum cohort number density per m2 before termination
-  real(r8), parameter, public :: min_patch_area = 0.01_r8                 ! smallest allowable patch area before termination
-  real(r8), parameter, public :: min_patch_area_forced = 0.0001_r8        ! patch termination will not fuse the youngest patch
-                                                                          ! if the area is less than min_patch_area.
-                                                                          ! however, it is allowed to fuse the youngest patch
-                                                                          ! if the fusion area is less than min_patch_area_forced
-
-  real(r8), parameter, public :: min_nppatch    = min_npm2*min_patch_area ! minimum number of cohorts per patch (min_npm2*min_patch_area)
+  real(r8), parameter, public :: min_patch_area_forced = 0.0001_r8        ! minimum allowable patch area [m2]
+                                                                          ! patches smaller than this will be forcibly
+                                                                          ! fused with similar patches
+  
+  real(r8), parameter, public :: min_nppatch    = min_npm2*0.01_r8        ! min number of cohorts per patch (min_npm2*min_patch_area)
   real(r8), parameter, public :: min_n_safemath = 1.0E-12_r8              ! in some cases, we want to immediately remove super small
                                                                           ! number densities of cohorts to prevent FPEs
 

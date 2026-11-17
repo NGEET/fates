@@ -336,14 +336,13 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-
     ! This call can come earlier in the call sequence. We keep
     ! it here temporarily to prevent issues with b4b-ness.
     ! We lose some precision in litter fluxes during disturbance
     ! since we have to re-scale litter fluxes when the areas
     ! of patches change. 
     call FluxIntoLitterPools(currentsite, bc_in, bc_out)
-    
+
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
