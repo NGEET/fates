@@ -42,7 +42,6 @@ contains
     use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
     use EDtypesMod               , only : AREA_INV
-    use clm_time_manager  , only : get_curr_days_per_year
     use FatesConstantsMod        , only : sec_per_day
     use FatesConstantsMod        , only : days_per_year    
     use FatesConstantsMod        , only : g_per_kg
