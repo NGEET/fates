@@ -2913,7 +2913,7 @@ function KMaxStemCompartment(kmax_xylem,d_upper,d_lower,mean_area,pexp) result(K
                           ! lower part of the compartment (further) [m]
   real(r8) :: mean_area   ! Mean cross sectional area of the xylem conduit
                           ! assumed to be the same over all compartment depths [m2]
-  integer  :: pexp        ! Savage et al. (2010) taper exponent[-]pexp   ! Savage et al. (2010) taper exponent[-]
+  real(r8) :: pexp        ! Savage et al. (2010) taper exponent[-]pexp   ! Savage et al. (2010) taper exponent[-]
 
   ! locals
   real(r8) :: res_upper   ! Resistance from leaf to upper cross section [s/Mpa/kg]
@@ -3051,7 +3051,7 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
         d_lower = fates_unset_r8
         d_upper = fates_unset_r8
      else
-        d_lower = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)) + 2*normalized_horz_dist
+        d_lower = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)) + 2*nominal_horz_dist
         d_node  = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag))  + nominal_horz_dist
         d_upper = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_upper_ag(k_ag))
      end if
