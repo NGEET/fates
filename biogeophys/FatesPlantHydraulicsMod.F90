@@ -1016,10 +1016,28 @@ contains
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
 
     !call CrownDepth(ccohort%height,ft,crown_depth)
-    crown_depth  = min(ccohort%height,0.1_r8)
+    if(ccohort%height < 0.1)then
+       crown_depth  = 0.5_r8*ccohort%height
+    else
+       crown_depth = 0.1_r8
+    end if
+
     z_stem       = ccohort%height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
 
+    if( any(ccohort_hydr%v_ag(1:n_hypool_leaf)<nearzero) ) then
+       write(fates_log(),*)'problems with leaf volume:',ccohort_hydr%v_ag(1:n_hypool_leaf)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    if( z_stem<nearzero ) then
+       write(fates_log(),*)'problems with zstem:',z_stem
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    if(a_sapwood<nearzero)then
+       write(fates_log(),*)'problems with asapwood:',a_sapwood
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
     ! Junyan changed the following code to calculate the above ground node volume
     ! foliage donate half of its water volume to xylem for grass
     if (prt_params%woody(ft)==1) then
