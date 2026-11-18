@@ -2152,8 +2152,9 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
   do s = 1,nsites
 
      cpatch => sites(s)%oldest_patch
-     do while (associated(cpatch))
+     do_patch: do while (associated(cpatch))
 
+        if_notbare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
         ifp = cpatch%patchno
 
         balive_patch = 0._r8
@@ -2177,8 +2178,9 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
                 ccohort%n / balive_patch
            ccohort => ccohort%shorter
         enddo !cohort
-        cpatch => cpatch%younger
-     enddo !end patch loop
+     end if if_notbare
+     cpatch => cpatch%younger
+     enddo do_patch !end patch loop
   end do
   return
 end subroutine BTranForHLMDiagnosticsFromCohortHydr
