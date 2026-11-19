@@ -781,7 +781,7 @@ contains
     nlevrhiz                   = csite_hydr%nlevrhiz
 
     !call CrownDepth(plant_height,ft,crown_depth)
-    crown_depth               = min(plant_height,0.1_r8)
+    crown_depth = min(0.1_r8,ccohort%height*0.5_r8)
     
     dz_canopy                  = crown_depth / real(n_hypool_leaf,r8)
     do k=1,n_hypool_leaf
@@ -1016,11 +1016,7 @@ contains
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
 
     !call CrownDepth(ccohort%height,ft,crown_depth)
-    if(ccohort%height < 0.1)then
-       crown_depth  = 0.5_r8*ccohort%height
-    else
-       crown_depth = 0.1_r8
-    end if
+    crown_depth = min(0.1_r8,ccohort%height*0.5_r8)
 
     z_stem       = ccohort%height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
