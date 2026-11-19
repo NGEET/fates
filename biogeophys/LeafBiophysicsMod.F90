@@ -148,9 +148,9 @@ module LeafBiophysicsMod
   ! never really drop down to 0, or close to it. Setting
   ! this to true will cap vcmax and jmax to a fraction
   ! of its value at 25C. 
-  logical, parameter :: do_mincap_vcjmax = .false.
-  real(r8),parameter :: min_vcmax_frac = 0.10_r8
-  real(r8),parameter :: min_jmax_frac  = 0.10_r8
+  logical, parameter :: do_mincap_vcjmax = .true.
+  real(r8),parameter :: min_vcmax_frac = 0.05_r8
+  real(r8),parameter :: min_jmax_frac  = 0.05_r8
 
   
   ! For plants with no leaves, a miniscule amount of conductance
