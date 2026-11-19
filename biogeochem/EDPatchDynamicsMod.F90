@@ -46,6 +46,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : bc_in_type
+  use FatesInterfaceTypesMod    , only : bc_out_type
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -568,7 +569,6 @@ contains
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates(:,:,:) = 0._r8
-
     ! get rules for vegetation clearing during land use change
     call GetLanduseChangeRules(clearing_matrix)
     
@@ -631,7 +631,7 @@ contains
                 ! this variable site_areadis holds all the newly disturbed area from all patches for all disturbance being
                 ! resolved now.
                 site_areadis = 0.0_r8
-
+                 
                 ! loop over all patches to figure out the total patch area generated as a result of all disturbance being
                 ! resolved now.
                 patchloop_areadis: do while(associated(currentPatch))
@@ -754,7 +754,9 @@ contains
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
+
                             call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
+
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -1772,6 +1774,7 @@ contains
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
+
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
     ! -------------------------------------------------------------------------
@@ -1904,8 +1907,7 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis, &
-                                 dist_type)
+                                 patch_site_areadis, dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -2886,6 +2888,8 @@ contains
                    site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
                         site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
+
+
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
                         woodproduct_mass * area_inv
@@ -3465,7 +3469,8 @@ contains
                            'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
                            'lu label: '//trim(I2S(currentPatch%land_use_label))// &
                            'area: '//trim(N2S(currentPatch%area))
-                call FatesWarn(warn_msg,index=5)
+                
+                call FatesWarn(warn_msg,index=5,active=.false.)
              endif
 
           else nocomp_if

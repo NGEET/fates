@@ -41,7 +41,7 @@ contains
     use EDTypesMod        , only : ed_site_type
     use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
-
+    
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: nsites
@@ -55,7 +55,7 @@ contains
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
     !----------------------------------------------------------------------
-
+    
     do s = 1, nsites
 
        ! Note: Do not attempt to accumulate or log any
@@ -63,23 +63,20 @@ contains
        ! It is likely this has not been calculated yet (ELM/CLM)
        
        cpatch => sites(s)%oldest_patch
+       bc_out(s)%npp_acc_site = 0._r8
+       bc_out(s)%npp_site = 0._r8
+       
        do while (associated(cpatch))
-
           ifp = cpatch%patchno
-          
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
-
                 call FatesAccumulatePatchFluxes(ifp, sites(s), dt_time)
-
              end if
           end if
-
           cpatch => cpatch%younger
        end do
-    end do
-    return
+   end do
+   return
 
   end subroutine AccumulateFluxes_ED
 
@@ -87,16 +84,13 @@ contains
   
   subroutine FatesAccumulatePatchFluxes(ifp, site, dt_time)
 
-    !
-    ! !DESCRIPTION:
-    ! see above
-    !
-    ! !USES:
-
-    use EDTypesMod        , only : ed_site_type
-    use FatesPatchMod,      only : fates_patch_type
-    use FatesCohortMod,     only : fates_cohort_type
-
+    use EDTypesMod,        only : ed_site_type
+    use FatesPatchMod,     only : fates_patch_type
+    use FatesCohortMod,    only : fates_cohort_type
+    use EDtypesMod,        only : AREA_INV
+    use FatesConstantsMod, only : sec_per_day
+    use FatesConstantsMod, only : days_per_year
+    use FatesConstantsMod, only : g_per_kg
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: ifp
@@ -107,7 +101,8 @@ contains
     integer :: ico
     type(fates_cohort_type), pointer  :: ccohort ! current cohort
     type(fates_patch_type) , pointer  :: cpatch ! current patch
-    integer :: iv !leaf layer
+    integer  :: iv          ! leaf layer index
+    real(r8) :: ind_per_m2  ! stem count per m2
 
     !----------------------------------------------------------------------
 
@@ -119,7 +114,6 @@ contains
        ico=ico+1
        ! Accumulate fluxes from hourly to daily values. 
        ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-
        ! g_sb_laweight has an order mis-match, which forces us
        ! to keep it's cohort variable for now (since we need this
        ! variable on restart)
@@ -128,6 +122,29 @@ contains
        ccohort%resp_m_acc = ccohort%resp_m_acc + cpatch%coarrays%resp_m_tstep(ico)
        
        ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + cpatch%coarrays%sym_nfix_tstep(ico)
+
+       ! Make npp_acc variable for the site level to add to the NBP balance check
+       ! Convert from kgC/ind to gC/m2
+       if(.not.ccohort%isnew)then
+          ind_per_m2 = ccohort%nplant*AREA_INV
+          bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + &
+               (ccohort%gpp_acc - ccohort%resp_m_acc) * &
+               ind_per_m2 * g_per_kg - &
+               (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
+               ind_per_m2 * g_per_kg * dt_time/(days_per_year*sec_per_day)
+          ! gresp is converted from kgC/indiv/year to gC/m2/timestep.
+          
+          ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
+          ! This is taken from the NEP history variable calculation.
+          ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
+          ! then smooth out yesterdays's calculated growth respiration and
+          ! convert units from kgC/indiv/year  to gC/m2/s.
+          bc_out(s)%npp_site = bc_out(s)%npp_site + &
+               (cpatch%coarrays%gpp_tstep(ico)-cpatch%coarrays%%resp_m_tstep(ico)) * &
+               ind_per_m2 * g_per_kg / dt_time - &
+               (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
+               ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)
+       endif
        
        ! weighted mean of D13C by gpp
        if((ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico)) .eq. 0.0_r8) then

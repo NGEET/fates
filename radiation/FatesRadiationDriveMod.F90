@@ -103,13 +103,9 @@ contains
 
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-
           ifp = currentpatch%patchno
-
           if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-
              call FatesNormalizedPatchRadiation(ifp,sites(s),bc_in(s),bc_out(s))
-
           end if if_bareground
           currentPatch => currentPatch%younger
        end do
@@ -204,9 +200,11 @@ contains
                     bc_out%ftid_parb(ifp,ib), &  ! out
                     bc_out%ftii_parb(ifp,ib))
 
+               ! Set these so that diagnostics can be calculated
+               patch%twostr%band(ib)%Rbeam_atm = 1._r8
+               patch%twostr%band(ib)%Rdiff_atm = 1._r8
+
                if(debug) then
-                  patch%twostr%band(ib)%Rbeam_atm = 1._r8
-                  patch%twostr%band(ib)%Rdiff_atm = 1._r8
                   call CheckPatchRadiationBalance(patch, site%snow_depth, & 
                        ib, bc_out%fabd_parb(ifp,ib),bc_out%fabi_parb(ifp,ib))
                   patch%twostr%band(ib)%Rbeam_atm = fates_unset_r8

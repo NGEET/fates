@@ -781,7 +781,7 @@ contains
     nlevrhiz                   = csite_hydr%nlevrhiz
 
     !call CrownDepth(plant_height,ft,crown_depth)
-    crown_depth               = min(plant_height,0.1_r8)
+    crown_depth = min(0.1_r8,ccohort%height*0.5_r8)
     
     dz_canopy                  = crown_depth / real(n_hypool_leaf,r8)
     do k=1,n_hypool_leaf
@@ -797,6 +797,7 @@ contains
     z_stem                     = plant_height - crown_depth
     dz_stem                    = z_stem / real(n_hypool_stem,r8)
     do k=n_hypool_leaf+1,n_hypool_ag
+       ! For a single stem layer: (1 - (2 - 1 - 1))*dz_stem = dz_stem
        ccohort_hydr%z_upper_ag(k)   = real(n_hypool_stem - (k - 1 - n_hypool_leaf),r8)*dz_stem
        ccohort_hydr%z_node_ag(k)    = ccohort_hydr%z_upper_ag(k) - 0.5_r8*dz_stem
        ccohort_hydr%z_lower_ag(k)   = ccohort_hydr%z_upper_ag(k) - dz_stem
@@ -1015,10 +1016,24 @@ contains
     ! a_sapwood    = a_leaf_tot / ( 0.001_r8 + 0.025_r8 * ccohort%height ) * 1.e-4_r8
 
     !call CrownDepth(ccohort%height,ft,crown_depth)
-    crown_depth  = min(ccohort%height,0.1_r8)
+    crown_depth = min(0.1_r8,ccohort%height*0.5_r8)
+
     z_stem       = ccohort%height - crown_depth
     v_sapwood    = a_sapwood * z_stem    ! + 0.333_r8*a_sapwood*crown_depth
 
+    if( any(ccohort_hydr%v_ag(1:n_hypool_leaf)<nearzero) ) then
+       write(fates_log(),*)'problems with leaf volume:',ccohort_hydr%v_ag(1:n_hypool_leaf)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    if( z_stem<nearzero ) then
+       write(fates_log(),*)'problems with zstem:',z_stem
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    if(a_sapwood<nearzero)then
+       write(fates_log(),*)'problems with asapwood:',a_sapwood
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
     ! Junyan changed the following code to calculate the above ground node volume
     ! foliage donate half of its water volume to xylem for grass
     if (prt_params%woody(ft)==1) then
@@ -2151,8 +2166,9 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
   do s = 1,nsites
 
      cpatch => sites(s)%oldest_patch
-     do while (associated(cpatch))
+     do_patch: do while (associated(cpatch))
 
+        if_notbare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
         ifp = cpatch%patchno
 
         balive_patch = 0._r8
@@ -2176,8 +2192,9 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
                 ccohort%n / balive_patch
            ccohort => ccohort%shorter
         enddo !cohort
-        cpatch => cpatch%younger
-     enddo !end patch loop
+     end if if_notbare
+     cpatch => cpatch%younger
+     enddo do_patch !end patch loop
   end do
   return
 end subroutine BTranForHLMDiagnosticsFromCohortHydr
@@ -2908,7 +2925,51 @@ end subroutine Hydraulics_BC
 
 ! =====================================================================================
 
+function KMaxStemCompartment(kmax_xylem,d_upper,d_lower,mean_area,pexp) result(Kmax)
 
+  real(r8) :: kmax_xylem  ! Material maximum conductivity of stem xylem [kg/Mpa/m/s]
+  real(r8) :: d_upper     ! The distance from the leaf to the
+                          ! upper part of the compartment (closer) [m]
+  real(r8) :: d_lower     ! The distance from the leaf to the
+                          ! lower part of the compartment (further) [m]
+  real(r8) :: mean_area   ! Mean cross sectional area of the xylem conduit
+                          ! assumed to be the same over all compartment depths [m2]
+  real(r8) :: pexp        ! Savage et al. (2010) taper exponent[-]pexp   ! Savage et al. (2010) taper exponent[-]
+
+  ! locals
+  real(r8) :: res_upper   ! Resistance from leaf to upper cross section [s/Mpa/kg]
+  real(r8) :: res_lower   ! Resistance from leaf to lower cross section
+  
+  ! Return value: compartment mean, maximum conductance [kg/Mpa/s]
+  real(r8) :: Kmax
+  
+  ! The Savage method provides conductance ratios over a depth from the leaf
+  ! tips (assumes fractal nature of plant) to a reference point.  In order to
+  ! use this information to return a conductance for a sub-interval (compartment)
+  ! within the plant, we acknowledge that resistors work in series. So first
+  ! we calculate the total conductance two each reference point, by applying
+  ! the xylem taper function over that depth to the material conductance and
+  ! cross section and path length.  Then we invert those conductances to
+  ! get resistances over those paths.  Then take the difference to get
+  ! resistance over the interval, and then invert to get the conductance.
+  
+  if( (d_lower-d_upper)<=nearzero .or. mean_area <=nearzero)then
+     write(fates_log(),*)'Error while trying to calculate compartment conductance'
+     write(fates_log(),*)'either cross section or length of compartment is zero'
+     write(fates_log(),*)'which creates singularity'
+     write(fates_log(),*)'d_lower-d_upper: ',d_lower-d_upper
+     write(fates_log(),*)'mean_area: ',mean_area
+     call endrun(msg=errMsg(sourcefile, __LINE__))
+  end if
+  
+  res_upper = d_upper/(kmax_xylem*xylemtaper(pexp, d_upper)*mean_area)
+  res_lower = d_lower/(kmax_xylem*xylemtaper(pexp, d_lower)*mean_area)
+  
+  Kmax = 1./(res_lower - res_upper)
+
+end function KMaxStemCompartment
+
+! ==============================================================================
 
 subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
 
@@ -2947,9 +3008,9 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   integer :: k_ag                  ! Compartment index for above-ground indexed array
   integer  :: pft                  ! Plant Functional Type index
   real(r8) :: c_sap_dummy          ! Dummy variable (unused) with sapwood carbon [kg]
-  real(r8) :: z_lower              ! distance between lower edge and mean petiole height [m]
-  real(r8) :: z_upper              ! distance between upper edge and mean petiole height [m]
-  real(r8) :: z_node               ! distance between compartment center and mph [m]
+  real(r8) :: d_lower              ! distance between lower edge and mean petiole height [m]
+  real(r8) :: d_upper              ! distance between upper edge and mean petiole height [m]
+  real(r8) :: d_node               ! distance between compartment center and mph [m]
   real(r8) :: kmax_lower           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
   real(r8) :: kmax_node            ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
   real(r8) :: kmax_upper           ! Max conductance from compartment edge to mph [kg s-1 Mpa-1]
@@ -2967,10 +3028,15 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
   real(r8) :: surfarea_aroot_layer ! Surface area of absorbing roots in each
   ! soil layer [m2]
   real(r8) :: sum_l_aroot          ! sum of plant's total root length
-  real(r8),parameter :: min_pet_stem_dz = 0.00001_r8  ! Force at least a small difference
-  ! in the top of stem and petiole
 
 
+  logical, parameter :: include_radial_dist = .false.  ! do we want to use horizontal distance
+                                                       ! incalculation of compartment distances?
+
+  ! These are nominal values that we apply to compartment distances, they are
+  ! really just there to avoid singularities since we don't really apply any horizontal distance
+  real(r8), parameter :: nominal_horz_dist = 0.01_r8   ! 1 cm of distance applied to all compartments
+  
   pft   = ccohort%pft
 
   ! Get the cross-section of the plant's sapwood area [m2]
@@ -2987,82 +3053,57 @@ subroutine UpdatePlantKmax(ccohort_hydr,ccohort,csite_hydr)
 
   ccohort_hydr%kmax_petiole_to_leaf = 1.e8_r8
 
-
-  ! Stem Maximum Hydraulic Conductance
-
+  ! Stem Maximum Hydraulic Conductances
   do k=1, n_hypool_stem
 
-     ! index for "above-ground" arrays, that contain stem and leaf
-     ! in one vector
-     k_ag = k+n_hypool_leaf
-
-     ! Depth from the petiole to the lower, node and upper compartment edges
-
-     z_lower = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)
-     z_node  = ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag)
-     z_upper = max( min_pet_stem_dz,ccohort_hydr%z_node_ag(n_hypool_leaf) - &
-          ccohort_hydr%z_upper_ag(k_ag))
-
-
-     ! Then we calculate the maximum conductance from each the lower, node and upper
-     ! edges of the compartment to the petiole. The xylem taper factor requires
-     ! that the kmax it is scaling is from the point of interest to the mean height
-     ! of the petioles.  Then we can back out the conductance over just the path
-     ! of the upper and lower compartments, but subtracting them as resistors in
-     ! series.
-
-     ! max conductance from upper edge to mean petiole height
-     ! If there is no height difference between the upper compartment edge and
-     ! the petiole, at least give it some nominal amount to void FPE's
-     kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
-          a_sapwood / z_upper
-
-     ! max conductance from node to mean petiole height
-     kmax_node  = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
-          a_sapwood / z_node
-
-     ! max conductance from lower edge to mean petiole height
-     kmax_lower = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-          xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_lower) * &
-          a_sapwood / z_lower
-
-     ! Max conductance over the path of the upper side of the compartment
-     ccohort_hydr%kmax_stem_upper(k) = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
-
-     ! Max conductance over the path on the loewr side of the compartment
-     ccohort_hydr%kmax_stem_lower(k) = (1._r8/kmax_lower - 1._r8/kmax_node)**(-1._r8)
-
-     if(debug) then
-        ! The following clauses should never be true:
-        if( (z_lower < z_node) .or. &
-             (z_node  < z_upper) ) then
-           write(fates_log(),*) 'Problem calculating stem Kmax'
-           write(fates_log(),*) z_lower, z_node, z_upper
-           write(fates_log(),*) kmax_lower*z_lower, kmax_node*z_node, kmax_upper*z_upper
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
+     ! index for arrays that contain all above ground pools
+     k_ag = 1 + n_hypool_leaf
+     
+     ! When calculating the compartment conductances, the taper functions
+     ! require a distance from the leaves to the point of interest, which
+     ! are the top, center (node) and bottom of the compartment wrt the
+     ! leaves. We don't include the radial geometry of the plant right now
+     ! but we do add a small nominal amount of horizontal distance in
+     ! case there is no elevation difference between compartments.
+     ! In this coordinate system the lower is furthest, and node
+     ! is next furthest from the leaves, positive down.
+     
+     if(include_radial_dist)then
+        d_lower = fates_unset_r8
+        d_upper = fates_unset_r8
+     else
+        d_lower = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_lower_ag(k_ag)) + 2*nominal_horz_dist
+        d_node  = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_node_ag(k_ag))  + nominal_horz_dist
+        d_upper = max(0._r8,ccohort_hydr%z_node_ag(n_hypool_leaf) - ccohort_hydr%z_upper_ag(k_ag))
      end if
-
-  enddo
-
+     ccohort_hydr%kmax_stem_upper(k) = &
+          KMaxStemCompartment(EDPftvarcon_inst%hydr_kmax_node(pft,2), &
+                              d_upper,d_node,a_sapwood, &
+                              EDPftvarcon_inst%hydr_p_taper(pft))
+     
+     ccohort_hydr%kmax_stem_lower(k) = &
+          KMaxStemCompartment(EDPftvarcon_inst%hydr_kmax_node(pft,2), &
+                              d_node,d_lower,a_sapwood, &
+                              EDPftvarcon_inst%hydr_p_taper(pft))
+  end do
+  
   ! Maximum conductance of the upper compartment in the transporting root
   ! that connects to the lowest stem (btw: z_lower_ag(n_hypool_ag) == 0)
+  ! The concepts here are the same as the above ground stem.
 
-  z_upper = ccohort_hydr%z_lower_ag(n_hypool_leaf)
-  z_node  = ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot
+  if(include_radial_dist)then
+     d_upper = fates_unset_r8
+     d_node  = fates_unset_r8
+  else
+     d_upper = ccohort_hydr%z_lower_ag(n_hypool_leaf)
+     d_node  = (ccohort_hydr%z_lower_ag(n_hypool_leaf)-ccohort_hydr%z_node_troot) + nominal_horz_dist
+  end if
 
-  kmax_node = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-       xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_node) * &
-       a_sapwood / z_node
-
-  kmax_upper = EDPftvarcon_inst%hydr_kmax_node(pft,2) * &
-       xylemtaper(EDPftvarcon_inst%hydr_p_taper(pft), z_upper) * &
-       a_sapwood / z_upper
-
-  ccohort_hydr%kmax_troot_upper = (1._r8/kmax_node - 1._r8/kmax_upper)**(-1._r8)
-
+  ccohort_hydr%kmax_troot_upper = &
+       KMaxStemCompartment(EDPftvarcon_inst%hydr_kmax_node(pft,2), &
+                           d_upper,d_node,a_sapwood, &
+                           EDPftvarcon_inst%hydr_p_taper(pft))
+  
   ! The maximum conductance between the center node of the transporting root
   ! compartment, and the center node of the absorbing root compartment, is calculated
   ! as a residual.  Specifically, we look at the total resistance the plant has in

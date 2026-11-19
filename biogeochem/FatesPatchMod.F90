@@ -163,11 +163,9 @@ module FatesPatchMod
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
     logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use
                                              ! change [only used with nocomp and land use change]
-
     integer  :: nupft                        ! number of unique PFTs in the patch
     integer  :: unique_pfts(maxpft)          ! unique PFT indices that are on this patch
     integer  :: upft_index(maxpft)           ! reverse of unique pfts
-    
     !---------------------------------------------------------------------------
 
     ! RUNNING MEANS
@@ -863,7 +861,7 @@ module FatesPatchMod
         call this%seedling_layer_par24%InitRSumm(fixed_24hr,                   &
           init_value=init_seedling_par, init_offset=real(current_tod, r8))
         call this%sdlng_mort_par%InitRSumm(ema_sdlng_mort_par,                 &
-          init_value=temp_init_veg)
+          init_value=init_seedling_par)
         call this%sdlng2sap_par%InitRSumm(ema_sdlng2sap_par,                   &
           init_value=init_seedling_par)
 
@@ -961,7 +959,7 @@ module FatesPatchMod
         this%age_since_anthro_disturbance = fates_unset_r8
       endif
       this%nocomp_pft_label = nocomp_pft
-
+      
       this%tr_soil_dir(:) = 1.0_r8
       this%tr_soil_dif(:) = 1.0_r8
       this%ncl            = 1
