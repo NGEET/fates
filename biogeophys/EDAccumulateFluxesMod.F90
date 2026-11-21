@@ -70,7 +70,7 @@ contains
           ifp = cpatch%patchno
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
-                call FatesAccumulatePatchFluxes(ifp, sites(s), dt_time)
+                call FatesAccumulatePatchFluxes(ifp, sites(s), bc_out(s), dt_time)
              end if
           end if
           cpatch => cpatch%younger
@@ -82,9 +82,10 @@ contains
 
   ! ============================================================================
   
-  subroutine FatesAccumulatePatchFluxes(ifp, site, dt_time)
+  subroutine FatesAccumulatePatchFluxes(ifp, site, bc_out, dt_time)
 
     use EDTypesMod,        only : ed_site_type
+    use FatesInterfaceTypesMod,only : bc_out_type
     use FatesPatchMod,     only : fates_patch_type
     use FatesCohortMod,    only : fates_cohort_type
     use EDtypesMod,        only : AREA_INV
@@ -95,6 +96,7 @@ contains
     ! !ARGUMENTS    
     integer,            intent(in)            :: ifp
     type(ed_site_type), intent(inout), target :: site
+    type(bc_out_type),  intent(inout)         :: bc_out
     real(r8),           intent(in)            :: dt_time  ! timestep interval
     !
     ! !LOCAL VARIABLES:
@@ -126,8 +128,8 @@ contains
        ! Make npp_acc variable for the site level to add to the NBP balance check
        ! Convert from kgC/ind to gC/m2
        if(.not.ccohort%isnew)then
-          ind_per_m2 = ccohort%nplant*AREA_INV
-          bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + &
+          ind_per_m2 = ccohort%n*AREA_INV
+          bc_out%npp_acc_site = bc_out%npp_acc_site + &
                (ccohort%gpp_acc - ccohort%resp_m_acc) * &
                ind_per_m2 * g_per_kg - &
                (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
@@ -139,8 +141,8 @@ contains
           ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
           ! then smooth out yesterdays's calculated growth respiration and
           ! convert units from kgC/indiv/year  to gC/m2/s.
-          bc_out(s)%npp_site = bc_out(s)%npp_site + &
-               (cpatch%coarrays%gpp_tstep(ico)-cpatch%coarrays%%resp_m_tstep(ico)) * &
+          bc_out%npp_site = bc_out%npp_site + &
+               (cpatch%coarrays%gpp_tstep(ico)-cpatch%coarrays%resp_m_tstep(ico)) * &
                ind_per_m2 * g_per_kg / dt_time - &
                (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
                ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)

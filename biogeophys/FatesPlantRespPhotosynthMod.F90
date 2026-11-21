@@ -47,6 +47,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesConstantsMod, only : wm2_to_umolm2s
   use FatesConstantsMod, only : nocomp_bareground
+  use FatesInterfaceTypesMod, only : hlm_use_nocomp
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
