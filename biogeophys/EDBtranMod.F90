@@ -118,6 +118,7 @@ contains
     integer  :: j                 ! soil layer
     integer  :: ifp               ! patch vector index for the site
     integer  :: ft                ! plant functional type index
+    integer  :: ico               ! cohort index
     real(r8) :: smp_node          ! matrix potential
     real(r8) :: rresis            ! suction limitation to transpiration independent
     ! of root density
@@ -195,18 +196,20 @@ contains
                       root_resis(ft,j) = 0._r8
                    end if
                 end do
-
              end do !PFT
+
              pfts_present(1:numpft) = 0._r8
              pftgs(1:numpft)=0._r8
              sum_pftgs = 0._r8
              num_present_pfts = 0._r8
+             ico = 0
              ccohort => cpatch%tallest
              do while (associated(ccohort))
+                ico=ico+1
                 if (cpatch%btran_ft(ccohort%pft)  >  nearzero) then
-                   if (ccohort%g_sb_laweight > 0._r8) then
-                      sum_pftgs = sum_pftgs + ccohort%g_sb_laweight
-                      pftgs(ccohort%pft) = pftgs(ccohort%pft) + ccohort%g_sb_laweight
+                   if (cpatch%coarrays%g_sb_laweight(ico) > 0._r8) then
+                      sum_pftgs = sum_pftgs + cpatch%coarrays%g_sb_laweight(ico)
+                      pftgs(ccohort%pft) = pftgs(ccohort%pft) + cpatch%coarrays%g_sb_laweight(ico)
                    endif
                    pfts_present(ccohort%pft) = 1._r8
                 endif

@@ -139,7 +139,8 @@ module PRTAllometricCarbonMod
 
      procedure :: DailyPRT     => DailyPRTAllometricCarbon
      procedure :: FastPRT      => FastPRTAllometricCarbon
-
+     procedure :: CacheIndices => CacheIndicesAllometricCarbon
+     
    end type callom_prt_vartypes
    
    ! ------------------------------------------------------------------------------------
@@ -256,7 +257,32 @@ module PRTAllometricCarbonMod
 
   ! =====================================================================================
   
-
+  subroutine CacheIndicesAllometricCarbon(this)
+      
+    ! Cache variable indices for fast repeated access
+    ! Call this once after InitAllocate
+    
+    class(callom_prt_vartypes) :: this
+    
+    ! Carbon indices
+    this%i_leaf_c   = prt_global%sp_organ_map(leaf_organ, carbon12_element)
+    this%i_fnrt_c   = prt_global%sp_organ_map(fnrt_organ, carbon12_element)
+    this%i_sapw_c   = prt_global%sp_organ_map(sapw_organ, carbon12_element)
+    this%i_store_c  = prt_global%sp_organ_map(store_organ, carbon12_element)
+    this%i_struct_c = prt_global%sp_organ_map(struct_organ, carbon12_element)
+    this%i_repro_c  = prt_global%sp_organ_map(repro_organ, carbon12_element)
+    
+    ! Carbon pointers
+    this%fnrt_c   => this%variables(this%i_fnrt_c)%val(1)
+    this%sapw_c   => this%variables(this%i_sapw_c)%val(1)
+    this%store_c  => this%variables(this%i_store_c)%val(1)
+    this%struct_c => this%variables(this%i_struct_c)%val(1)
+    this%repro_c  => this%variables(this%i_repro_c)%val(1)
+    this%leaf_c   => this%variables(this%i_leaf_c)%val(:)
+    
+    
+  end subroutine CacheIndicesAllometricCarbon
+    
   subroutine DailyPRTAllometricCarbon(this,phase)
 
     ! -----------------------------------------------------------------------------------
