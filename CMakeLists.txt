@@ -53,34 +53,21 @@ add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
 add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/fortran_shr test_share)
 add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/functional/fire/shr fire_share)
 
-# Remove shr_mpi_mod from share_sources.
-# This is needed because we want to use the mock shr_mpi_mod in place of the real one
+# Remove shr_mpi_mod from share_sources. We are avoiding anything that depends on mpi in the unit test build.
+remove_source_file("shr_mpi_mod.F90" share_sources)
+
+# Remove some unneeded share sources that depend on shr_mpi_mod.
 #
-# TODO: this should be moved into a general-purpose function in Sourcelist_utils.
-# Then this block of code could be replaced with a single call, like:
-# remove_source_file(${share_sources} "shr_mpi_mod.F90")
-foreach (sourcefile ${share_sources})
-  string(REGEX MATCH "shr_mpi_mod.F90" match_found ${sourcefile})
-  if(match_found)
-    list(REMOVE_ITEM share_sources ${sourcefile})
-  endif()
-endforeach()
+# CTSM handles this differently, by using a stub shr_mpi_mod in place of the real one. It
+# needs this different approach because it needs these share sources in its unit tests.
+# That would be another solution, which could be achieved via:
+# add_subdirectory(${HLM_ROOT}/src/unit_test_stubs/csm_share csm_share_ctsm_stubs)
+remove_source_file("shr_dust_emis_mod.F90" share_sources)
+remove_source_file("shr_fire_emis_mod.F90" share_sources)
 
-# Remove shr_cal_mod from share_sources.
-foreach (sourcefile ${share_sources})
-  string(REGEX MATCH "shr_cal_mod.F90" match_found ${sourcefile})
-  if(match_found)
-    list(REMOVE_ITEM share_sources ${sourcefile})
-  endif()
-endforeach()
-
-# Remove shr_pio_mod from share_sources.
-foreach (sourcefile ${share_sources})
-  string(REGEX MATCH "shr_pio_mod.F90" match_found ${sourcefile})
-  if(match_found)
-    list(REMOVE_ITEM share_sources ${sourcefile})
-  endif()
-endforeach()
+# Remove some other things from share_sources.
+remove_source_file("shr_cal_mod.F90" share_sources)
+remove_source_file("shr_pio_mod.F90" share_sources)
 
 # Build libraries containing stuff needed for the unit tests.
 # Eventually, these add_library calls should probably be distributed into the correct location, rather than being in this top-level CMakeLists.txt file.
