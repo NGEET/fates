@@ -3475,8 +3475,8 @@ contains
                 hio_site_dstatus_si_pft(io_si,ft) = real(sites(s)%dstatus(ft),r8)
 
                 ! Model days elapsed since leaf off/on for drought deciduous
-                hio_dleafoff_si_pft(io_si,ft)     = real(sites(s)%dndaysleafon (ft),r8)
-                hio_dleafon_si_pft(io_si,ft)      = real(sites(s)%dndaysleafoff(ft),r8)
+                hio_dleafoff_si_pft(io_si,ft)     = real(sites(s)%dndaysleafoff(ft),r8)
+                hio_dleafon_si_pft(io_si,ft)      = real(sites(s)%dndaysleafon (ft),r8)
 
                 ! Leaf elongation factor (0 means fully abscissed, 1 means fully flushed).
                 hio_elong_factor_si_pft(io_si,ft) = sites(s)%elong_factor(ft)
