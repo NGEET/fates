@@ -506,6 +506,7 @@ contains
     use EDParamsMod          , only : ED_val_understorey_death, logging_coll_under_frac
     use FatesConstantsMod    , only : rsnbl_math_prec
     use FatesLandUseChangeMod, only : GetLanduseChangeRules
+    use EDMortalityFunctionsMod , only : ExemptTreefallDist
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
@@ -848,7 +849,13 @@ contains
                                   ! treefall mortality is the current disturbance
                                case (dtype_ifall)
 
-                                  in_canopy_if_falldtype: if(currentCohort%canopy_layer == 1)then
+                                  ! Only canopy cohorts that generate treefall disturbance (i.e. not
+                                  ! exempt non-woody plants, see ExemptTreefallDist) are killed here.
+                                  ! Exempt canopy cohorts already have all of their mortality applied
+                                  ! through dndt (Mortality_Derivative), so they are split by area
+                                  ! like understory grasses below.
+                                  in_canopy_if_falldtype: if(currentCohort%canopy_layer == 1 .and. &
+                                       .not. ExemptTreefallDist(currentCohort))then
 
                                      ! In the donor patch we are left with fewer trees because the area has decreased
                                      ! the plant density for large trees does not actually decrease in the donor patch
@@ -2424,6 +2431,7 @@ contains
     ! !USES:
     use EDParamsMod,  only : ED_val_understorey_death
     use SFParamsMod,  only : SF_val_cwd_frac
+    use EDMortalityFunctionsMod , only : ExemptTreefallDist
     !
     ! !ARGUMENTS:
     type(ed_site_type)  , intent(inout), target :: currentSite 
@@ -2511,10 +2519,11 @@ contains
              struct_m        = 0._r8
           end if
 
-          if(currentCohort%canopy_layer == 1)then
+          if(currentCohort%canopy_layer == 1 .and. .not. ExemptTreefallDist(currentCohort))then
 
              ! Upper canopy trees. The total dead is based on their disturbance
-             ! generating mortality rate.
+             ! generating mortality rate. Non-woody (exempt) canopy plants have all
+             ! of their mortality applied via dndt and fall through to num_dead = 0.
 
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
                   hlm_freq_day * mortality_disturbance_fraction)
@@ -2529,8 +2538,9 @@ contains
 
           else
 
-             ! The only thing left is uderstory grasses. These guys aren't
-             ! killed by tree-fall disturbance events.
+             ! The only thing left is grasses (understory, or canopy plants exempt
+             ! from treefall disturbance). These guys aren't killed by tree-fall
+             ! disturbance events.
 
              num_dead = 0._r8
 
