@@ -1,0 +1,327 @@
+! Summary: Unit tests for FatesPlantHydraulicsMod geometric calculations (nodes, length, volume, and SumBetweenDepths depth-weighted integration).
+!=========================================================================================
+! Tests for FatesPlantHydraulicsMod geometric calculations (nodes, length, and volumes)
+!=========================================================================================
+module FatesPlantHydraulicsMod_geom_test
+  use FatesPlantHydraulicsMod, only : UpdatePlantHydrNodes, UpdatePlantHydrLenVol, SavePreviousCompartmentVolumes, SumBetweenDepths
+  use FatesCohortMod, only : fates_cohort_type
+  use FatesHydraulicsMemMod, only : ed_site_hydr_type, ed_cohort_hydr_type
+  use FatesParameterDerivedMod, only : param_derived
+  use FatesConstantsMod, only : r8 => fates_r8
+  use PRTParametersMod, only : prt_params
+  use EDPftvarcon, only : EDPftvarcon_inst
+  use EDCohortDynamicsMod, only : InitPRTObject
+  use PRTGenericMod, only : SetState, leaf_organ, fnrt_organ, sapw_organ, struct_organ, carbon12_element, num_elements, element_list
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesUnitTestPRTParametersMod, only : init_mock_prt_params
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestPlantHydraulicsGeom
+  contains
+  end type TestPlantHydraulicsGeom
+
+contains
+
+  ! Summary: Setup mock parameters for FATES allometry and fine root geometry.
+  subroutine init_mock_params()
+    call init_mock_prt_params()
+
+    if (.not. allocated(param_derived%branch_frac)) allocate(param_derived%branch_frac(1))
+    ! Branch fraction set to 0.5 (50% branch wood / 50% main stem biomass allocation split)
+    param_derived%branch_frac(1) = 0.5_r8
+
+    if (.not. allocated(EDPftvarcon_inst%hydr_srl)) allocate(EDPftvarcon_inst%hydr_srl(1))
+    if (.not. allocated(EDPftvarcon_inst%hydr_rs2)) allocate(EDPftvarcon_inst%hydr_rs2(1))
+    ! Specific root length = 10.0 m/g (represents fine root absorptive surface per unit carbon mass)
+    EDPftvarcon_inst%hydr_srl(1) = 10.0_r8
+    ! Fine root radius = 0.001 m = 1 mm (standard fine absorbing root radius)
+    EDPftvarcon_inst%hydr_rs2(1) = 0.001_r8
+
+    ! Mock num_elements and element_list for carbon allocation tracking
+    num_elements = 1
+    if (.not. allocated(element_list)) allocate(element_list(1))
+    element_list(1) = carbon12_element
+    hlm_parteh_mode = 1 ! carbon_only mode
+  end subroutine init_mock_params
+
+  ! Summary: Tests height and depth node allocation across aboveground stem compartments and transport roots.
+  @Test
+  subroutine test_UpdatePlantHydrNodes(this)
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type) :: csite_hydr
+    ! Plant height = 10.0 m selected as representative mature canopy tree height
+    real(r8) :: plant_height = 10.0_r8
+    integer :: ft = 1
+    real(r8), parameter :: tol = 1.e-6_r8
+    
+    call init_mock_params()
+    
+    ! DBH = 20.0 cm represents 20cm trunk diameter matching 10m tree height allometry
+    ccohort%dbh = 20.0_r8
+    ccohort%pft = ft
+    allocate(ccohort%co_hydr)
+    ! Allocate 2 aboveground compartments (index 1 = leaf pool, index 2 = stem sapwood pool)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(2)
+
+    ! Soil layer interfaces: zi = [0.1m, 1.0m] (topsoil 10cm, subsoil 90cm), dz = [0.1m, 0.9m]
+    allocate(csite_hydr%zi_rhiz(2))
+    csite_hydr%nlevrhiz = 2
+    csite_hydr%zi_rhiz(1) = 0.1_r8
+    csite_hydr%zi_rhiz(2) = 1.0_r8
+    allocate(csite_hydr%dz_rhiz(2))
+    csite_hydr%dz_rhiz(1) = 0.1_r8
+    csite_hydr%dz_rhiz(2) = 0.9_r8
+
+    ! Execute node position calculation
+    call UpdatePlantHydrNodes(ccohort, ft, plant_height, csite_hydr)
+
+    ! Analytical / numerical solution derivation:
+    ! Crown depth = min(height, 0.1) = 0.1 m => z_stem = height - crown_depth = 9.9 m
+    ! Leaf compartment (index 1): upper = 10.0 m, node = 9.95 m (height - 0.5*crown_depth), lower = 9.9 m
+    ! Stem compartment (index 2): upper = 9.9 m, node = 4.95 m (0.5*z_stem), lower = 0.0 m
+    ! Transport root node depth = -0.5 * min(zi_rhiz(2), z_fr) = -0.5 * 0.248974 = -0.124487 m
+    @assertEqual(10.0_r8, ccohort%co_hydr%z_upper_ag(1), tolerance=tol)
+    @assertEqual(9.95_r8, ccohort%co_hydr%z_node_ag(1), tolerance=tol)
+    @assertEqual(9.9_r8, ccohort%co_hydr%z_lower_ag(1), tolerance=tol)
+
+    @assertEqual(9.9_r8, ccohort%co_hydr%z_upper_ag(2), tolerance=tol)
+    @assertEqual(4.95_r8, ccohort%co_hydr%z_node_ag(2), tolerance=tol)
+    @assertEqual(0.0_r8, ccohort%co_hydr%z_lower_ag(2), tolerance=tol)
+
+    @assertEqual(-0.12448708730516955_r8, ccohort%co_hydr%z_node_troot, tolerance=tol)
+
+    ! Invariant C: Spatial node depth hierarchy (z_lower < z_node < z_upper and z_node_troot < 0.0)
+    @assertTrue(all(ccohort%co_hydr%z_lower_ag < ccohort%co_hydr%z_node_ag))
+    @assertTrue(all(ccohort%co_hydr%z_node_ag < ccohort%co_hydr%z_upper_ag))
+    @assertTrue(ccohort%co_hydr%z_node_troot < 0.0_r8)
+
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+    deallocate(ccohort%co_hydr)
+    deallocate(csite_hydr%zi_rhiz)
+    deallocate(csite_hydr%dz_rhiz)
+  end subroutine test_UpdatePlantHydrNodes
+
+
+  ! Summary: Tests plant organ volume and fine-root length distribution calculations from biomass pools.
+  @Test
+  subroutine test_UpdatePlantHydrLenVol(this)
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(fates_cohort_type), target :: ccohort
+    type(ed_site_hydr_type) :: csite_hydr
+    real(r8), parameter :: tol = 1.e-5_r8
+    
+    call init_mock_params()
+    
+    ! Cohort allometry inputs: DBH = 20.0 cm, height = 10.0 m, canopy_trim = 1.0 (un-trimmed full canopy), efstem = 1.0 (full stem density)
+    ccohort%dbh = 20.0_r8
+    ccohort%pft = 1
+    ccohort%height = 10.0_r8
+    ccohort%crowndamage = 0
+    ccohort%canopy_trim = 1.0_r8
+    ccohort%efstem_coh = 1.0_r8
+    ccohort%size_class = 1
+    allocate(ccohort%co_hydr)
+    call ccohort%co_hydr%AllocateHydrCohortArrays(2)
+
+    ! Soil layer interfaces: zi = [0.1m, 1.0m], dz = [0.1m, 0.9m]
+    allocate(csite_hydr%zi_rhiz(2))
+    allocate(csite_hydr%dz_rhiz(2))
+    csite_hydr%nlevrhiz = 2
+    csite_hydr%zi_rhiz(1) = 0.1_r8
+    csite_hydr%zi_rhiz(2) = 1.0_r8
+    csite_hydr%dz_rhiz(1) = 0.1_r8
+    csite_hydr%dz_rhiz(2) = 0.9_r8
+
+    ! Execute volume and length update routine with test organ carbon pools:
+    ! leaf_c = 1.0 kgC, sapw_c = 5.0 kgC, fnrt_c = 0.5 kgC, struct_c = 10.0 kgC
+    call UpdatePlantHydrLenVol(ccohort%co_hydr, csite_hydr, &
+         ccohort%pft, ccohort%dbh, ccohort%height, &
+         ccohort%crowndamage, ccohort%canopy_trim, ccohort%efstem_coh, &
+         ccohort%size_class, &
+         1.0_r8, &
+         5.0_r8, &
+         0.5_r8, &
+         10.0_r8)
+
+    ! Analytical / allometric target values:
+    ! Leaf volume (v_ag(1)): 0.00329127901571 m3 (calculated from denleaf and c2b)
+    ! Stem sapwood volume (v_ag(2)): 0.0000675 m3 (a_sapwood * z_stem)
+    ! Transport root volume (v_troot): 0.02770796326795 m3
+    @assertEqual(0.0032912790157100975_r8, ccohort%co_hydr%v_ag(1), tolerance=tol)
+    @assertEqual(0.0000675_r8, ccohort%co_hydr%v_ag(2), tolerance=tol)
+    @assertEqual(0.02770796326795_r8, ccohort%co_hydr%v_troot, tolerance=tol)
+
+    ! Total fine root length = 10,000 m distributed across soil layers
+    @assertEqual(10000.0_r8, sum(ccohort%co_hydr%l_aroot_layer), tolerance=1.0_r8)
+    ! Total fine root volume = pi * r^2 * L_rhiz = pi * (0.001)^2 * 8820.0 = 0.02770796326795 m3
+    @assertEqual(0.02770796326795_r8, sum(ccohort%co_hydr%v_aroot_layer), tolerance=1.e-4_r8)
+
+    call ccohort%co_hydr%DeallocateHydrCohortArrays()
+    deallocate(ccohort%co_hydr)
+    deallocate(csite_hydr%zi_rhiz)
+    deallocate(csite_hydr%dz_rhiz)
+  end subroutine test_UpdatePlantHydrLenVol
+
+  ! Summary: Tests copying current compartment volumes into previous timestep volume arrays for size-dependent updates.
+  @Test
+  subroutine test_SavePreviousCompartmentVolumes(this)
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(ed_cohort_hydr_type) :: ccohort_hydr
+    
+    allocate(ccohort_hydr%v_aroot_layer(2))
+    allocate(ccohort_hydr%v_aroot_layer_init(2))
+    
+    ! Current volume inputs: v_ag(1) = 5.0 m3, v_troot = 10.0 m3, v_aroot = [1.0 m3, 2.0 m3]
+    ccohort_hydr%v_ag(1) = 5.0_r8
+    ccohort_hydr%v_troot = 10.0_r8
+    ccohort_hydr%v_aroot_layer(1) = 1.0_r8
+    ccohort_hydr%v_aroot_layer(2) = 2.0_r8
+    
+    ! Initial target arrays set to zero
+    ccohort_hydr%v_ag_init(:) = 0.0_r8
+    ccohort_hydr%v_troot_init = 0.0_r8
+    ccohort_hydr%v_aroot_layer_init(:) = 0.0_r8
+    
+    ! Execute save routine
+    call SavePreviousCompartmentVolumes(ccohort_hydr)
+    
+    ! Verify exact copy of current volumes to _init variables
+    @assertEqual(5.0_r8, ccohort_hydr%v_ag_init(1))
+    @assertEqual(10.0_r8, ccohort_hydr%v_troot_init)
+    @assertEqual(1.0_r8, ccohort_hydr%v_aroot_layer_init(1))
+    @assertEqual(2.0_r8, ccohort_hydr%v_aroot_layer_init(2))
+    
+    deallocate(ccohort_hydr%v_aroot_layer)
+    deallocate(ccohort_hydr%v_aroot_layer_init)
+  ! Summary: Tests SumBetweenDepths integration when requested bottom depth exceeds total soil column depth.
+  @Test
+  subroutine test_SumBetweenDepths_ExceedingSoilColumn(this)
+    use FatesPlantHydraulicsMod, only : SumBetweenDepths
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(ed_site_hydr_type) :: csite_hydr
+    real(r8) :: array_in(2)
+    real(r8) :: result_sum
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    ! Soil column with 2 layers: layer 1 [0.0 - 0.5m, dz=0.5], layer 2 [0.5 - 1.0m, dz=0.5]
+    csite_hydr%nlevrhiz = 2
+    allocate(csite_hydr%zi_rhiz(2))
+    allocate(csite_hydr%dz_rhiz(2))
+    csite_hydr%zi_rhiz(1) = 0.5_r8
+    csite_hydr%zi_rhiz(2) = 1.0_r8
+    csite_hydr%dz_rhiz(1) = 0.5_r8
+    csite_hydr%dz_rhiz(2) = 0.5_r8
+
+    ! Quantity array_in: 10.0 in layer 1, 20.0 in layer 2
+    ! Total integral across full 1.0m soil column = 10*0.5 + 20*0.5 = 15.0
+    ! Average flux per meter over 1.0m soil column = 15.0 / 1.0 = 15.0
+    array_in(1) = 10.0_r8
+    array_in(2) = 20.0_r8
+
+    ! Query integration depth depth_t = 0.0m, depth_b = 3.0m (exceeds soil column 1.0m)
+    ! Proper soil column capping: integral is 30.0 / (min(3.0, 1.0) - 0.0) = 30.0 / 1.0 = 30.0
+    ! Mutated code (uncapped): integral is 30.0 / (3.0 - 0.0) = 10.0 (FAILS!)
+    result_sum = SumBetweenDepths(csite_hydr, 0.0_r8, 3.0_r8, array_in)
+
+    @assertEqual(30.0_r8, result_sum, tolerance=tol)
+
+    deallocate(csite_hydr%zi_rhiz)
+    deallocate(csite_hydr%dz_rhiz)
+  end subroutine test_SumBetweenDepths_ExceedingSoilColumn
+
+  ! Summary: Tests SumBetweenDepths depth-weighted integration across non-uniform soil layer interfaces, partial overlaps, and boundary limits.
+  @Test
+  subroutine test_SumBetweenDepths(this)
+    use FatesPlantHydraulicsMod, only : SumBetweenDepths
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(ed_site_hydr_type) :: csite_hydr
+    ! Layer profile input quantities
+    real(r8) :: array_in(3)
+    real(r8) :: res_full, res_partial, res_out_of_bounds
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    ! 3 rhizosphere soil layers setup with non-uniform thickness
+    csite_hydr%nlevrhiz = 3
+    allocate(csite_hydr%zi_rhiz(3))
+    allocate(csite_hydr%dz_rhiz(3))
+    ! Soil depth interfaces [m] (0.25m top, 0.75m middle, 1.75m bottom interface)
+    csite_hydr%zi_rhiz(1) = 0.25_r8
+    csite_hydr%zi_rhiz(2) = 0.75_r8
+    csite_hydr%zi_rhiz(3) = 1.75_r8
+    ! Soil layer thicknesses [m] (0.25m, 0.50m, 1.00m)
+    csite_hydr%dz_rhiz(1) = 0.25_r8
+    csite_hydr%dz_rhiz(2) = 0.50_r8
+    csite_hydr%dz_rhiz(3) = 1.00_r8
+
+    ! Quantity array per soil layer [units/layer]
+    array_in(1) = 10.0_r8
+    array_in(2) = 20.0_r8
+    array_in(3) = 30.0_r8
+
+    ! Case 1: Integration over full layer 2 (0.25m to 0.75m)
+    ! Rationale: Verifies encasement sum (20.0 / 0.5 = 40.0 depth-weighted rate)
+    res_full = SumBetweenDepths(csite_hydr, 0.25_r8, 0.75_r8, array_in)
+    @assertEqual(40.0_r8, res_full, tolerance=tol)
+
+    ! Case 2: Integration over layers 1 and 2 (0.0m to 0.75m)
+    ! Rationale: Encase layers 1 and 2 (sum 10 + 20 = 30 over 0.75m interval => 40.0)
+    res_partial = SumBetweenDepths(csite_hydr, 0.0_r8, 0.75_r8, array_in)
+    @assertEqual(40.0_r8, res_partial, tolerance=tol)
+
+    ! Case 3: Integration depth beyond soil profile (2.0m to 3.0m)
+    ! Rationale: Deeper than soil column returns 0.0
+    res_out_of_bounds = SumBetweenDepths(csite_hydr, 2.0_r8, 3.0_r8, array_in)
+    @assertEqual(0.0_r8, res_out_of_bounds, tolerance=tol)
+
+    ! Invariants: Non-negative integration density
+    @assertTrue(res_full >= 0.0_r8)
+    @assertTrue(res_partial >= 0.0_r8)
+
+    deallocate(csite_hydr%zi_rhiz)
+  end subroutine test_SumBetweenDepths
+
+
+  ! Summary: Tests SumBetweenDepths for shallow root depth integration (i_rhiz_b == 0) on non-uniform vertical grid spacing.
+  @Test
+  subroutine test_SumBetweenDepths_ShallowPartialLayer(this)
+    class(TestPlantHydraulicsGeom), intent(inout) :: this
+    type(ed_site_hydr_type) :: csite_hydr
+    real(r8) :: array_in(3)
+    real(r8) :: res_shallow
+    ! Numerical tolerance for depth-weighted sum
+    real(r8), parameter :: tol = 1.e-6_r8
+
+    ! 3 rhizosphere soil layers setup with non-uniform thickness (5cm, 15cm, 80cm)
+    csite_hydr%nlevrhiz = 3
+    allocate(csite_hydr%zi_rhiz(3))
+    allocate(csite_hydr%dz_rhiz(3))
+    csite_hydr%zi_rhiz(1) = 0.05_r8
+    csite_hydr%zi_rhiz(2) = 0.20_r8
+    csite_hydr%zi_rhiz(3) = 1.00_r8
+    csite_hydr%dz_rhiz(1) = 0.05_r8
+    csite_hydr%dz_rhiz(2) = 0.15_r8
+    csite_hydr%dz_rhiz(3) = 0.80_r8
+
+    array_in(1) = 10.0_r8
+    array_in(2) = 20.0_r8
+    array_in(3) = 30.0_r8
+
+    ! Integration from surface 0.0m down to shallow depth 0.02m (within layer 1 where i_rhiz_b == 0)
+    ! Analytical derivation:
+    ! Fraction of layer 1 = 0.02 / 0.05 = 0.40
+    ! Integrated quantity = 0.40 * 10.0 = 4.0
+    ! Normalized depth-weighted sum = 4.0 / (0.02 - 0.00) = 200.0
+    res_shallow = SumBetweenDepths(csite_hydr, 0.0_r8, 0.02_r8, array_in)
+    @assertEqual(200.0_r8, res_shallow, tolerance=tol)
+
+    deallocate(csite_hydr%zi_rhiz)
+    deallocate(csite_hydr%dz_rhiz)
+  end subroutine test_SumBetweenDepths_ShallowPartialLayer
+
+end module FatesPlantHydraulicsMod_geom_test
+
+
