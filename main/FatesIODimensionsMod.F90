@@ -16,6 +16,7 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levscag = 'fates_levscag'      ! matches histFileMod
     character(*), parameter, public  :: levscagpft = 'fates_levscagpf' ! matches histFileMod
     character(*), parameter, public  :: levagepft = 'fates_levagepft'  ! matches histFileMod
+    character(*), parameter, public  :: levcanagepft = 'fates_levcnagpf' ! matches histFileMod
     character(*), parameter, public  :: levscpf = 'fates_levscpf'      ! matches histFileMod
     character(*), parameter, public  :: levscls = 'fates_levscls'      ! matches histFileMod
     character(*), parameter, public  :: levpft = 'fates_levpft'        ! matches histFileMod
@@ -100,6 +101,9 @@ module FatesIODimensionsMod
     ! levagepft = This is a strcture that records the boundaries for the 
     ! number of patch age x pft
 
+    ! levcanagepft = This is a strcture that records the boundaries for the 
+    ! number of canopy layers x patch age x pft
+
     ! levagefuel = This is a strcture that records the boundaries for the 
     ! number of patch age x fuel size class
 
@@ -141,6 +145,8 @@ module FatesIODimensionsMod
        integer :: sizeagepft_class_end
        integer :: agepft_class_begin
        integer :: agepft_class_end
+       integer :: layeragepft_class_begin
+       integer :: layeragepft_class_end
        integer :: sizepft_class_begin
        integer :: sizepft_class_end
        integer :: coagepf_class_begin
