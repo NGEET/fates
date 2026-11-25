@@ -78,7 +78,7 @@ program FatesTestROS
 
       use FatesConstantsMod, only : r8 => fates_r8
       use FatesUnitTestIOMod,  only : OpenNCFile, CloseNCFile, RegisterNCDims
-      use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
+      use FatesUnitTestIOMod,  only : RegisterVarAtts, EndNCDef, WriteVar
       use FatesUnitTestIOMod,  only : type_double
       implicit none
       character(len=*), intent(in) :: out_file
@@ -370,7 +370,7 @@ subroutine WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,    
   !
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesUnitTestIOMod,  only : OpenNCFile, CloseNCFile, RegisterNCDims
-  use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
+  use FatesUnitTestIOMod,  only : RegisterVarAtts, EndNCDef, WriteVar
   use FatesUnitTestIOMod,  only : type_double
   
   implicit none
@@ -419,66 +419,51 @@ subroutine WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,    
   ! first register dimension variables
   
   ! register fuel depth
-  call RegisterVar(ncid, 'fuel_depth', dimIDs(6:6), type_double,   &
-    [character(len=20)  :: 'units', 'long_name'],           &
-    [character(len=150) :: 'm', 'fuel bed depth'], 2, fuel_depthID)
+  call RegisterVarAtts(ncid, 'fuel_depth', dimIDs(6:6), type_double, 'm',               &
+    'fuel bed depth', fuel_depthID)
   
   ! register SAV 
-  call RegisterVar(ncid, 'SAV', dimIDs(1:1), type_double,   &
-    [character(len=20)  :: 'units', 'long_name'],           &
-    [character(len=150) :: '/cm', 'fuel surface area to volume ratio'], 2, SAVID)
+  call RegisterVarAtts(ncid, 'SAV', dimIDs(1:1), type_double, '/cm',                    &
+    'fuel surface area to volume ratio', SAVID)
     
   ! register packing ratio
-  call RegisterVar(ncid, 'packing_ratio', dimIDs(2:2), type_double,  &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: '', 'packing ratio'], 2, betaID)
+  call RegisterVarAtts(ncid, 'packing_ratio', dimIDs(2:2), type_double, '',             &
+    'packing ratio', betaID)
     
   ! register SAV values 
-  call RegisterVar(ncid, 'SAV_ind', dimIDs(3:3), type_double,   &
-    [character(len=20)  :: 'units', 'long_name'],                &
-    [character(len=150) :: '/cm', 'fuel surface area to volume ratio'], 2, SAVindID)
+  call RegisterVarAtts(ncid, 'SAV_ind', dimIDs(3:3), type_double, '/cm',                &
+    'fuel surface area to volume ratio', SAVindID)
     
   ! register relative packing ratio
-  call RegisterVar(ncid, 'beta_ratio', dimIDs(4:4), type_double,     &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: '', 'relative packing ratio'], 2, beta_r_ID)
+  call RegisterVarAtts(ncid, 'beta_ratio', dimIDs(4:4), type_double, '',                &
+    'relative packing ratio', beta_r_ID)
     
   ! register fuel moisture
-  call RegisterVar(ncid, 'fuel_moisture', dimIDs(5:5), type_double,     &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: 'm3/m3', 'fuel moisture'], 2, moistID)
+  call RegisterVarAtts(ncid, 'fuel_moisture', dimIDs(5:5), type_double, 'm3/m3',        &
+    'fuel moisture', moistID)
 
   ! then register actual variables
   
   ! register reaction intensity
-  call RegisterVar(ncid, 'reaction_intensity', dimIDs(6:6), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'fuel_depth', 'kJ/m2/min', 'reaction intensity'],  &
-    3, reactionintenseID)
+  call RegisterVarAtts(ncid, 'reaction_intensity', dimIDs(6:6), type_double,            &
+    'kJ/m2/min', 'reaction intensity', reactionintenseID, coordinates='fuel_depth')
 
   ! register propagating flux
-  call RegisterVar(ncid, 'prop_flux', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'SAV packing_ratio', '', 'propagating flux'],  &
-    3, propfluxID)
+  call RegisterVarAtts(ncid, 'prop_flux', dimIDs(1:2), type_double, '',                 &
+    'propagating flux', propfluxID, coordinates='SAV packing_ratio')
     
   ! register reaction velocity 
-  call RegisterVar(ncid, 'reaction_velocity', (/dimIDs(4), dimIDs(3)/), type_double,  &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],         &
-    [character(len=150) :: 'SAV_ind beta_ratio', '/min', 'reaction velocity'], &
-    3, reactionvelID)
+  call RegisterVarAtts(ncid, 'reaction_velocity', (/dimIDs(4), dimIDs(3)/),             &
+    type_double, '/min', 'reaction velocity', reactionvelID,                            &
+    coordinates='SAV_ind beta_ratio')
     
   ! register heat of preignition
-  call RegisterVar(ncid, 'q_ig', dimIDs(5:5), type_double,  &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],         &
-    [character(len=150) :: 'fuel_moisture', 'kJ/kg', 'heat of preignition'], &
-    3, qigID)
+  call RegisterVarAtts(ncid, 'q_ig', dimIDs(5:5), type_double, 'kJ/kg',                 &
+    'heat of preignition', qigID, coordinates='fuel_moisture')
     
   ! register effective heating number
-  call RegisterVar(ncid, 'eps', dimIDs(1:1), type_double,  &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],         &
-    [character(len=150) :: 'SAV', '', 'effective heating number'], &
-    3, epsID)
+  call RegisterVarAtts(ncid, 'eps', dimIDs(1:1), type_double, '',                       &
+    'effective heating number', epsID, coordinates='SAV')
     
     
   ! finish defining variables

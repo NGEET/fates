@@ -11,6 +11,7 @@ module FatesFactoryMod
   use FatesConstantsMod,           only : default_regeneration
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
+  use FatesGlobals,                only : FatesGlobalsInit
   use FatesCohortMod,              only : fates_cohort_type
   use FatesPatchMod,               only : fates_patch_type
   use EDTypesMod,                  only : init_spread_inventory
@@ -76,10 +77,21 @@ module FatesFactoryMod
     ! Initialize globals needed for running factory
     
     ! ARGUMENTS:
-    real(r8), intent(in) :: step_size ! step size to use
+    real(r8), optional, intent(in) :: step_size ! step size to use
     
     ! LOCALS:
-    integer :: i ! looping index
+    real(r8) :: step_size_local ! local step size actually used
+    integer  :: i               ! looping index
+    
+    ! CONSTANTS:
+    real(r8), parameter :: default_step_size = 86400.0_r8
+    
+    if (present(step_size)) then 
+      step_size_local = step_size 
+    else
+      step_size_local = default_step_size 
+    end if 
+
     
     ! initialize some values
     hlm_parteh_mode = carbon_only
@@ -93,15 +105,15 @@ module FatesFactoryMod
     hlm_regeneration_model = default_regeneration
     
     allocate(ema_24hr)
-    call ema_24hr%define(sec_per_day, step_size, moving_ema_window)
+    call ema_24hr%define(sec_per_day, step_size_local, moving_ema_window)
     allocate(fixed_24hr)
-    call fixed_24hr%define(sec_per_day, step_size, fixed_window)
+    call fixed_24hr%define(sec_per_day, step_size_local, fixed_window)
     allocate(ema_lpa)  
-    call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, step_size,                &
+    call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, step_size_local,        &
       moving_ema_window)
     allocate(ema_longterm)  
     call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day,       &
-      step_size, moving_ema_window)
+      step_size_local, moving_ema_window)
       
     do i = 1, nlevleaf
       dinc_vai(i) = vai_top_bin_width*vai_width_increase_factor**(i-1)
@@ -113,6 +125,8 @@ module FatesFactoryMod
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
     
+    call FatesGlobalsInit(6, .false.)
+        
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------

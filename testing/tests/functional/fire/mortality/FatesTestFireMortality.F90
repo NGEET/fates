@@ -71,7 +71,7 @@ program FatesTestFireMortality
 
       use FatesConstantsMod,   only : r8 => fates_r8
       use FatesUnitTestIOMod,  only : OpenNCFile, CloseNCFile, RegisterNCDims
-      use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
+      use FatesUnitTestIOMod,  only : RegisterVarAtts, EndNCDef, WriteVar
       use FatesUnitTestIOMod,  only : type_double
       implicit none
       character(len=*), intent(in) :: out_file
@@ -314,7 +314,7 @@ subroutine WriteFireMortData(out_file, num_pfts, tree_diameter, tau_c, mortality
   !
   use FatesConstantsMod,  only : r8 => fates_r8
   use FatesUnitTestIOMod, only : OpenNCFile, CloseNCFile, RegisterNCDims
-  use FatesUnitTestIOMod, only : RegisterVar, EndNCDef, WriteVar
+  use FatesUnitTestIOMod, only : RegisterVarAtts, EndNCDef, WriteVar
   use FatesUnitTestIOMod, only : type_double, type_int
   
   implicit none
@@ -372,65 +372,51 @@ subroutine WriteFireMortData(out_file, num_pfts, tree_diameter, tau_c, mortality
   ! first register dimension variables
   
   ! register dbh 
-  call RegisterVar(ncid, dim_names(1), dimIDs(1:1), type_double,   &
-    [character(len=20)  :: 'units', 'long_name'],                  &
-    [character(len=150) :: 'cm', 'diameter at breast height'], 2, dbhID)
+  call RegisterVarAtts(ncid, dim_names(1), dimIDs(1:1), type_double, 'cm',              &
+    'diameter at breast height', dbhID)
     
   ! register pft
-  call RegisterVar(ncid, dim_names(2), dimIDs(2:2), type_int,      &
-    [character(len=20)  :: 'units', 'long_name'],                  &
-    [character(len=150) :: '', 'plant functional type'], 2, pftID)
+  call RegisterVarAtts(ncid, dim_names(2), dimIDs(2:2), type_int, '',                   &
+    'plant functional type', pftID)
     
   ! register crown kill
-  call RegisterVar(ncid, dim_names(3), dimIDs(3:3), type_double,     &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: '', 'fraction crown volume burned'], 2, crownkillID)
+  call RegisterVarAtts(ncid, dim_names(3), dimIDs(3:3), type_double, '',                &
+    'fraction crown volume burned', crownkillID)
   
   ! register tau_r
-  call RegisterVar(ncid, dim_names(4), dimIDs(4:4), type_double,       &
-    [character(len=20)  :: 'units', 'long_name'],                      &
-    [character(len=150) :: '', 'relative fire residence time'], 2, taurID)
+  call RegisterVarAtts(ncid, dim_names(4), dimIDs(4:4), type_double, '',                &
+    'relative fire residence time', taurID)
     
   ! register scorch height
-  call RegisterVar(ncid, dim_names(5), dimIDs(5:5), type_double,       &
-    [character(len=20)  :: 'units', 'long_name'],                      &
-    [character(len=150) :: 'm', 'scorch height'], 2, SHID)
+  call RegisterVarAtts(ncid, dim_names(5), dimIDs(5:5), type_double, 'm',               &
+    'scorch height', SHID)
     
   ! register tree ids
-  call RegisterVar(ncid, dim_names(6), dimIDs(6:6), type_int,        &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: '', 'tree indices'], 2, treeID)
+  call RegisterVarAtts(ncid, dim_names(6), dimIDs(6:6), type_int, '', 'tree indices',   &
+    treeID)
     
   ! register tau_l
-  call RegisterVar(ncid, dim_names(7), dimIDs(7:7), type_double,     &
-    [character(len=20)  :: 'units', 'long_name'],                    &
-    [character(len=150) :: 'min', 'residence time of fire'], 2, taulID)
+  call RegisterVarAtts(ncid, dim_names(7), dimIDs(7:7), type_double, 'min',             &
+    'residence time of fire', taulID)
     
   ! then register actual variables
 
   ! register tau_c
-  call RegisterVar(ncid, 'tau_c', dimIDs(1:2), type_double,                                 &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                            &
-    [character(len=150) :: 'pft dbh', 'min', 'critical residence time for cambial death'],  &
-    3, taucID)
+  call RegisterVarAtts(ncid, 'tau_c', dimIDs(1:2), type_double, 'min',                  &
+    'critical residence time for cambial death', taucID, coordinates='pft dbh')
     
   ! register total mortality
-  call RegisterVar(ncid, 'total_mortality', (/dimIDs(3), dimIDs(2), dimIDs(4)/), type_double, &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                              &
-    [character(len=150) :: 'crown_kill pft tau_r', '', 'fire mortality'],                     &
-    3, mortID)
+  call RegisterVarAtts(ncid, 'total_mortality', (/dimIDs(3), dimIDs(2), dimIDs(4)/),    &
+    type_double, '', 'fire mortality', mortID, coordinates='crown_kill pft tau_r')
     
   ! register total mortality
-  call RegisterVar(ncid, 'fire_mortality_bySH', (/dimIDs(5), dimIDs(6)/), type_double, &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                       &
-    [character(len=150) :: 'SH treeID', '', 'fire mortality by SH'],                         &
-    3, firemortbySHID)
+  call RegisterVarAtts(ncid, 'fire_mortality_bySH', (/dimIDs(5), dimIDs(6)/),           &
+    type_double, '', 'fire mortality by SH', firemortbySHID, coordinates='SH treeID')
     
   ! register total mortality
-  call RegisterVar(ncid, 'fire_mortality_bytau', (/dimIDs(7), dimIDs(6)/), type_double, &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                       &
-    [character(len=150) :: 'tau_l treeID', '', 'fire mortality by tau'],                         &
-    3, firemortbytauID)
+  call RegisterVarAtts(ncid, 'fire_mortality_bytau', (/dimIDs(7), dimIDs(6)/),          &
+    type_double, '', 'fire mortality by tau', firemortbytauID,                          &
+    coordinates='tau_l treeID')
       
       
   ! finish defining variables

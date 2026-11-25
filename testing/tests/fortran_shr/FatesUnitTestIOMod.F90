@@ -12,6 +12,12 @@ module FatesUnitTestIOMod
   integer, public, parameter :: type_int = 2    ! type
   integer, public, parameter :: type_char = 3   ! type
   
+  ! attribute name/value buffer lengths - the 20/150 the existing all-literal
+  ! RegisterVar call sites already use, named so RegisterVarAtts' internal
+  ! buffers cannot drift out of step with them
+  integer, public, parameter :: max_att_name_len = 20  ! longest attribute name
+  integer, public, parameter :: max_att_len      = 150 ! longest attribute value
+  
   interface GetVar
     module procedure GetVarScalarReal
     module procedure GetVar1DReal
@@ -38,7 +44,8 @@ module FatesUnitTestIOMod
   public :: GetDimLen
   public :: GetVar
   public :: RegisterNCDims
-  public :: RegisterVar
+  public :: RegisterVarAtts
+  public :: RegisterTimeVar
   public :: WriteVar
   public :: EndNCDef
 
@@ -58,7 +65,6 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     character(len=len(filename)) :: fname       ! Local filename (trimmed)
-    integer                      :: ios         ! I/O status
     logical                      :: file_exists ! Does the file exist?
 
     ! trim filename of whitespace
@@ -242,7 +248,6 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -451,6 +456,97 @@ module FatesUnitTestIOMod
   end subroutine RegisterNCDims
 
   !=====================================================================================
+  
+  subroutine RegisterVarAtts(ncid, var_name, dimID, type, units, long_name,    &
+    varID, coordinates)
+    !
+    ! DESCRIPTION:
+    ! Defines a variable carrying the standard attribute set - units and
+    ! long_name, plus coordinates for a variable spanning more than one
+    ! dimension. This covers essentially every variable these test drivers
+    ! write; RegisterVar below remains for anything needing a different
+    ! attribute set.
+    !
+    ! Taking the attributes as scalar character arguments removes the array
+    ! constructor from the call site entirely, so the bug is unreachable rather
+    ! than merely avoided. The arrays this routine builds internally are
+    ! assembled by assignment into equal-length locals, which pads safely.
+
+    ! ARGUMENTS:
+    integer,          intent(in)  :: ncid        ! netcdf file id
+    character(len=*), intent(in)  :: var_name    ! variable name
+    integer,          intent(in)  :: dimID(:)    ! dimension IDs
+    integer,          intent(in)  :: type        ! type: int or double
+    character(len=*), intent(in)  :: units       ! units attribute
+    character(len=*), intent(in)  :: long_name   ! long_name attribute
+    integer,          intent(out) :: varID       ! variable ID
+    character(len=*), intent(in), optional :: coordinates ! coordinates attribute, for a variable spanning more than one dimension
+
+    ! LOCALS:
+    character(len=max_att_name_len) :: att_names(3) ! attribute names, filled by assignment (see the header)
+    character(len=max_att_len)      :: att_vals(3)  ! attribute values, filled by assignment (see the header)
+    integer :: num_atts ! number of attributes actually set
+
+    if (present(coordinates)) then
+      att_names(1) = 'coordinates'
+      att_vals(1)  = coordinates
+      num_atts = 3
+    else
+      num_atts = 2
+    end if
+
+    att_names(num_atts-1) = 'units'
+    att_vals(num_atts-1)  = units
+    att_names(num_atts)   = 'long_name'
+    att_vals(num_atts)    = long_name
+
+    call RegisterVar(ncid, var_name, dimID, type, att_names(1:num_atts),       &
+      att_vals(1:num_atts), num_atts, varID)
+
+  end subroutine RegisterVarAtts
+  
+  !=====================================================================================
+  
+  subroutine RegisterTimeVar(ncid, var_name, dimID, type, units, long_name,   &
+    calendar, time_origin, varID)
+    !
+    ! DESCRIPTION:
+    ! Defines a CF-style time coordinate variable, carrying the four
+    ! attributes such an axis conventionally needs. Attributes are written in
+    ! the order time_origin, units, calendar, long_name - netCDF stores them in
+    ! definition order, and keeping this one fixed here means the output is
+    ! byte-for-byte what the hand-written call it replaced produced.
+    !
+    ! Exists because RegisterVar is private (see its header): a time axis is
+    ! the one variable in these drivers needing an attribute set other than
+    ! units/long_name/coordinates, so it gets a named wrapper rather than
+    ! reopening the general routine to every caller.
+
+    ! ARGUMENTS:
+    integer,          intent(in)  :: ncid        ! netcdf file id
+    character(len=*), intent(in)  :: var_name    ! variable name
+    integer,          intent(in)  :: dimID(:)    ! dimension IDs
+    integer,          intent(in)  :: type        ! type: int or double
+    character(len=*), intent(in)  :: units       ! units attribute, e.g. 'days since 2018-01-01 00:00:00'
+    character(len=*), intent(in)  :: long_name   ! long_name attribute
+    character(len=*), intent(in)  :: calendar    ! calendar attribute, e.g. 'gregorian'
+    character(len=*), intent(in)  :: time_origin ! time_origin attribute, e.g. '2018-01-01 00:00:00'
+    integer,          intent(out) :: varID       ! variable ID
+
+    ! LOCALS:
+    character(len=max_att_name_len) :: att_names(4) ! attribute names, filled by assignment (see RegisterVarAtts' header)
+    character(len=max_att_len)      :: att_vals(4)  ! attribute values, filled by assignment (see RegisterVarAtts' header)
+
+    att_names(1) = 'time_origin' ; att_vals(1) = time_origin
+    att_names(2) = 'units'       ; att_vals(2) = units
+    att_names(3) = 'calendar'    ; att_vals(3) = calendar
+    att_names(4) = 'long_name'   ; att_vals(4) = long_name
+
+    call RegisterVar(ncid, var_name, dimID, type, att_names, att_vals, 4, varID)
+
+  end subroutine RegisterTimeVar
+
+  !  =====================================================================================
 
   subroutine RegisterVar(ncid, var_name, dimID, type, att_names, atts, num_atts, varID)
     !

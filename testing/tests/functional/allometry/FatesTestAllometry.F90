@@ -50,7 +50,7 @@ program FatesTestAllometry
         total_biom_parts, total_biom_tissues)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
-      use FatesUnitTestIOMod, only : WriteVar, RegisterVar
+      use FatesUnitTestIOMod, only : WriteVar, RegisterVarAtts
       use FatesUnitTestIOMod, only : type_double, type_int
       use FatesConstantsMod,  only : r8 => fates_r8
       implicit none
@@ -142,7 +142,7 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
   use FatesConstantsMod,  only : r8 => fates_r8
   use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
   use FatesUnitTestIOMod, only : WriteVar
-  use FatesUnitTestIOMod, only : RegisterVar
+  use FatesUnitTestIOMod, only : RegisterVarAtts
   use FatesUnitTestIOMod, only : EndNCDef
   use FatesUnitTestIOMod, only : type_double, type_int
 
@@ -196,86 +196,61 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
   call RegisterNCDims(ncid, dim_names, (/numdbh, numpft/), 2, dimIDs)
 
   ! register dbh
-  call RegisterVar(ncid, dim_names(1), dimIDs(1:1), type_double,         &
-    [character(len=20)  :: 'units', 'long_name'],                        &
-    [character(len=150) :: 'cm', 'diameter at breast height'], 2, dbhID)
+  call RegisterVarAtts(ncid, dim_names(1), dimIDs(1:1), type_double, 'cm',              &
+    'diameter at breast height', dbhID)
 
   ! register pft
-  call RegisterVar(ncid, dim_names(2), dimIDs(2:2), type_int,      &
-    [character(len=20)  :: 'units', 'long_name'],                  &
-    [character(len=150) :: '', 'plant functional type'], 2, pftID)
+  call RegisterVarAtts(ncid, dim_names(2), dimIDs(2:2), type_int, '',                   &
+    'plant functional type', pftID)
 
   ! register height
-  call RegisterVar(ncid, 'height', dimIDs(1:2), type_double,   &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
-    [character(len=150) :: 'pft dbh', 'm', 'plant height'],      &
-    3, heightID)
+  call RegisterVarAtts(ncid, 'height', dimIDs(1:2), type_double, 'm', 'plant height',   &
+    heightID, coordinates='pft dbh')
 
   ! register aboveground biomass
-  call RegisterVar(ncid, 'bagw', dimIDs(1:2), type_double,                     &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                 &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant aboveground woody biomass'], &
-    3, bagwID)
+  call RegisterVarAtts(ncid, 'bagw', dimIDs(1:2), type_double, 'kgC',                   &
+    'plant aboveground woody biomass', bagwID, coordinates='pft dbh')
 
   ! register leaf biomass
-  call RegisterVar(ncid, 'blmax', dimIDs(1:2), type_double,               &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant maximum leaf biomass'], &
-    3, blmaxID)
+  call RegisterVarAtts(ncid, 'blmax', dimIDs(1:2), type_double, 'kgC',                  &
+    'plant maximum leaf biomass', blmaxID, coordinates='pft dbh')
 
   ! register crown area
-  call RegisterVar(ncid, 'crown_area', dimIDs(1:2), type_double,          &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant crown area per cohort'], &
-    3, c_areaID)
+  call RegisterVarAtts(ncid, 'crown_area', dimIDs(1:2), type_double, 'm2',              &
+    'plant crown area per cohort', c_areaID, coordinates='pft dbh')
 
   ! register sapwood area
-  call RegisterVar(ncid, 'sapwood_area', dimIDs(1:2), type_double,                                 &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                                     &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant cross section area sapwood at reference height'], &
-    3, sapwoodareaID)
+  call RegisterVarAtts(ncid, 'sapwood_area', dimIDs(1:2), type_double, 'm2',            &
+    'plant cross section area sapwood at reference height', sapwoodareaID,              &
+    coordinates='pft dbh')
 
   ! register sapwood biomass
-  call RegisterVar(ncid, 'bsap', dimIDs(1:2), type_double,           &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant sapwood biomass'], &
-    3, bsapID)
+  call RegisterVarAtts(ncid, 'bsap', dimIDs(1:2), type_double, 'kgC',                   &
+    'plant sapwood biomass', bsapID, coordinates='pft dbh')
 
   ! register belowground woody biomass
-  call RegisterVar(ncid, 'bbgw', dimIDs(1:2), type_double,           &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant belowground woody biomass'], &
-    3, bbgwID)
+  call RegisterVarAtts(ncid, 'bbgw', dimIDs(1:2), type_double, 'kgC',                   &
+    'plant belowground woody biomass', bbgwID, coordinates='pft dbh')
 
   ! register fineroot biomass
-  call RegisterVar(ncid, 'fineroot_biomass', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant fineroot biomass'], &
-    3, finerootID)
+  call RegisterVarAtts(ncid, 'fineroot_biomass', dimIDs(1:2), type_double, 'kgC',       &
+    'plant fineroot biomass', finerootID, coordinates='pft dbh')
 
   ! register storage biomass
-  call RegisterVar(ncid, 'bstore', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant storage biomass'], &
-    3, bstoreID)
+  call RegisterVarAtts(ncid, 'bstore', dimIDs(1:2), type_double, 'kgC',                 &
+    'plant storage biomass', bstoreID, coordinates='pft dbh')
 
   ! register structural biomass
-  call RegisterVar(ncid, 'bdead', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant deadwood (structural/heartwood) biomass'], &
-    3, bdeadID)
+  call RegisterVarAtts(ncid, 'bdead', dimIDs(1:2), type_double, 'kgC',                  &
+    'plant deadwood (structural/heartwood) biomass', bdeadID, coordinates='pft dbh')
 
   ! register total biomass (parts)
-  call RegisterVar(ncid, 'total_biomass_parts', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from parts'], &
-    3, totbiomID1)
+  call RegisterVarAtts(ncid, 'total_biomass_parts', dimIDs(1:2), type_double, 'kgC',    &
+    'plant total biomass calculated from parts', totbiomID1, coordinates='pft dbh')
 
   ! register total biomass (tissues)
-  call RegisterVar(ncid, 'total_biomass_tissues', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from tissues'], &
-    3, totbiomID2)
+  call RegisterVarAtts(ncid, 'total_biomass_tissues', dimIDs(1:2), type_double, 'kgC',  &
+    'plant total biomass calculated from tissues', totbiomID2, coordinates='pft dbh')
 
   ! finish defining variables
   call EndNCDef(ncid)
