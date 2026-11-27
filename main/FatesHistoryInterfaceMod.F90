@@ -2668,7 +2668,7 @@ contains
 
          ! treat carbon flux from imort the same way
          hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
-              sum(sites(s)%imort_carbonflux(:)) / g_per_kg
+              sum(sites(s)%imort_carbonflux(:)) 
 
          ! convert kg C / ha / day to kgc / m2 / sec
          hio_demotion_carbonflux_si(io_si) = sites(s)%demotion_carbonflux * ha_per_m2 * days_per_sec
