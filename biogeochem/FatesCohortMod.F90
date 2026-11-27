@@ -1051,12 +1051,16 @@ module FatesCohortMod
          mort_natural = mort_natural * days_per_sec * years_per_day
       end if
 
-      ! Logging mortality
+      ! Logging mortality [fraction per logging event, applied over one day]
       mort_logging = this%lmort_direct + this%lmort_collateral + this%lmort_infra
       if (per_year) then
-         ! Convert kg m-2 s-1 to kg m-2 yr-1
-         mort_logging = mort_logging * sec_per_day * days_per_year
+         ! convert from per day to per year
+         mort_logging = mort_logging * days_per_year
+      else
+         ! convert from per day to per second
+         mort_logging = mort_logging * days_per_sec
       end if
+
 
       mort_sum = mort_natural + mort_logging
 
